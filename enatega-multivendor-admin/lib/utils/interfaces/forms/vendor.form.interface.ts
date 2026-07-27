@@ -36,3 +36,16 @@ export interface IRestauransVendorDetailsForm {
   image?: string;
   phoneNumber?: string;
 }
+
+// JedzTo — simplified "Set Vendor" step: the owner account (login + temp
+// password) is auto-generated server-side by createRestaurant, so this form
+// only collects the two fields needed to create that account.
+export interface IRestaurantOwnerDetailsForm {
+  ownerName: string;
+  ownerEmail: string;
+}
+
+export interface IRestaurantOwnerDetailsFormErrors {
+  ownerName: string[];
+  ownerEmail: string[];
+}

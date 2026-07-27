@@ -1,24 +1,15 @@
 'use client';
 
 // Core imports
-import { useContext, useMemo, useRef } from 'react';
-
-// API and GraphQL
-import { GET_VENDORS } from '@/lib/api/graphql';
-
-// Hooks
-import { useQueryGQL } from '@/lib/hooks/useQueryQL';
+import { useContext, useRef } from 'react';
 
 // Context
 import { RestaurantsContext } from '@/lib/context/super-admin/restaurants.context';
 
 // Interfaces
 import {
-  IQueryResult,
   IRestaurantsAddFormComponentProps,
   IRestaurantsContextPropData,
-  IVendorReponse,
-  IVendorResponseGraphQL,
 } from '@/lib/utils/interfaces';
 
 // PrimeReact components
@@ -51,24 +42,6 @@ const RestaurantsForm = ({
     onSetRestaurantsContextData,
   } = useContext(RestaurantsContext);
 
-  // API
-  const vendorResponse = useQueryGQL(
-    GET_VENDORS,
-    { fetchPolicy: 'cache-and-network' },
-    {
-      debounceMs: 300,
-    }
-  ) as IQueryResult<IVendorResponseGraphQL | undefined, undefined>;
-
-  // Memoized Data
-  const vendorsDropdown = useMemo(
-    () =>
-      vendorResponse?.data?.vendors?.map((vendorItem: IVendorReponse) => {
-        return { label: vendorItem.email, code: vendorItem._id };
-      }),
-    [vendorResponse?.data?.vendors]
-  );
-
   // Handlers
   const onHandleStepChange = (order: number) => {
     onActiveStepChange(order);
@@ -93,7 +66,6 @@ const RestaurantsForm = ({
         <Stepper linear headerPosition="bottom" activeStep={activeIndex}>
           <StepperPanel header={t('Set Vendor')}>
             <VendorDetails
-              vendorsDropdown={vendorsDropdown ?? []}
               stepperProps={{
                 onStepChange: onHandleStepChange,
                 order: activeIndex,

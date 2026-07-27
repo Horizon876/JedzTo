@@ -8,6 +8,7 @@ import {
   ISignUpFormErrors,
   IVendorErrors,
   IUpdateProfileFormErrors,
+  IRestaurantOwnerDetailsFormErrors,
   IVariationErrors,
   IUpdateBussinessDetailsFormErrors,
   IShopTypeErrors,
@@ -72,6 +73,11 @@ export const RestaurantErrors: IRestaurantFormErrors = {
   image: ['Required', 'Invalid image URL'],
   logo: ['Required', 'Invalid logo URL'],
   phoneNumber: ['Required', 'Minimum 5 Numbers are Required'],
+};
+
+export const RestaurantOwnerDetailsErrors: IRestaurantOwnerDetailsFormErrors = {
+  ownerName: ['Required', 'Name cannot be only spaces'],
+  ownerEmail: ['Required', 'Invalid email'],
 };
 
 export const ProfileErrors: IUpdateProfileFormErrors = {

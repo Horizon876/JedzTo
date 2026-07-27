@@ -50,7 +50,8 @@ export const fetchPublicAccessToken = async (graphqlUrl) => {
             'user-agent': `EnategaApp/${Platform.OS}`,
             'accept-language': 'en-US',
             'x-platform': Platform.OS,
-            nonce: nonce
+            nonce: nonce,
+            'ngrok-skip-browser-warning': 'true'
           }
         }),
         cache: new InMemoryCache()

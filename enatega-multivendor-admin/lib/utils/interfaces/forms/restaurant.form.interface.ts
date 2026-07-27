@@ -19,10 +19,10 @@ export interface IRestaurantFormErrors {
 
 export interface IRestaurantForm {
   name: string;
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
+  confirmPassword?: string;
   phoneNumber?:string;
-  confirmPassword: string;
   address: string;
   deliveryTime: number;
   minOrder: number;

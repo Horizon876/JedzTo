@@ -13,6 +13,7 @@ const AuthContext = React.createContext()
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null)
+  const [isAuthReady, setIsAuthReady] = useState(false)
 
   const setTokenAsync = async token => {
     await AsyncStorage.setItem('token', token)
@@ -22,20 +23,24 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let isSubscribed = true
     ;(async() => {
-      const storedToken = await AsyncStorage.getItem('token')
+      try {
+        const storedToken = await AsyncStorage.getItem('token')
 
-      if (!storedToken) {
-        isSubscribed && setToken(null)
-        return
+        if (!storedToken) {
+          isSubscribed && setToken(null)
+          return
+        }
+
+        if (isJwtTokenExpired(storedToken)) {
+          await invalidateUserSession({ reason: 'token_expired' })
+          isSubscribed && setToken(null)
+          return
+        }
+
+        isSubscribed && setToken(storedToken)
+      } finally {
+        isSubscribed && setIsAuthReady(true)
       }
-
-      if (isJwtTokenExpired(storedToken)) {
-        await invalidateUserSession({ reason: 'token_expired' })
-        isSubscribed && setToken(null)
-        return
-      }
-
-      isSubscribed && setToken(storedToken)
     })()
     return () => {
       isSubscribed = false
@@ -68,7 +73,7 @@ export const AuthProvider = ({ children }) => {
   }, [token])
 
   return (
-    <AuthContext.Provider value={{ token, setToken, setTokenAsync}}>
+    <AuthContext.Provider value={{ token, setToken, setTokenAsync, isAuthReady }}>
       {children}
     </AuthContext.Provider>
   )

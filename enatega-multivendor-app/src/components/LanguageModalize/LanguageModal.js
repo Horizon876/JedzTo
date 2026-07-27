@@ -50,7 +50,7 @@ const LanguageModal = ({ modalVisible, setModalVisible, currentTheme, showCrossB
   const { t } = useTranslation()
   const [activeRadio, activeRadioSetter] = useState(0)
   const [loadinglang, setLoadingLang] = useState(false)
-  const [languageName, languageNameSetter] = useState('English')
+  const [languageName, languageNameSetter] = useState('polski')
 
   useEffect(() => {
     if (modalVisible) {
@@ -70,7 +70,7 @@ const LanguageModal = ({ modalVisible, setModalVisible, currentTheme, showCrossB
       const availableLanguageCodes = languageTypes.map((lang) => lang.code)
 
       // Determine which language to use
-      let languageToUse = 'en' // Default to English
+      let languageToUse = 'pl' // JedzTo defaults to Polish
 
       if (storedLanguageCode) {
         // Use stored language if it's valid

@@ -1,62 +1,41 @@
 'use client';
 
 // Core
-import { ApolloError, useMutation } from '@apollo/client';
 import { Form, Formik } from 'formik';
 import { useContext, useEffect, useState } from 'react';
 
-// Prime React
-
-// Context
-import { ToastContext } from '@/lib/context/global/toast.context';
-
 // Interface and Types
-import { ICreateVendorResponseGraphQL } from '@/lib/utils/interfaces';
-import { IRestauransVendorDetailsForm } from '@/lib/utils/interfaces/forms';
+import { IRestaurantOwnerDetailsForm } from '@/lib/utils/interfaces/forms';
 
 // Constants and Methods
-import { MAX_SQUARE_FILE_SIZE, VendorErrors } from '@/lib/utils/constants';
+import { RestaurantOwnerDetailsErrors } from '@/lib/utils/constants';
 import { onErrorMessageMatcher } from '@/lib/utils/methods/error';
 
 // Components
 import CustomButton from '@/lib/ui/useable-components/button';
 import CustomTextField from '@/lib/ui/useable-components/input-field';
 import CustomIconTextField from '@/lib/ui/useable-components/input-icon-field';
-import CustomPasswordTextField from '@/lib/ui/useable-components/password-input-field';
-import CustomUploadImageComponent from '@/lib/ui/useable-components/upload/upload-image';
 
 // Schema
-import {
-  RestaurantsVendorDetails,
-  VendorSchemaOnStoreCreate,
-} from '@/lib/utils/schema';
+import { RestaurantOwnerDetailsSchema } from '@/lib/utils/schema';
 
-// GraphQL
-import { CREATE_VENDOR, GET_VENDORS } from '@/lib/api/graphql';
-
-// Icons
+// Context
 import { RestaurantsContext } from '@/lib/context/super-admin/restaurants.context';
-import CustomDropdownComponent from '@/lib/ui/useable-components/custom-dropdown';
-import CustomInputSwitch from '@/lib/ui/useable-components/custom-input-switch';
 import { IRestaurantsVendorDetailsComponentProps } from '@/lib/utils/interfaces/restaurants.interface';
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { useTranslations } from 'next-intl';
-import CustomPhoneTextField from '@/lib/ui/useable-components/phone-input-field';
 
-const initialValues: IRestauransVendorDetailsForm = {
-  _id: null,
-  name: '',
-  email: '',
-  password: '',
-  confirmPassword: '',
-  image: '',
-  firstName: '',
-  lastName: '',
-  phoneNumber: '',
+const initialValues: IRestaurantOwnerDetailsForm = {
+  ownerName: '',
+  ownerEmail: '',
 };
+
+// JedzTo — "Set Vendor" step is now just the owner's name + email. The
+// login account (with a generated temporary password) is created
+// automatically, atomically with the restaurant, in the next step's
+// createRestaurant call — there is no vendor picker/creation here anymore.
 export default function VendorDetails({
   stepperProps,
-  vendorsDropdown,
 }: IRestaurantsVendorDetailsComponentProps) {
   // Props
   const { onStepChange, order } = stepperProps ?? {
@@ -69,112 +48,36 @@ export default function VendorDetails({
   const t = useTranslations();
 
   // Context
-  const { showToast } = useContext(ToastContext);
   const { restaurantsContextData, onSetRestaurantsContextData } =
     useContext(RestaurantsContext);
 
   // States
   const [formInitialValues, setFormValues] =
-    useState<IRestauransVendorDetailsForm>({
-      ...initialValues,
-    });
-  const [showAddForm, setShowAddForm] = useState<boolean>(false);
-
-  // Constants
-
-  // API
-  // Mutations
-  const [createVendor] = useMutation(CREATE_VENDOR, {
-    refetchQueries: [{ query: GET_VENDORS }],
-    onError,
-    onCompleted: (data: ICreateVendorResponseGraphQL) => {
-      showToast({
-        type: 'success',
-        title: t('New Vendor'),
-        message: `${t('Vendor has been')} ${!showAddForm ? t('selected') : t('added')} ${t('successfully')}`,
-        duration: 3000,
-      });
-
-      onStepChange(order + 1);
-      onSetRestaurantsContextData({
-        ...restaurantsContextData,
-        vendor: {
-          _id: {
-            label: data.createVendor?.email,
-            code: data.createVendor?._id,
-          },
-        },
-      });
-    },
-  });
+    useState<IRestaurantOwnerDetailsForm>({ ...initialValues });
 
   // Handlers
-  const onVendorSubmitHandler = async (
-    formData: IRestauransVendorDetailsForm
-  ) => {
-    try {
-      if (showAddForm) {
-        await createVendor({
-          variables: {
-            vendorInput: {
-              _id: '',
-              name: formData.firstName + ' ' + formData.lastName,
-              email: formData.email,
-              password: formData.password,
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              image: formData.image ?? '',
-              phoneNumber: `${formData.phoneNumber?.toString()}`,
-            },
-          },
-        });
-      } else {
-        onSetRestaurantsContextData({
-          ...restaurantsContextData,
-          vendor: {
-            _id: formData?._id ?? null,
-          },
-        });
+  const onOwnerSubmitHandler = (formData: IRestaurantOwnerDetailsForm) => {
+    onSetRestaurantsContextData({
+      ...restaurantsContextData,
+      vendor: {
+        ownerName: formData.ownerName.trim(),
+        ownerEmail: formData.ownerEmail.trim(),
+      },
+    });
 
-        onStepChange(order + 1);
-      }
-    } catch (error) {
-      showToast({
-        type: 'error',
-        title: `${!showAddForm ? t('Select') : t('Create')} ${t('Vendor')}`,
-        message: `${t('Vendor')} ${!showAddForm ? t('Selection') : t('Create')} ${t('Failed')}`,
-        duration: 2500,
+    onStepChange(order + 1);
+  };
+
+  // Use Effects — prefill when navigating back to this step.
+  useEffect(() => {
+    const vendor = restaurantsContextData?.vendor;
+    if (vendor?.ownerName || vendor?.ownerEmail) {
+      setFormValues({
+        ownerName: vendor.ownerName ?? '',
+        ownerEmail: vendor.ownerEmail ?? '',
       });
     }
-  };
-
-  function onError({ graphQLErrors, networkError }: ApolloError) {
-    if (!graphQLErrors && !networkError) return;
-    showToast({
-      type: 'error',
-      title: `${!showAddForm ? t('Select') : t('Create')} ${t('Vendor')}`,
-      message:
-        graphQLErrors[0]?.message ??
-        networkError?.message ??
-        `${t('Vendor')} ${!showAddForm ? t('Selection') : t('Create')} ${t('Failed')}`,
-      duration: 2500,
-    });
-  }
-
-  const onSelectVendor = () => {
-    const _id = restaurantsContextData?.vendor?._id;
-
-    if (!_id) return;
-
-    setFormValues({
-      ...initialValues,
-      _id,
-    });
-  };
-
-  // Use Effects
-  useEffect(() => {
-    onSelectVendor();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -184,229 +87,68 @@ export default function VendorDetails({
           <div>
             <Formik
               initialValues={formInitialValues}
-              validationSchema={
-                showAddForm
-                  ? VendorSchemaOnStoreCreate
-                  : RestaurantsVendorDetails
-              }
+              validationSchema={RestaurantOwnerDetailsSchema}
               enableReinitialize={true}
-              onSubmit={async (values) => {
-                await onVendorSubmitHandler(values);
-              }}
+              onSubmit={(values) => onOwnerSubmitHandler(values)}
               validateOnChange={false}
             >
-              {({
-                values,
-                errors,
-                handleChange,
-                handleSubmit,
-                isSubmitting,
-                setFieldValue,
-              }) => {
+              {({ values, errors, handleChange, handleSubmit, isSubmitting }) => {
                 return (
                   <Form onSubmit={handleSubmit}>
                     <div className="space-y-3">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:items-center">
-                        <div className="flex flex-shrink-0 items-center justify-end">
-                          <CustomInputSwitch
-                            label={t('Add Vendor')}
-                            isActive={showAddForm}
-                            onChange={() => {
-                              if (!showAddForm) {
-                                setFieldValue('_id', null);
-                              }
-                              setShowAddForm((prevState) => !prevState);
-                            }}
-                          />
-                        </div>
+                      <div>
+                        <CustomTextField
+                          type="text"
+                          name="ownerName"
+                          placeholder={t('Owner Name')}
+                          maxLength={70}
+                          value={values.ownerName}
+                          onChange={handleChange}
+                          showLabel={true}
+                          style={{
+                            borderColor: onErrorMessageMatcher(
+                              'ownerName',
+                              errors?.ownerName,
+                              RestaurantOwnerDetailsErrors
+                            )
+                              ? 'red'
+                              : '',
+                          }}
+                        />
                       </div>
-                      {!showAddForm ? (
-                        <div>
-                          <CustomDropdownComponent
-                            name="_id"
-                            placeholder={t('Select Vendor')}
-                            showLabel={true}
-                            selectedItem={values._id}
-                            setSelectedItem={setFieldValue}
-                            options={vendorsDropdown ?? []}
-                            style={{
-                              borderColor: onErrorMessageMatcher(
-                                '_id',
-                                errors?._id,
-                                VendorErrors
-                              )
-                                ? 'red'
-                                : '',
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div>
-                            <CustomTextField
-                              type="text"
-                              name="firstName"
-                              placeholder={t('First Name')}
-                              maxLength={35}
-                              value={values.firstName}
-                              onChange={handleChange}
-                              // isLoading={loading}
-                              showLabel={true}
-                              style={{
-                                borderColor: onErrorMessageMatcher(
-                                  'firstName',
-                                  errors?.firstName,
-                                  VendorErrors
-                                )
-                                  ? 'red'
-                                  : '',
-                              }}
-                            />
-                            
-                          </div>
-                          <div>
-                          <CustomTextField
-                              type="text"
-                              name="lastName"
-                              placeholder={t('Last Name')}
-                              maxLength={35}
-                              value={values.lastName}
-                              onChange={handleChange}
-                              // isLoading={loading}
-                              showLabel={true}
-                              style={{
-                                borderColor: onErrorMessageMatcher(
-                                  'lastName',
-                                  errors?.lastName,
-                                  VendorErrors
-                                )
-                                  ? 'red'
-                                  : '',
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <CustomIconTextField
-                              type="email"
-                              name="email"
-                              placeholder={t('Email')}
-                              maxLength={35}
-                              showLabel={true}
-                              iconProperties={{
-                                icon: faEnvelope,
-                                position: 'right',
-                                style: { marginTop: '1px' },
-                              }}
-                              value={values.email}
-                              onChange={handleChange}
-                              style={{
-                                borderColor: onErrorMessageMatcher(
-                                  'email',
-                                  errors?.email,
-                                  VendorErrors
-                                )
-                                  ? 'red'
-                                  : '',
-                              }}
-                            />
-                          </div>
 
-                          <div>
-                            <CustomPhoneTextField
-                              mask="999-999-9999"
-                              name="phoneNumber"
-                              showLabel={true}
-                              // isLoading={loading}
-                              placeholder={t('Phone Number')}
-                              value={values.phoneNumber}
-                              onChange={(e) => {
-                                setFieldValue('phoneNumber', e);
-                                // setCountryCode(code);
-                              }}
-                              type="text"
-                              style={{
-                                borderColor: onErrorMessageMatcher(
-                                  'phoneNumber',
-                                  errors?.phoneNumber,
-                                  VendorErrors
-                                )
-                                  ? 'red'
-                                  : '',
-                              }}
-                            />
-                          </div>
+                      <div>
+                        <CustomIconTextField
+                          type="email"
+                          name="ownerEmail"
+                          placeholder={t('Owner Email')}
+                          maxLength={70}
+                          showLabel={true}
+                          iconProperties={{
+                            icon: faEnvelope,
+                            position: 'right',
+                            style: { marginTop: '1px' },
+                          }}
+                          value={values.ownerEmail}
+                          onChange={handleChange}
+                          style={{
+                            borderColor: onErrorMessageMatcher(
+                              'ownerEmail',
+                              errors?.ownerEmail,
+                              RestaurantOwnerDetailsErrors
+                            )
+                              ? 'red'
+                              : '',
+                          }}
+                        />
+                      </div>
 
-                          <div>
-                            <CustomPasswordTextField
-                              placeholder={t('Password')}
-                              name="password"
-                              maxLength={20}
-                              value={values.password}
-                              showLabel={true}
-                              onChange={handleChange}
-                              style={{
-                                borderColor: onErrorMessageMatcher(
-                                  'password',
-                                  errors?.password,
-                                  VendorErrors
-                                )
-                                  ? 'red'
-                                  : '',
-                              }}
-                            />
-                          </div>
+                      <p className="text-sm text-gray-500 dark:text-dark-200">
+                        {t(
+                          'A login account with a temporary password will be generated automatically for this owner.'
+                        )}
+                      </p>
 
-                          <div>
-                            <CustomPasswordTextField
-                              placeholder={t('Confirm Password')}
-                              name="confirmPassword"
-                              maxLength={20}
-                              showLabel={true}
-                              value={values.confirmPassword ?? ''}
-                              onChange={handleChange}
-                              feedback={false}
-                              style={{
-                                borderColor: onErrorMessageMatcher(
-                                  'confirmPassword',
-                                  errors?.confirmPassword,
-                                  VendorErrors
-                                )
-                                  ? 'red'
-                                  : '',
-                              }}
-                            />
-                          </div>
-
-                          <div>
-                            <CustomUploadImageComponent
-                              key="image"
-                              name="image"
-                              title={t('Upload Profile Image')}
-                              fileTypes={[
-                                'image/jpg',
-                                'image/webp',
-                                'image/jpeg',
-                              ]}
-                              maxFileHeight={1080}
-                              maxFileWidth={1080}
-                              maxFileSize={MAX_SQUARE_FILE_SIZE}
-                              orientation="SQUARE"
-                              onSetImageUrl={setFieldValue}
-                              existingImageUrl={values.image}
-                              showExistingImage={true}
-                              style={{
-                                borderColor: onErrorMessageMatcher(
-                                  'image',
-                                  errors?.image as string,
-                                  VendorErrors
-                                )
-                                  ? 'red'
-                                  : '',
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
                       <div className="mt-4 flex justify-end">
                         <CustomButton
                           className="h-10 w-fit border border-gray-300 dark:border-dark-600 bg-black px-8 text-white"

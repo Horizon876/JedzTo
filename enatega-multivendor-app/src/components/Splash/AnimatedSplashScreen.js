@@ -9,79 +9,70 @@ import Animated, {
   useSharedValue,
   withTiming
 } from 'react-native-reanimated'
-import SplashVideo from './SplashVideo'
+import AnimatedLogo from './AnimatedLogo'
 
 export default function AnimatedSplashScreen({ children }) {
-  const opacityAnimation = useSharedValue(1) // Shared value for opacity
-  const scaleAnimation = useSharedValue(1) // Shared value for scale
+  const opacityAnimation = useSharedValue(1)
   const [isAppReady, setAppReady] = useState(false)
-  const [isSplashVideoComplete, setSplashVideoComplete] = useState(false)
+  const [isSplashLogoComplete, setSplashLogoComplete] = useState(false)
   const [isSplashAnimationComplete, setAnimationComplete] = useState(false)
 
   useEffect(() => {
-    if (isAppReady && isSplashVideoComplete) {
-      // Start fade out and scale down animation when the app is ready and video has completed
-      opacityAnimation.value = withTiming(0, {
-        duration: 300,
-        easing: Easing.out(Easing.exp)
-      })
-
-      scaleAnimation.value = withTiming(
-        2,
+    if (isAppReady && isSplashLogoComplete) {
+      // Fade out only — scaling the full-screen splash to 2x clipped the
+      // wordmark on one/both sides on smaller devices.
+      opacityAnimation.value = withTiming(
+        0,
         {
-          duration: 300,
+          duration: 320,
           easing: Easing.out(Easing.exp)
         },
         () => {
-          runOnJS(setAnimationComplete)(true) // Update the animation completion state
+          runOnJS(setAnimationComplete)(true)
         }
       )
     }
-  }, [isAppReady, isSplashVideoComplete])
+  }, [isAppReady, isSplashLogoComplete])
 
-  const onImageLoaded = useCallback(async () => {
+  const onLogoReady = useCallback(async () => {
     try {
       await SplashScreen.hideAsync()
-      // Load stuff
       await Promise.all([])
     } catch (e) {
-      // Handle errors
     } finally {
       setAppReady(true)
     }
   }, [])
 
-  const videoElement = useMemo(() => {
-    return (
-      <SplashVideo
-        onLoaded={onImageLoaded}
-        onFinish={() => {
-          setSplashVideoComplete(true) // Mark video as complete
-        }}
-      />
-    )
-  }, [onImageLoaded])
+  const logoElement = useMemo(() => (
+    <AnimatedLogo
+      onLoaded={onLogoReady}
+      onFinish={() => { setSplashLogoComplete(true) }}
+    />
+  ), [onLogoReady])
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacityAnimation.value, // Use shared value for opacity
-      transform: [{ scale: scaleAnimation.value }] // Use shared value for scale
-    }
-  })
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacityAnimation.value
+  }))
 
   return (
     <View style={{ flex: 1 }}>
       {isSplashAnimationComplete ? children : null}
       <Animated.View
         pointerEvents='none'
-        style={[
-          StyleSheet.absoluteFill,
-          animatedStyle,
-          { backgroundColor: 'black' }
-        ]}
+        style={[StyleSheet.absoluteFill, animatedStyle, styles.splashLayer]}
       >
-        {videoElement}
+        {logoElement}
       </Animated.View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  splashLayer: {
+    backgroundColor: '#000',
+    overflow: 'visible',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
+})

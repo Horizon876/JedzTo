@@ -13,6 +13,8 @@ const getEnvVars = (env = Updates.channel) => {
     loadDevMessages();
     loadErrorMessages();
   }
+  const localHost = process.env.EXPO_PUBLIC_JEDZTO_API_HOST || "10.18.254.25";
+
   if (!__DEV__) {
     return {
       GRAPHQL_URL: "https://aws-server-v2.enatega.com/graphql",
@@ -26,8 +28,8 @@ const getEnvVars = (env = Updates.channel) => {
   }
 
   return {
-    GRAPHQL_URL: "https://aws-server-v2.enatega.com/graphql",
-    WS_GRAPHQL_URL: "wss://aws-server-v2.enatega.com/graphql",
+    GRAPHQL_URL: `http://${localHost}:8001/graphql`,
+    WS_GRAPHQL_URL: `ws://${localHost}:8001/graphql`,
     SENTRY_DSN:
       configuration?.riderAppSentryUrl ??
       "https://e963731ba0f84e5d823a2bbe2968ea4d@o1103026.ingest.sentry.io/6135261",

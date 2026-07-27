@@ -22,11 +22,11 @@ module.exports = () => {
     : fallbackUrlTypes
 
   return {
-    name: 'Enatega Multi',
+    name: 'JedzTo',
     scheme: 'enategamultivendor',
     version: '1.1.27',
     description:
-      "Enatega is a starter kit food ordering app built in React Native using Expo for IOS and Android. It's made keeping good aesthetics in mind as well keeping the best coding practices in mind. Its fully customisable to easily help you in your next food delivery project. https://market.nativebase.io/view/react-native-food-delivery-backend-app",
+      'JedzTo is a food ordering & delivery app built in React Native using Expo for iOS and Android.',
     slug: 'enategamultivendor',
     owner: 'ninjas_code',
     experiments: {
@@ -76,10 +76,10 @@ module.exports = () => {
     },
     notification: {
       iosDisplayInForeground: true,
-      color: '#90E36D',
+      color: '#00E676',
       icon: './assets/not-icon.png',
       androidMode: 'default',
-      androidCollapsedTitle: 'Enatega Multivendor'
+      androidCollapsedTitle: 'JedzTo'
     },
     android: {
       versionCode: 127,
@@ -143,7 +143,7 @@ module.exports = () => {
         'expo-location',
         {
           locationAlwaysAndWhenInUsePermission:
-            'Allow $Enatega Multivendor to use your location.'
+            'Allow JedzTo to use your location.'
         }
       ],
       'expo-notifications',
@@ -151,7 +151,8 @@ module.exports = () => {
       'expo-localization',
       'expo-web-browser',
       'expo-video',
-      'expo-apple-authentication'
+      'expo-apple-authentication',
+      '@react-native-community/datetimepicker'
     ],
     extra: {
       eas: {

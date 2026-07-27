@@ -36,6 +36,9 @@ const styles = (props = null) =>
       paddingVertical: getResponsiveSize(scale(10)),
       alignItems: 'center'
     },
+    brandLogo: {
+      marginBottom: getResponsiveSize(scale(6))
+    },
     mainTitle: {
       marginBottom: getResponsiveSize(scale(8)),
       fontSize: getResponsiveSize(scale(28)),

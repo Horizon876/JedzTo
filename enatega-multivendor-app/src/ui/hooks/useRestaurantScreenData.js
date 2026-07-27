@@ -10,6 +10,7 @@ import {
   food,
   popularFoodItems
 } from '../../apollo/queries'
+import { isJedzToLocalRestaurantId } from '../../utils/jedztoLocalRestaurants'
 
 const POPULAR_ITEMS = gql`
   ${popularItems}
@@ -39,15 +40,19 @@ export const useRestaurantData = (
   const [selectedSubCtg, setSelectedSubCtg] = useState('')
   const [selectedPrntCtg, setSelectedPrntCtg] = useState('')
 
+  const skipRemoteExtras = isJedzToLocalRestaurantId(restaurantId)
+
   // Queries
   const { data: popularItemsData } = useQuery(POPULAR_ITEMS, {
-    variables: { restaurantId }
+    variables: { restaurantId },
+    skip: skipRemoteExtras
   })
 
   const { data: popularFoodsItems, loading: loadingPopularItems } = useQuery(
     POPULAR_FOOD_ITEMS,
     {
-      variables: { restaurantId }
+      variables: { restaurantId },
+      skip: skipRemoteExtras
     }
   )
 
@@ -56,6 +61,7 @@ export const useRestaurantData = (
   const { data: subCategoriesData, loading: subCategoriesLoading } = useQuery(
     GET_SUB_CATEGORIES,
     {
+      skip: skipRemoteExtras,
       onError: (error) => {
         FlashMessage({
           message: error.message || 'Failed to fetch sub-categories'

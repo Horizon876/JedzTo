@@ -25,6 +25,10 @@ import { isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 import { useRestaurantQueries } from '../../ui/hooks/useRestaurantQueries'
+import {
+  getJedzToLocalRestaurantPreviews,
+  jedzToLocalRestaurantsEnabled
+} from '../../utils/jedztoLocalRestaurants'
 
 const RESTAURANTS = gql`
   ${restaurantListPreview}
@@ -88,22 +92,36 @@ const SearchScreen = () => {
     )
   }
 
-  const { data, refetch, networkStatus, loading, error } = useQuery(RESTAURANTS, {
+  const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
+  const localPreviews = useMemo(
+    () => (useLocalRestaurants ? getJedzToLocalRestaurantPreviews() : []),
+    [useLocalRestaurants]
+  )
+
+  const { data: remoteData, refetch, networkStatus, loading: remoteLoading, error: remoteError } = useQuery(RESTAURANTS, {
     variables: {
       longitude: location.longitude || null,
       latitude: location.latitude || null,
       shopType: null,
       ip: null
     },
-    fetchPolicy: 'cache-and-network'
+    fetchPolicy: 'cache-and-network',
+    skip: useLocalRestaurants
   })
+
+  const data = useMemo(() => {
+    if (!useLocalRestaurants) return remoteData
+    return { nearByRestaurantsPreview: { restaurants: localPreviews } }
+  }, [useLocalRestaurants, remoteData, localPreviews])
+  const loading = useLocalRestaurants ? false : remoteLoading
+  const error = useLocalRestaurants ? undefined : remoteError
 
   const { data: topRatedData } = useQuery(TOP_RATED_VENDORS, {
     variables: {
       longitude: location.longitude || null,
       latitude: location.latitude || null
     },
-    skip: !location.latitude || !location.longitude,
+    skip: useLocalRestaurants || !location.latitude || !location.longitude,
     fetchPolicy: 'cache-and-network'
   })
 
@@ -112,7 +130,7 @@ const SearchScreen = () => {
       longitude: location.longitude || null,
       latitude: location.latitude || null
     },
-    skip: !location.latitude || !location.longitude,
+    skip: useLocalRestaurants || !location.latitude || !location.longitude,
     fetchPolicy: 'cache-and-network'
   })
 
@@ -122,7 +140,7 @@ const SearchScreen = () => {
       latitude: location.latitude || null
     },
     fetchPolicy: 'cache-and-network',
-    skip: !location.latitude || !location.longitude
+    skip: useLocalRestaurants || !location.latitude || !location.longitude
   })
 
   useEffect(() => {
@@ -291,8 +309,9 @@ const SearchScreen = () => {
               <RefreshControl
                 progressViewOffset={containerPaddingTop}
                 colors={[currentTheme.iconColorPink]}
-                refreshing={networkStatus === 4}
+                refreshing={useLocalRestaurants ? false : networkStatus === 4}
                 onRefresh={() => {
+                  if (useLocalRestaurants) return
                   if (networkStatus === 7) {
                     refetch()
                   }
@@ -383,8 +402,9 @@ const SearchScreen = () => {
         refreshControl={
           <RefreshControl
             colors={[currentTheme.iconColorPink]}
-            refreshing={networkStatus === 4}
+            refreshing={useLocalRestaurants ? false : networkStatus === 4}
             onRefresh={() => {
+              if (useLocalRestaurants) return
               if (networkStatus === 7) {
                 refetch()
               }

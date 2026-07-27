@@ -6,6 +6,7 @@ import FdEmailBtn from '../../ui/FdSocialBtn/FdEmailBtn/FdEmailBtn'
 import Spinner from '../../components/Spinner/Spinner'
 import * as AppleAuthentication from 'expo-apple-authentication'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
+import Logo from '../../components/Logo/Logo'
 import { useCreateAccount } from './useCreateAccount'
 import { useTranslation } from 'react-i18next'
 import { scale } from '../../utils/scaling'
@@ -153,6 +154,7 @@ const CreateAccount = (props) => {
         <View styl>
           {/* Welcome Text */}
           <View style={styles().welcomeSection}>
+            <Logo size={34} style={styles().brandLogo} />
             <TextDefault H1 bolder center textColor={currentTheme.newFontcolor} style={styles(currentTheme).mainTitle}>
               {t('welcomeText')}
             </TextDefault>

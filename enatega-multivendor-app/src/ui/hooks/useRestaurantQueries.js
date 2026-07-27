@@ -6,6 +6,10 @@ import {
   restaurantListPreview,
   topRatedVendorsInfo
 } from '../../apollo/queries'
+import {
+  getJedzToLocalRestaurantPreviews,
+  jedzToLocalRestaurantsEnabled
+} from '../../utils/jedztoLocalRestaurants'
 
 const RESTAURANTS = gql`
   ${restaurantListPreview}
@@ -94,6 +98,21 @@ const mergeRestaurantsById = (previous = [], incoming = []) => {
 }
 
 export const useRestaurantQueries = (queryType, location, selectedType) => {
+  const useLocal = jedzToLocalRestaurantsEnabled()
+  const localPreviews = useMemo(() => {
+    if (!useLocal) return []
+    const all = getJedzToLocalRestaurantPreviews()
+    if (selectedType && selectedType !== 'restaurant' && selectedType !== 'grocery') {
+      // Cuisine / shop-type slug filters from discovery pills
+      return all.filter((r) =>
+        (r.cuisines || []).some((c) => c?.toLowerCase() === String(selectedType).toLowerCase()) ||
+        r.shopType === selectedType
+      )
+    }
+    if (selectedType === 'grocery') return []
+    return all
+  }, [useLocal, selectedType])
+
   const [restaurantData, setRestaurantData] = useState([])
   const [allData, setAllData] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -132,22 +151,34 @@ export const useRestaurantQueries = (queryType, location, selectedType) => {
     variables: queryVariables,
     fetchPolicy: 'cache-and-network',
     nextFetchPolicy: 'cache-first',
-    notifyOnNetworkStatusChange: true
+    notifyOnNetworkStatusChange: true,
+    skip: useLocal
   })
 
-  const isInitialLoading = loading && currentPage === 1 && allData.length === 0
-  const isRefreshing = networkStatus === 4
+  const isInitialLoading = useLocal ? false : loading && currentPage === 1 && allData.length === 0
+  const isRefreshing = useLocal ? false : networkStatus === 4
+
+  // Local JedzTo catalogue — skip remote GraphQL and serve the 5 demo stores.
+  useEffect(() => {
+    if (!useLocal) return
+    setRestaurantData(localPreviews)
+    setAllData(localPreviews)
+    setHasMore(false)
+    setCurrentPage(1)
+    setIsFetchingMore(false)
+  }, [useLocal, localPreviews, location?.latitude, location?.longitude, queryType, selectedType])
 
   useEffect(() => {
+    if (useLocal) return
     setCurrentPage(1)
     setHasMore(true)
     setIsFetchingMore(false)
     setRestaurantData([])
     setAllData([])
-  }, [location?.latitude, location?.longitude, queryType, selectedType])
+  }, [useLocal, location?.latitude, location?.longitude, queryType, selectedType])
 
   useEffect(() => {
-    if (!data) return
+    if (useLocal || !data) return
 
     if (isNearbyPaginatedQuery) {
       if (currentPage !== 1) return
@@ -160,9 +191,14 @@ export const useRestaurantQueries = (queryType, location, selectedType) => {
     }
 
     getResult(queryType, data, setRestaurantData, setAllData, selectedType)
-  }, [currentPage, data, isNearbyPaginatedQuery, queryType, selectedType])
+  }, [useLocal, currentPage, data, isNearbyPaginatedQuery, queryType, selectedType])
 
   const handleRefresh = () => {
+    if (useLocal) {
+      setRestaurantData(localPreviews)
+      setAllData(localPreviews)
+      return
+    }
     if (networkStatus === 7) {
       if (isNearbyPaginatedQuery) {
         setCurrentPage(1)
@@ -196,7 +232,7 @@ export const useRestaurantQueries = (queryType, location, selectedType) => {
   }
 
   const fetchMoreRestaurants = async () => {
-    if (!isNearbyPaginatedQuery || isFetchingMore || !hasMore) return
+    if (useLocal || !isNearbyPaginatedQuery || isFetchingMore || !hasMore) return
 
     const nextPage = currentPage + 1
     setIsFetchingMore(true)

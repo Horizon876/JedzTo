@@ -52,10 +52,9 @@ function MainRestaurantCard(props) {
           <View style={styles(currentTheme).row}>
             <TextDefault
               numberOfLines={1}
-              textColor={currentTheme.fontFourthColor}
+              textColor={props?.titleColor || currentTheme.fontFourthColor}
               bolder
               H4
-            // style={styles().ItemTitle}
             >
               {t(props?.title)}
             </TextDefault>

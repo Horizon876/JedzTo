@@ -149,7 +149,8 @@ const setupApollo = ({ GRAPHQL_URL, WS_GRAPHQL_URL }) => {
         nonce: nonce,
         'user-agent': `EnategaApp/${Platform.OS}`,
         'accept-language': 'en-US',
-        'x-platform': Platform.OS
+        'x-platform': Platform.OS,
+        'ngrok-skip-browser-warning': 'true'
       }
     })
   }

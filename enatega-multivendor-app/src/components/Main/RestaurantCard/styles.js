@@ -11,7 +11,7 @@ const buildStyles = (props = null) => {
 
   return StyleSheet.create({
     offerContainer: {
-      borderRadius: 22,
+      borderRadius: 26,
       width: scale(270),
       height: height * (Platform.OS === 'ios' ? 0.395 : 0.376),
       ...alignment.MRsmall,
@@ -20,7 +20,7 @@ const buildStyles = (props = null) => {
     },
     cardSurface: {
       flex: 1,
-      borderRadius: 22,
+      borderRadius: 26,
       overflow: 'hidden',
       backgroundColor: props != null ? props?.cardBackground : '#181818',
       borderWidth: 1,

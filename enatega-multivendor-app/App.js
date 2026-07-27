@@ -5,6 +5,7 @@ import 'react-native-get-random-values';
 import * as Font from 'expo-font'
 import * as Notifications from 'expo-notifications'
 import * as Updates from 'expo-updates'
+import Constants from 'expo-constants'
 import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { ActivityIndicator, AppState, BackHandler, StatusBar, StyleSheet, View, useColorScheme } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -152,7 +153,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!CLARITY_ENABLED || clarityInitialized) return
+    // @microsoft/react-native-clarity ships a native module that does not
+    // exist in Expo Go (it requires a custom dev/production build). Loading
+    // it there throws a hard "Invariant Violation" from NativeEventEmitter
+    // during module evaluation, so we must skip it entirely when running
+    // inside Expo Go rather than relying on try/catch around the import.
+    if (!CLARITY_ENABLED || clarityInitialized || Constants.appOwnership === 'expo') return
 
     let isMounted = true
 
@@ -266,7 +272,7 @@ export default function App() {
             <ThemeContext.Provider
               value={{ ThemeValue: theme, dispatch: themeSetter }}
             >
-              <StatusBar backgroundColor={Theme[theme].menuBar} barStyle={theme === 'Dark' ? 'light-content' : 'dark-content'} />
+              <StatusBar translucent backgroundColor='transparent' barStyle={theme === 'Dark' ? 'light-content' : 'dark-content'} />
               <LocationProvider>
                 <ConfigurationProvider>
                   <AuthProvider>

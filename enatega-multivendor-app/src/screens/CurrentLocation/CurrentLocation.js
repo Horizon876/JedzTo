@@ -1,5 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { View, TouchableOpacity, Linking, Platform, StatusBar, ActivityIndicator, Text, StyleSheet, Alert } from 'react-native'
+import { View, TouchableOpacity, Platform, StatusBar, ActivityIndicator, Linking } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { useLocation } from '../../ui/hooks'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
@@ -7,366 +9,226 @@ import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import styles from './styles'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
+import Logo from '../../components/Logo/Logo'
+import LocationHero from '../../components/Location/LocationHero'
 import analytics from '../../utils/analytics'
 import { useTranslation } from 'react-i18next'
-import MapView, { PROVIDER_DEFAULT, Polygon, Marker } from 'react-native-maps'
-import { customMapStyle } from '../../utils/customMapStyles'
 import ModalDropdown from '../../components/Picker/ModalDropdown'
+import SearchModal from '../../components/Address/SearchModal'
 import { LocationContext } from '../../context/Location'
-import markerIcon from '../../../assets/Group1000003768.png'
-import CustomMarkerWithLabel from '../../assets/SVG/imageComponents/CustomMarkerWithLabel'
 import useGeocoding from '../../ui/hooks/useGeocoding'
-import Spinner from '../../components/Spinner/Spinner'
 import ForceUpdate from '../../components/Update/ForceUpdate'
 import { checkLocationInCities } from '../../utils/locationUtil'
-
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
-import useWatchLocation from '../../ui/hooks/useWatchLocation'
-import { DEMO_DEFAULT_LOCATION, ENABLE_DEMO_DEFAULT_LOCATION } from '../../utils/demoDefaultLocation'
 
+// Krok 2 — Wybór adresu.
+// Clean, friendly address screen with two ways to set a delivery address:
+// "Use current location (GPS)" and a free-text street/address search. The
+// confirmed location is written to LocationContext, which persists it to
+// AsyncStorage — so next launch skips straight to Home (see routes/index.js).
 export default function CurrentLocation() {
   const Analytics = analytics()
-  const { permission, onRequestPermission } = useWatchLocation()
   const { t, i18n } = useTranslation()
-  const [loading, setLoading] = useState(false)
-  const [isCheckingZone, setIsCheckingZone] = useState(false)
   const navigation = useNavigation()
   const themeContext = useContext(ThemeContext)
   const currentTheme = {
     isRTL: i18n.dir() === 'rtl',
     ...theme[themeContext.ThemeValue]
   }
-  const { getCurrentLocation, getLocationPermission } = useLocation()
-  const [citiesModalVisible, setCitiesModalVisible] = useState(false)
-  const [currentLocation, setCurrentLocation] = useState(null)
-  const [isInitialLoading, setIsInitialLoading] = useState(true)
-
+  const { getCurrentLocation } = useLocation()
   const { getAddress } = useGeocoding()
+  const { cities, setLocation } = useContext(LocationContext)
 
-  const { cities, location, setLocation, isLocationLoaded, permissionState, setPermissionState } = useContext(LocationContext)
+  const [gpsLoading, setGpsLoading] = useState(false)
+  const [isCheckingZone, setIsCheckingZone] = useState(false)
+  const [citiesModalVisible, setCitiesModalVisible] = useState(false)
+  const [searchVisible, setSearchVisible] = useState(false)
+  const [pendingSelection, setPendingSelection] = useState(null)
 
-  const checkLocationPermission = async () => {
-    setLoading(true)
-    const { status, canAskAgain } = await getLocationPermission()
+  const { isConnected: connect } = useNetworkStatus()
 
-    if (status === 'granted') {
-      setLoading(false)
-    } else if (status === 'denied') {
-      // Permission denied but can ask again
-      // Show the Allow Location screen
-    } else if (status === 'blocked') {
-      Alert.alert('Location Permission Blocked', 'Please enable location services in your device settings.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => Linking.openSettings() }
-      ])
-      setLoading(false)
-    } else {
-      if (status !== 'granted' && !canAskAgain) {
+  useEffect(() => {
+    Analytics.track(Analytics.events.NAVIGATE_TO_CURRENTLOCATION)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useFocusEffect(() => {
+    if (Platform.OS === 'android') {
+      StatusBar.setBackgroundColor(currentTheme.themeBackground)
+    }
+    StatusBar.setBarStyle('dark-content')
+  })
+
+  const filterCities = () => cities?.filter((city) => !isNaN(city.latitude) && !isNaN(city.longitude)) || []
+
+  // Runs whenever a candidate location comes in from GPS, search, or the
+  // city list. Waits for delivery zones (`cities`) to be loaded, confirms
+  // the point falls inside a known delivery zone, then persists it.
+  useEffect(() => {
+    if (!pendingSelection) return
+
+    if (!cities?.length) {
+      // Delivery zones are still loading — keep the spinner up but bail out
+      // with a friendly message if they take too long instead of hanging.
+      const timeout = setTimeout(() => {
+        setPendingSelection((current) => (current === pendingSelection ? null : current))
+        setIsCheckingZone(false)
+        FlashMessage({ message: t("Sorry! we can't deliver to your address.") })
+      }, 8000)
+      return () => clearTimeout(timeout)
+    }
+
+    const selection = pendingSelection
+    setPendingSelection(null)
+    confirmSelection(selection)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSelection, cities])
+
+  async function confirmSelection(selection) {
+    setIsCheckingZone(true)
+    try {
+      const matchingCity = checkLocationInCities(selection, filterCities())
+      if (!matchingCity) {
+        setIsCheckingZone(false)
+        FlashMessage({ message: t("Sorry! we can't deliver to your address.") })
+        return
+      }
+
+      const deliveryAddress = selection.address || (await getAddress(selection.latitude, selection.longitude)).formattedAddress
+
+      setLocation({
+        label: 'Location',
+        deliveryAddress,
+        latitude: selection.latitude,
+        longitude: selection.longitude,
+        city: matchingCity.name
+      })
+
+      setTimeout(() => {
+        setIsCheckingZone(false)
+        navigation.navigate('Main')
+      }, 100)
+    } catch (error) {
+      setIsCheckingZone(false)
+      FlashMessage({ message: error?.message || t("Sorry! we can't deliver to your address.") })
+    }
+  }
+
+  async function handleUseCurrentLocation() {
+    setGpsLoading(true)
+    const { error, coords, message } = await getCurrentLocation()
+    setGpsLoading(false)
+
+    if (error || !coords) {
+      if (message?.toLowerCase()?.includes('permission')) {
         FlashMessage({
           message: t('locationPermissionMessage'),
           onPress: async () => {
             await Linking.openSettings()
           }
         })
-        setLoading(false)
-        return
+      } else {
+        FlashMessage({ message: message || t("Sorry! we can't deliver to your address.") })
       }
+      return
     }
+
+    setIsCheckingZone(true)
+    setPendingSelection({ latitude: coords.latitude, longitude: coords.longitude })
   }
 
-  const filterCities = () => {
-    let newCities = cities?.filter((city) => !isNaN(city.latitude) && !isNaN(city.longitude))
-    return newCities
+  const handleSearchSubmit = (description, coords) => {
+    setSearchVisible(false)
+    setIsCheckingZone(true)
+    setPendingSelection({ latitude: coords.lat, longitude: coords.lng, address: description })
   }
 
-  const handleMarkerPress = async (coordinates) => {
+  const handleCityPress = (city) => {
     setCitiesModalVisible(false)
     setIsCheckingZone(true)
-    const response = await getAddress(coordinates.latitude, coordinates.longitude)
-    setLocation({
-      label: 'Location',
-      deliveryAddress: response.formattedAddress,
-      latitude: coordinates.latitude,
-      longitude: coordinates.longitude,
-      city: response.city
-    })
-    setTimeout(() => {
-      setIsCheckingZone(false)
-      navigation.navigate('Main')
-    }, 100)
+    setPendingSelection({ latitude: city.latitude, longitude: city.longitude })
   }
 
-  async function checkCityMatch(new_location = null) {
-    console.log('calling checkCityMatch', new_location)
-    const cl_p = new_location || currentLocation
-    if (!cl_p || !cities.length) return
-    // console.log("Checking city match for location:", currentLocation);
-    // console.log("Cities list:", cities);
-
-    setIsCheckingZone(true)
-
-    const matchingCity = checkLocationInCities(cl_p, filterCities())
-    if (matchingCity) {
-      try {
-        const response = await getAddress(cl_p.latitude, cl_p.longitude)
-        // console.log("Fetched Address Data:", response);
-        const locationData = {
-          label: 'Location',
-          deliveryAddress: response.formattedAddress,
-          latitude: cl_p.latitude,
-          longitude: cl_p.longitude,
-          city: response.city
-        }
-
-        setLocation(locationData)
-        setTimeout(() => {
-          setIsCheckingZone(false)
-          navigation.navigate('Main')
-        }, 100)
-      } catch (error) {
-        // console.error('Error getting address:', error)
-        setIsCheckingZone(false)
-      }
-    } else {
-      // console.warn("No matching city found for this location.");
-      setIsCheckingZone(false)
-    }
-  }
-
-  async function getCurrentLocationOnStart() {
-    console.log('calling getCurrentLocationOnStart', permissionState)
-    setLoading(true)
-
-    // Handle permission request result
-    if (!permissionState || !isLocationLoaded) return
-
-    if (!permissionState?.granted) {
-      console.log('Location permission not granted')
-      setLoading(false)
-      return
-    }
-
-    if (location) {
-      setLoading(false)
-      return
-    }
-
-    if (!location && ENABLE_DEMO_DEFAULT_LOCATION) {
-      setLocation(DEMO_DEFAULT_LOCATION)
-      setLoading(false)
-      navigation.navigate('Main')
-      return
-    }
-
-    // Permission is granted, continue with location logic
-    const { error, coords } = await getCurrentLocation()
-
-    if (error) {
-      // console.log("Location error:",message, error)
-      setLoading(false)
-      return
-    }
-
-    // console.log("Fetched Location:", coords);
-    const userLocation = {
-      latitude: coords.latitude,
-      longitude: coords.longitude
-    }
-
-    setCurrentLocation(userLocation)
-    // console.log("Current Location before rendering Marker:", currentLocation);
-    setLoading(false)
-  }
-
-  async function onRequestPermissionHandler() {
-    const permission_response = await onRequestPermission()
-
-    setPermissionState(permission_response)
-
-
-    // ❌ Permanently denied (cannot ask again)
-    if (!permission_response?.canAskAgain) {
-      // Optionally prompt user to open settings
-      if (Platform.OS === 'ios') {
-        Linking.openURL('app-settings:') // iOS deep link to app settings
-      } else {
-        Linking.openSettings() // Android
-      }
-
-      return
-    }
-  }
-
-  useEffect(() => {
-    async function Track() {
-      await Analytics.track(Analytics.events.NAVIGATE_TO_CURRENTLOCATION)
-    }
-    Track()
-    checkLocationPermission()
-  }, [])
-
-  useFocusEffect(() => {
-    if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor(currentTheme.white)
-    }
-    StatusBar.setBarStyle('dark-content')
-  })
-
-  useEffect(() => {
-    getCurrentLocationOnStart()
-  }, [permissionState, permission, isLocationLoaded, location])
-
-  useEffect(() => {
-    checkCityMatch()
-  }, [currentLocation, cities])
-
-  // Add a small delay to prevent flashing of permission screen
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false)
-    }, 1000) // Wait 1 second before showing permission screen
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  const initialRegion = {
-    latitude: 16.10966,
-    longitude: 71.41271,
-    latitudeDelta: 130,
-    longitudeDelta: 130
-  }
-
-  const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
   if (!connect) return <ErrorView refetchFunctions={[]} />
 
-  return !currentLocation && !isInitialLoading ? (
-    <View style={[allowedLocationStyles.container, { backgroundColor: currentTheme.themeBackground }]}>
-      <Text style={allowedLocationStyles.title}>Enable Location Services</Text>
-      <Text style={allowedLocationStyles.description}>We need access to your location to show nearby restaurants and provide accurate delivery services.</Text>
-      <TouchableOpacity style={allowedLocationStyles.button} onPress={onRequestPermissionHandler}>
-        <Text style={allowedLocationStyles.buttonText}>Allow Location Access</Text>
-      </TouchableOpacity>
-    </View>
-  ) : (
-    <View
-      style={[
-        styles().flex,
-        {
-          backgroundColor: currentTheme.themeBackground
-        }
-      ]}
-    >
-      <View style={[styles().flex, styles(currentTheme).screenBackground]}>
-        <View style={styles().mapView}>
-          <MapView style={styles().flex} provider={PROVIDER_DEFAULT} customMapStyle={customMapStyle} region={initialRegion}>
-            {currentLocation && <Marker coordinate={currentLocation} onPress={() => handleMarkerPress(currentLocation)} />}
-
-            {filterCities()?.map((city) => (
-              <React.Fragment key={city?.id}>
-                <CustomMarkerWithLabel
-                  coordinate={{
-                    latitude: city?.latitude,
-                    longitude: city?.longitude
-                  }}
-                  label={city?.name}
-                  icon={markerIcon}
-                  currentTheme={currentTheme}
-                  onPress={() =>
-                    handleMarkerPress({
-                      latitude: city?.latitude,
-                      longitude: city?.longitude
-                    })
-                  }
-                />
-
-                {city?.location && city?.location?.coordinates && city?.location?.coordinates[0] && (
-                  <Polygon
-                    coordinates={city?.location?.coordinates[0].map((coord) => ({
-                      latitude: coord[1],
-                      longitude: coord[0]
-                    }))}
-                    strokeColor={currentTheme.orderComplete}
-                    fillColor={currentTheme.radiusFill}
-                    strokeWidth={2}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </MapView>
-        </View>
-
-        <View style={styles(currentTheme).subContainerImage}>
-          {loading && <Spinner spinnerColor={currentTheme.spinnerColor} backColor={currentTheme.themeBackground} />}
+  return (
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={[styles().flex, { backgroundColor: currentTheme.themeBackground }]}>
+      <View style={styles(currentTheme).addressScreenContainer}>
+        <View style={styles(currentTheme).addressTopSection}>
+          <Logo size={30} style={styles(currentTheme).brandLogo} />
           <TextDefault textColor={currentTheme.fontMainColor} center bolder H2 style={styles(currentTheme).welcomeHeading}>
             {t('welcomeScreen')}
           </TextDefault>
-          <TextDefault textColor={currentTheme.fontMainColor} bold center style={styles(currentTheme).descriptionEmpty}>
+          <TextDefault textColor={currentTheme.fontSecondColor} bold center style={styles(currentTheme).descriptionEmpty}>
             {t('enategaUseYourLocationMessage')}
           </TextDefault>
+        </View>
 
-          <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).linkButton} onPress={() => setCitiesModalVisible(true)}>
-            <TextDefault textColor={currentTheme.fontMainColor} H5 center>
-              {t('exploreYallaCities')}
+        <View style={styles(currentTheme).addressMiddleSection}>
+          <LocationHero />
+        </View>
+
+        <View style={styles(currentTheme).addressActionsSection}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles(currentTheme).primaryLocationButton}
+            onPress={handleUseCurrentLocation}
+            disabled={gpsLoading}
+          >
+            {gpsLoading ? (
+              <ActivityIndicator size='small' color={currentTheme.white} />
+            ) : (
+              <>
+                <Ionicons name='locate' size={20} color={currentTheme.white} />
+                <TextDefault bolder textColor={currentTheme.white} style={styles(currentTheme).primaryLocationButtonText}>
+                  {t('useCurrentLocation')}
+                </TextDefault>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles(currentTheme).orDividerRow}>
+            <View style={styles(currentTheme).orDividerLine} />
+            <TextDefault textColor={currentTheme.fontSecondColor} style={styles(currentTheme).orDividerText}>
+              {t('or')}
+            </TextDefault>
+            <View style={styles(currentTheme).orDividerLine} />
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles(currentTheme).secondaryLocationButton}
+            onPress={() => setSearchVisible(true)}
+          >
+            <Ionicons name='search' size={20} color={currentTheme.primaryBlue} />
+            <TextDefault bolder textColor={currentTheme.primaryBlue} style={styles(currentTheme).secondaryLocationButtonText}>
+              {t('searchAddress')}
+            </TextDefault>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles(currentTheme).cityLinkButton}
+            onPress={() => setCitiesModalVisible(true)}
+          >
+            <TextDefault textColor={currentTheme.fontSecondColor} center H5>
+              {t('exploreCities')}
             </TextDefault>
           </TouchableOpacity>
         </View>
       </View>
 
       {isCheckingZone && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999
-          }}
-        >
-          <ActivityIndicator size='large' color={currentTheme.spinnerColor} />
+        <View style={styles(currentTheme).zoneCheckOverlay}>
+          <ActivityIndicator size='large' color={currentTheme.primaryBlue} />
         </View>
       )}
 
       <ForceUpdate />
 
-      <ModalDropdown theme={currentTheme} visible={citiesModalVisible} onItemPress={handleMarkerPress} onClose={() => setCitiesModalVisible(false)} />
-    </View>
+      <ModalDropdown theme={currentTheme} visible={citiesModalVisible} onItemPress={handleCityPress} onClose={() => setCitiesModalVisible(false)} />
+      <SearchModal visible={searchVisible} onClose={() => setSearchVisible(false)} onSubmit={handleSearchSubmit} />
+    </SafeAreaView>
   )
 }
-
-const allowedLocationStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center'
-  },
-  description: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
-    color: '#666',
-    lineHeight: 24
-  },
-  button: {
-    backgroundColor: '#007BFF',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 8
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600'
-  }
-})

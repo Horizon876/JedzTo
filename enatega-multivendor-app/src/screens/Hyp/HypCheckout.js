@@ -241,10 +241,10 @@ function HypCheckout(props) {
         onNavigationStateChange={handleResponse}
       />
 
-      {loading ? <ActivityIndicator style={{ position: 'absolute', bottom: '50%', left: '50%' }} size='large' color='#90E36D' /> : null}
+      {loading ? <ActivityIndicator style={{ position: 'absolute', bottom: '50%', left: '50%' }} size='large' color='#00E676' /> : null}
       {isConfirmingOrder ? (
         <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, backgroundColor: '#fff' }}>
-          <ActivityIndicator size="large" color="#90E36D" />
+          <ActivityIndicator size="large" color="#00E676" />
           <Text style={{ marginTop: 20, fontSize: 22, fontWeight: '600', textAlign: 'center', color: '#111827' }}>
             {confirmationTimedOut ? 'Payment submitted' : 'Confirming your order'}
           </Text>

@@ -18,6 +18,10 @@ import { isOpen, sortRestaurantsByOpenStatus } from '../../../utils/customFuncti
 import HorizontalFlashList from '../../Lists/HorizontalFlashList'
 import { useCachedMediaUri } from '../../../utils/mediaCache'
 import { resolveLogoImage } from '../../../utils/resolveImageUrl'
+import {
+  getJedzToLocalRestaurantPreviews,
+  jedzToLocalRestaurantsEnabled
+} from '../../../utils/jedztoLocalRestaurants'
 
 const { height } = Dimensions.get('window')
 function TopBrands(props) {
@@ -26,15 +30,24 @@ function TopBrands(props) {
   const themeContext = useContext(ThemeContext)
   const currentTheme = useMemo(() => ({ isRTL: i18n.dir() === 'rtl', ...theme[themeContext.ThemeValue] }), [i18n.language, themeContext.ThemeValue])
   const navigation = useNavigation()
+  const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
   const topBrandsVariables = useMemo(() => ({
     latitude: location?.latitude,
     longitude: location?.longitude
   }), [location?.latitude, location?.longitude])
 
-  const { loading, error, data } = useQuery(topRatedVendorsInfo, {
+  const { loading: remoteLoading, error: remoteError, data: remoteData } = useQuery(topRatedVendorsInfo, {
     variables: topBrandsVariables,
-    fetchPolicy: 'cache-and-network'
+    fetchPolicy: 'cache-and-network',
+    skip: useLocalRestaurants
   })
+
+  const loading = useLocalRestaurants ? false : remoteLoading
+  const error = useLocalRestaurants ? undefined : remoteError
+  const data = useMemo(() => {
+    if (!useLocalRestaurants) return remoteData
+    return { topRatedVendorsPreview: getJedzToLocalRestaurantPreviews() }
+  }, [useLocalRestaurants, remoteData])
 
   const RenderItem = ({ item }) => (
     <TouchableOpacity style={styles().topbrandsContainer} onPress={() => navigation.navigate('Restaurant', { ...item })}>

@@ -32,6 +32,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 import { populateCart } from '../../utils/populateCart'
+import CheckoutGateSheet from '../../components/Cart/CheckoutGateSheet'
 
 // Constants
 const TIPPING = gql`
@@ -91,6 +92,7 @@ function Cart(props) {
 
   const [selectedTip, setSelectedTip] = useState()
   const modalRef = useRef(null)
+  const checkoutGateRef = useRef(null)
 
   useEffect(() => {
     if (tip) {
@@ -377,12 +379,20 @@ function Cart(props) {
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => {
-                      props?.navigation.navigate({ name: 'CreateAccount' })
+                      if (calculateTotal() < minimumOrder) {
+                        FlashMessage({
+                          message: t('OrderPriceValidation')
+                        })
+                        return
+                      }
+                      // Krok 4 — not logged in yet: offer "Login/Register" vs
+                      // "Continue as Guest" instead of forcing account creation.
+                      checkoutGateRef.current?.open()
                     }}
                     style={styles(currentTheme).button}
                   >
                     <TextDefault textColor={currentTheme.white} style={{ width: '100%', textAlign: 'center' }} H5 bolder center isRTL>
-                      {t('loginOrSignUp')}
+                      {t('checkoutBtn')}
                     </TextDefault>
                   </TouchableOpacity>
                 )}
@@ -391,6 +401,19 @@ function Cart(props) {
           </>
         )}
       </View>
+
+      <CheckoutGateSheet
+        modalRef={checkoutGateRef}
+        currentTheme={currentTheme}
+        onLoginPress={() => {
+          checkoutGateRef.current?.close()
+          props?.navigation.navigate({ name: 'CreateAccount' })
+        }}
+        onGuestPress={() => {
+          checkoutGateRef.current?.close()
+          props?.navigation.navigate({ name: 'GuestCheckout' })
+        }}
+      />
     </>
   )
 }

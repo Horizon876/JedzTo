@@ -10,72 +10,97 @@ const styles = (props = null) =>
     screenBackground: {
       backgroundColor: props != null ? props?.themeBackground : '#FFF'
     },
-    subContainerImage: {
+
+    // Krok 2 — clean address selection screen
+    addressScreenContainer: {
       flex: 1,
-      justifyContent: 'center',
+      justifyContent: 'space-around',
+      paddingHorizontal: scale(24),
+      paddingTop: scale(40),
+      paddingBottom: scale(20)
+    },
+    addressTopSection: {
+      alignItems: 'center'
+    },
+    addressMiddleSection: {
+      flex: 1,
       alignItems: 'center',
-      borderTopLeftRadius: scale(20),
-      borderTopRightRadius: scale(20),
-      backgroundColor: props != null ? props?.themeBackground : '#FFF',
-      borderColor: props != null ? props?.borderBottomColor : '#DAD6D6',
-      paddingTop: scale(25),
-      paddingBottom: scale(25)
+      justifyContent: 'center'
     },
-    imageContainer: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      ...alignment.MBlarge
+    addressActionsSection: {
+      width: '100%'
     },
-    mapView: {
-      height: '75%',
-      marginBottom: scale(-20)
-    },
-    line: {
-      borderBottomWidth: scale(1),
-      borderBottomColor: props != null ? props?.borderBottomColor : '#DAD6D6',
-      width: '100%',
-      marginTop: scale(26),
-      marginBottom: scale(26)
-    },
-    image: {
-      width: scale(100),
-      height: scale(100)
+    brandLogo: {
+      ...alignment.MTsmall
     },
     welcomeHeading: {
-      fontSize: scale(30),
+      fontSize: scale(26),
       ...alignment.MTlarge
     },
     descriptionEmpty: {
-      color: props != null ? props?.secondaryText : '#4B5563',
-      lineHeight: scale(18),
-      marginLeft: scale(50),
-      marginRight: scale(50),
+      lineHeight: scale(20),
+      paddingHorizontal: scale(12),
       ...alignment.PTsmall
     },
-    emptyButton: {
-      display: 'flex',
+    primaryLocationButton: {
       flexDirection: 'row',
-      width: '82%',
-      height: '20%',
-      backgroundColor: props !== null ? props?.main : 'transparent',
-      justifyContent: 'space-evenly',
+      justifyContent: 'center',
       alignItems: 'center',
-      alignSelf: 'center',
-      borderRadius: scale(28)
+      width: '100%',
+      height: scale(54),
+      borderRadius: scale(27),
+      backgroundColor: props !== null ? props?.primaryBlue : '#00A8FF',
+      shadowColor: props !== null ? props?.primaryBlue : '#00A8FF',
+      shadowOffset: { width: 0, height: scale(6) },
+      shadowOpacity: 0.25,
+      shadowRadius: scale(10),
+      elevation: 4
     },
-    linkButton: {
-      display: 'flex',
+    primaryLocationButtonText: {
+      marginLeft: scale(10)
+    },
+    orDividerRow: {
       flexDirection: 'row',
-      width: '82%',
-      height: '25%',
-      backgroundColor: 'transparent',
-      justifyContent: 'space-evenly',
       alignItems: 'center',
-      alignSelf: 'center',
-      borderRadius: scale(28),
-      borderWidth: scale(1),
-      borderColor: props !== null ? props?.newIconColor : 'transparent',
-      ...alignment.Mmedium
+      justifyContent: 'center',
+      marginVertical: scale(18)
+    },
+    orDividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: props !== null ? props?.borderColor : '#efefef'
+    },
+    orDividerText: {
+      marginHorizontal: scale(12)
+    },
+    secondaryLocationButton: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      height: scale(54),
+      borderRadius: scale(27),
+      borderWidth: scale(1.5),
+      borderColor: props !== null ? props?.primaryBlue : '#00A8FF',
+      backgroundColor: 'transparent'
+    },
+    secondaryLocationButtonText: {
+      marginLeft: scale(10)
+    },
+    cityLinkButton: {
+      marginTop: scale(20),
+      alignSelf: 'center'
+    },
+    zoneCheckOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.35)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999
     }
   })
 

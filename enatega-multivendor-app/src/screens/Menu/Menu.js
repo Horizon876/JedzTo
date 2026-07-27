@@ -38,6 +38,10 @@ import { Modalize } from 'react-native-modalize'
 import Filters from '../../components/Filter/FilterSlider'
 import AppliedFilters from '../../components/Filter/AppliedFilters'
 import NetInfo from '@react-native-community/netinfo'
+import {
+  jedzToLocalRestaurantsEnabled,
+  JEDZTO_LOCAL_CUISINES
+} from '../../utils/jedztoLocalRestaurants'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import { isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions'
 import Ripple from 'react-native-material-ripple'
@@ -118,6 +122,21 @@ function Menu({ route, props }) {
   const locationData = location
   const [filterApplied, setfilterApplied] = useState(false)
 
+  // Home hero's filter pills (e.g. "Free Delivery") link in here with a
+  // `presetOffer` param so the Offers filter is pre-applied on arrival
+  // instead of requiring the user to open the filter sheet themselves.
+  useEffect(() => {
+    const presetOffer = route.params?.presetOffer
+    if (!presetOffer) return
+    const preset = {
+      ...FILTER_VALUES,
+      Offers: { ...FILTER_VALUES.Offers, selected: [presetOffer] }
+    }
+    setFilters(preset)
+    setAppliedFilters(preset)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.presetOffer])
+
   console.log('selected Type ::::', selectedType)
 
   const {
@@ -145,16 +164,24 @@ function Menu({ route, props }) {
 
   console.log('restaurantsCuisinsVariables::', restaurantsCuisinsVariables)
 
-  const { data: cuisinesData, refetch: refetchCuisines, error: cuisinesError } = useQuery(isShopType ? GET_RESTAURANTS_CUISINES : GET_CUISINES, { variables: restaurantsCuisinsVariables })
+  const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
+  const { data: cuisinesData, refetch: refetchCuisines, error: cuisinesError } = useQuery(
+    isShopType ? GET_RESTAURANTS_CUISINES : GET_CUISINES,
+    {
+      variables: restaurantsCuisinsVariables,
+      skip: useLocalRestaurants
+    }
+  )
 
   // const allCuisines = useRef(isShopType ? { cuisines: cuisinesData?.nearByRestaurantsCuisines } : cuisinesData).current
 
   const allCuisines = useMemo(() => {
+    if (useLocalRestaurants) return { cuisines: JEDZTO_LOCAL_CUISINES }
     if (isShopType) {
       return { cuisines: cuisinesData?.nearByRestaurantsCuisines ?? [] }
     }
     return cuisinesData ?? { cuisines: [] }
-  }, [isShopType, cuisinesData])
+  }, [useLocalRestaurants, isShopType, cuisinesData])
 
   console.log('allCuisines::restaurants cuisins', cuisinesData?.nearByRestaurantsCuisines, allCuisines, cuisinesError)
 

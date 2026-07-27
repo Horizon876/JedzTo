@@ -6,8 +6,18 @@ import {
 } from '../../apollo/queries'
 import { LocationContext } from '../../context/Location'
 import UserContext from '../../context/User'
+import {
+  getJedzToLocalRestaurantPreviews,
+  jedzToLocalRestaurantsEnabled
+} from '../../utils/jedztoLocalRestaurants'
 
 export default function useHomeRestaurants() {
+  const useLocal = jedzToLocalRestaurantsEnabled()
+  const localPreviews = useMemo(
+    () => (useLocal ? getJedzToLocalRestaurantPreviews() : []),
+    [useLocal]
+  )
+
   const { location } = useContext(LocationContext)
   const { isLoggedIn } = useContext(UserContext)
   const locationVariables = useMemo(() => ({
@@ -22,7 +32,7 @@ export default function useHomeRestaurants() {
 
   const recentOrderRestaurants = useQuery(recentOrderRestaurantsQuery, {
     variables: locationVariables,
-    skip: !isLoggedIn,
+    skip: useLocal || !isLoggedIn,
     fetchPolicy: 'cache-and-network'
   })
 
@@ -31,8 +41,20 @@ export default function useHomeRestaurants() {
   // from this single call, instead of firing a second grocery-filtered request.
   const mostOrderedRestaurants = useQuery(mostOrderedRestaurantsQuery, {
     variables: mostOrderedVariables,
+    skip: useLocal,
     fetchPolicy: 'cache-and-network'
   })
+
+  if (useLocal) {
+    return {
+      orderLoading: false,
+      orderError: undefined,
+      orderData: {
+        recentOrderRestaurants: [],
+        mostOrderedRestaurants: localPreviews
+      }
+    }
+  }
 
   const orderLoading =
     recentOrderRestaurants?.loading || mostOrderedRestaurants?.loading
@@ -40,7 +62,6 @@ export default function useHomeRestaurants() {
   const orderError =
     recentOrderRestaurants?.error || mostOrderedRestaurants?.error
 
-// console.log("recentOrderRestaurants?.data?.recentOrderRestaurantsPreview",JSON.stringify(recentOrderRestaurants?.data?.recentOrderRestaurantsPreview,null,2))
   return {
     orderLoading,
     orderError,

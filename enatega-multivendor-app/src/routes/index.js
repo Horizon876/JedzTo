@@ -11,6 +11,7 @@ import Register from '../screens/Register/Register'
 import ForgotPassword from '../screens/ForgotPassword/ForgotPassword'
 import SetYourPassword from '../screens/ForgotPassword/SetYourPassword'
 import CreateAccount from '../screens/CreateAccount/CreateAccount'
+import GuestCheckout from '../screens/GuestCheckout/GuestCheckout'
 import ItemDetail from '../screens/ItemDetail/ItemDetail'
 import MyOrders from '../screens/MyOrders/MyOrders'
 import Cart from '../screens/Cart/Cart'
@@ -36,9 +37,9 @@ import AddNewAddress from '../screens/SelectLocation/AddNewAddress'
 import CurrentLocation from '../screens/CurrentLocation'
 import ThemeContext from '../ui/ThemeContext/ThemeContext'
 import { theme } from '../utils/themeColors'
-import { ENABLE_DEMO_DEFAULT_LOCATION } from '../utils/demoDefaultLocation'
 import screenOptions from './screenOptions'
 import { LocationContext } from '../context/Location'
+import AuthContext from '../context/Auth'
 import Reorder from '../screens/Reorder/Reorder'
 import Favourite from '../screens/Favourite/Favourite'
 import { DarkBackButton, RightButton } from '../components/Header/HeaderIcons/HeaderIcons'
@@ -208,6 +209,7 @@ function MainNavigator() {
 
       {/* Authentication Login */}
       <NavigationStack.Screen name='CreateAccount' component={CreateAccount} />
+      <NavigationStack.Screen name='GuestCheckout' component={GuestCheckout} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
       <NavigationStack.Screen name='Login' component={Login} />
       <NavigationStack.Screen name='Register' component={Register} />
       <NavigationStack.Screen name='PhoneNumber' component={PhoneNumber} />
@@ -229,7 +231,7 @@ function LocationStack() {
       <Location.Screen name='CurrentLocation' component={CurrentLocation} options={{ header: () => null }} />
       <Location.Screen name='SelectLocation' component={SelectLocation} />
       <Location.Screen name='AddNewAddress' component={AddNewAddress} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen
+      <Location.Screen
         name='Main'
         component={BottomTabNavigator}
         options={{
@@ -259,48 +261,45 @@ function BottomTabNavigator() {
           paddingVertical: 10,
           paddingBottom: Platform.OS === 'ios' ? 25 : 15,
           height: Platform.OS === 'ios' ? 90 : 70,
-          backgroundColor: currentTheme.cardBackground
+          backgroundColor: '#1A1A1A',
+          borderTopColor: '#2A2A2A'
         },
-        tabBarActiveTintColor: '#0EA5E9',
-        tabBarInactiveTintColor: currentTheme.fontNewColor,
+        tabBarActiveTintColor: currentTheme.main,
+        tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: { fontSize: 12 },
         headerRight: () => <RightButton icon='cart' iconColor={currentTheme.iconColor} menuHeader={false} t={t} />
       })}
     >
+      {/* Krok "BottomTab" — Glovo-style 4-tab layout: Home, Explore, Orders,
+          Profile. "Restaurants"/"Store" are still reachable from the
+          Discovery home screen's category bubbles/filter pills; they no
+          longer need dedicated bottom-tab slots. */}
       <Tab.Screen
         name='Discovery'
         component={Main}
         options={{
-          tabBarLabel: t('Discovery')
-        }}
-      />
-      <Tab.Screen
-        name='Restaurants'
-        component={Menu}
-        options={{
-          tabBarLabel: t('Restaurants')
-        }}
-        initialParams={{
-          selectedType: 'restaurant',
-          queryType: 'restaurant'
-        }}
-      />
-      <Tab.Screen
-        name='Store'
-        component={Menu}
-        options={{
-          tabBarLabel: t('Store')
-        }}
-        initialParams={{
-          selectedType: 'grocery',
-          queryType: 'grocery'
+          tabBarLabel: t('tabHome'),
+          // Dark DiscoveryHero owns the top of the screen (address + search),
+          // so the native header would only create a double bar / light strip.
+          headerShown: false
         }}
       />
       <Tab.Screen
         name='Search'
         getComponent={() => require('../screens/Search/SearchScreen').default}
         options={{
-          tabBarLabel: t('search')
+          tabBarLabel: t('tabExplore')
+        }}
+      />
+      {/* Named "Orders" (not "MyOrders") so it doesn't collide with the
+          existing 'MyOrders' stack screen that Profile/Sidebar still push
+          with its own back button + slide transition. */}
+      <Tab.Screen
+        name='Orders'
+        component={isLoggedIn ? MyOrders : CreateAccount}
+        options={{
+          tabBarLabel: t('tabOrders'),
+          headerShown: false
         }}
       />
       <Tab.Screen
@@ -318,9 +317,15 @@ function AppContainer() {
   const client = useApolloClient()
   const themeContext = useContext(ThemeContext)
   const currentTheme = theme[themeContext.ThemeValue]
-  const { permissionState, setPermissionState, location, isLocationLoaded } = useContext(LocationContext)
+  const { permissionState, setPermissionState, location, setLocation, isLocationLoaded } = useContext(LocationContext)
   const { isLoggedIn } = useContext(UserContext)
+  const { isAuthReady } = useContext(AuthContext)
   const lastNotificationResponse = Notifications.useLastNotificationResponse()
+  // Guests must pick a delivery address on every cold start (even if an old
+  // address is still sitting in AsyncStorage). Logged-in users keep the
+  // saved-address → Home shortcut. Wait for auth hydration so we don't
+  // accidentally wipe a returning user's location while token is still null.
+  const [isLaunchGateReady, setIsLaunchGateReady] = React.useState(false)
 
   // React Navigation's DefaultTheme paints the scene background white. During a
   // scale/zoom push transition (e.g. Discovery -> Restaurant) the area around
@@ -335,6 +340,14 @@ function AppContainer() {
   }
 
   const [isLoadingPermission, setIsLoadingPermission] = React.useState(true)
+
+  useEffect(() => {
+    if (!isAuthReady || !isLocationLoaded || isLaunchGateReady) return
+    if (!isLoggedIn) {
+      setLocation(null)
+    }
+    setIsLaunchGateReady(true)
+  }, [isAuthReady, isLocationLoaded, isLoggedIn, isLaunchGateReady, setLocation])
 
   const handleNotification = useCallback(
     async (response) => {
@@ -384,10 +397,14 @@ function AppContainer() {
   console.log('-------------')
   console.log({ permissionState, location })
 
-  if (isLoadingPermission || !isLocationLoaded) return
-  const shouldShowLocationStack = ENABLE_DEMO_DEFAULT_LOCATION
-    ? !location
-    : !permissionState?.granted || !location
+  if (isLoadingPermission || !isLocationLoaded || !isAuthReady || !isLaunchGateReady) return
+
+  // JedzTo onboarding:
+  // - Guests: always land on the Address screen on cold start (see guest
+  //   address gate above), then continue to Home after picking a location.
+  // - Logged-in users: skip Address when a saved location already exists.
+  // GPS permission is requested lazily from the Address screen itself.
+  const shouldShowLocationStack = !location
 
   return (
     <SafeAreaProvider>

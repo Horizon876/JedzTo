@@ -2,17 +2,15 @@
 
 import { useState } from 'react';
 // Core
-import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { Form, Formik } from 'formik';
 import { useContext, useMemo } from 'react';
 
 // Interface and Types
 import {
-  ICreateRestaurant,
-  ICreateRestaurantResponse,
+  ICreateRestaurantPayload,
   IDropdownSelectItem,
+  IGeneratedOwnerCredentials,
   IQueryResult,
-  IRestaurantsResponseGraphQL,
 } from '@/lib/utils/interfaces';
 
 // Component
@@ -20,10 +18,9 @@ import CustomButton from '@/lib/ui/useable-components/button';
 import CustomDropdownComponent from '@/lib/ui/useable-components/custom-dropdown';
 import CustomMultiSelectComponent from '@/lib/ui/useable-components/custom-multi-select';
 import CustomTextField from '@/lib/ui/useable-components/input-field';
-import CustomIconTextField from '@/lib/ui/useable-components/input-icon-field';
-import CustomPasswordTextField from '@/lib/ui/useable-components/password-input-field';
 import ShopTypesForm from '@/lib/ui/screen-components/protected/super-admin/shop-types/form';
 import CuisineForm from '@/lib/ui/screen-components/protected/super-admin/cuisines/form';
+import OwnerCredentialsModal from './owner-credentials-modal';
 
 // Constants
 import {
@@ -69,10 +66,7 @@ import { useShopTypes } from '@/lib/hooks/useShopType';
 
 const initialValues: IRestaurantForm = {
   name: '',
-  username: '',
-  password: '',
   phoneNumber: '',
-  confirmPassword: '',
   address: '',
   deliveryTime: 1,
   minOrder: 1,
@@ -112,6 +106,10 @@ export default function RestaurantDetailsForm({
       __typename: '',
     },
   });
+  const [ownerCredentials, setOwnerCredentials] =
+    useState<IGeneratedOwnerCredentials | null>(null);
+  const [isCredentialsModalVisible, setIsCredentialsModalVisible] =
+    useState(false);
 
   // Props
   const { onStepChange, order } = stepperProps ?? {
@@ -132,7 +130,7 @@ export default function RestaurantDetailsForm({
     onCompleted: ({
       createRestaurant,
     }: {
-      createRestaurant?: ICreateRestaurant;
+      createRestaurant?: ICreateRestaurantPayload;
     }) => {
       showToast({
         type: 'success',
@@ -146,11 +144,18 @@ export default function RestaurantDetailsForm({
         restaurant: {
           ...restaurantsContextData?.restaurant,
           _id: {
-            label: createRestaurant?.username ?? '',
-            code: createRestaurant?._id ?? '',
+            label: createRestaurant?.restaurant?.username ?? '',
+            code: createRestaurant?.restaurant?._id ?? '',
           },
         },
       });
+
+      // The temporary password only ever appears in this one response —
+      // show it now so the admin can copy it before it's gone for good.
+      if (createRestaurant?.owner) {
+        setOwnerCredentials(createRestaurant.owner);
+        setIsCredentialsModalVisible(true);
+      }
 
       onStepChange(order + 1);
     },
@@ -179,12 +184,13 @@ export default function RestaurantDetailsForm({
   // Handlers
   const onCreateRestaurant = async (data: IRestaurantForm) => {
     try {
-      const vendorId = restaurantsContextData?.vendor?._id?.code;
-      if (!vendorId) {
+      const ownerName = restaurantsContextData?.vendor?.ownerName;
+      const ownerEmail = restaurantsContextData?.vendor?.ownerEmail;
+      if (!ownerName || !ownerEmail) {
         showToast({
           type: 'error',
           title: t('Create Store'),
-          message: t('Store Creation Failed - Please select a vendor'),
+          message: t('Store Creation Failed - Please set the owner details'),
           duration: 2500,
         });
         return;
@@ -207,7 +213,8 @@ export default function RestaurantDetailsForm({
 
       await createRestaurant({
         variables: {
-          owner: vendorId,
+          ownerName,
+          ownerEmail,
           restaurant: {
             name: data.name,
             address: data.address,
@@ -216,8 +223,6 @@ export default function RestaurantDetailsForm({
             logo: data.logo,
             deliveryTime: data.deliveryTime,
             minimumOrder: data.minOrder,
-            username: data.username,
-            password: data.password,
             shopType: data.shopType?.code,
             salesTax: data.salesTax,
             cuisines: data.cuisines.map(
@@ -249,29 +254,27 @@ export default function RestaurantDetailsForm({
   }
   function update(
     cache: ApolloCache<unknown>,
-    data: ICreateRestaurantResponse
+    result: { data?: { createRestaurant?: ICreateRestaurantPayload } }
   ): void {
-    if (!data) return;
+    const newRestaurant = result?.data?.createRestaurant?.restaurant;
+    if (!newRestaurant) return;
 
-    const restaurantId = restaurantsContextData?.restaurant?._id?.code;
-
-    const cachedData: IRestaurantsResponseGraphQL | null = cache.readQuery({
+    // GET_RESTAURANTS returns a flat `restaurants: [Restaurant]` array (no
+    // pagination wrapper) — see queries/restaurants/index.ts.
+    const cachedData: { restaurants?: unknown[] } | null = cache.readQuery({
       query: GET_RESTAURANTS,
     });
 
-    const cachedRestaurants = cachedData?.restaurants?.data ?? [];
+    const cachedRestaurants = cachedData?.restaurants ?? [];
 
     cache.writeQuery({
       query: GET_RESTAURANTS,
-      variables: { id: restaurantId },
       data: {
-        restaurants: [...(cachedRestaurants ?? []), createRestaurant],
+        restaurants: [...cachedRestaurants, newRestaurant],
       },
     });
   }
 
-  const strongPasswordRegex =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{6,}$/;
   return (
     <div className="flex h-full w-full items-center justify-start dark:text-white dark:bg-dark-950">
       <div className="h-full w-full">
@@ -314,73 +317,6 @@ export default function RestaurantDetailsForm({
                             borderColor: onErrorMessageMatcher(
                               'name',
                               errors?.name,
-                              RestaurantErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <CustomIconTextField
-                          type="email"
-                          name="username"
-                          placeholder={t('Email')}
-                          maxLength={35}
-                          showLabel={true}
-                          iconProperties={{
-                            icon: faEnvelope,
-                            position: 'right',
-                            style: { marginTop: '1px' },
-                          }}
-                          value={values.username}
-                          onChange={handleChange}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'username',
-                              errors?.username,
-                              RestaurantErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <CustomPasswordTextField
-                          placeholder={t('Password')}
-                          name="password"
-                          maxLength={20}
-                          value={values.password}
-                          showLabel={true}
-                          onChange={handleChange}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'password',
-                              errors?.password,
-                              RestaurantErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <CustomPasswordTextField
-                          placeholder={t('Confirm Password')}
-                          name="confirmPassword"
-                          maxLength={20}
-                          showLabel={true}
-                          value={values.confirmPassword ?? ''}
-                          onChange={handleChange}
-                          feedback={false}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'confirmPassword',
-                              errors?.confirmPassword,
                               RestaurantErrors
                             )
                               ? 'red'
@@ -618,21 +554,6 @@ export default function RestaurantDetailsForm({
                           label={t('Save & Next')}
                           type="submit"
                           loading={isSubmitting}
-                          onClick={() => {
-                            if (
-                              values.password &&
-                              !strongPasswordRegex.test(values.password)
-                            ) {
-                              showToast({
-                                title: t('Error'),
-                                message: t(
-                                  'Password must be at least 6 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character'
-                                ),
-                                type: 'error',
-                                duration: 3000,
-                              });
-                            }
-                          }}
                         />
                       </div>
                       <div className="flex justify-end">
@@ -661,6 +582,12 @@ export default function RestaurantDetailsForm({
             setVisible={setIsAddCuisineVisible}
             isEditing={isEditCuisine}
             setIsEditing={setIsEditCuisine}
+          />
+
+          <OwnerCredentialsModal
+            visible={isCredentialsModalVisible}
+            credentials={ownerCredentials}
+            onHide={() => setIsCredentialsModalVisible(false)}
           />
         </div>
       </div>

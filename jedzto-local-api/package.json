@@ -1,0 +1,39 @@
+{
+  "name": "jedzto-local-api",
+  "version": "2.0.0",
+  "description": "JedzTo Multi-Vendor GraphQL API (MongoDB + role-based)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "SEED_ON_START=1 node server.js"
+  },
+  "keywords": [
+    "jedzto",
+    "graphql",
+    "multi-vendor"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@apollo/server": "^4.12.2",
+    "@graphql-tools/schema": "^10.0.25",
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "graphql": "^16.11.0",
+    "graphql-subscriptions": "^3.0.0",
+    "graphql-tag": "^2.12.6",
+    "graphql-ws": "^5.16.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb-memory-server": "^11.2.0",
+    "mongoose": "^8.24.1",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

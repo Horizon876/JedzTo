@@ -1,24 +1,30 @@
 import * as Yup from 'yup';
 import { IDropdownSelectItem } from '../interfaces';
 
+// Shared by legacy vendor-scoped "add restaurant" forms that still collect a
+// restaurant-level username/password. The Super Admin "create restaurant"
+// wizard (jedzto-local-api flow) no longer collects these — the owner
+// account is generated automatically — so they stay optional here and are
+// only enforced when actually provided.
 export const RestaurantSchema = Yup.object().shape({
   name: Yup.string()
     .max(35)
     .trim()
     .matches(/\S/, 'Name cannot be only spaces')
     .required('Required'),
-  username: Yup.string().email('Invalid email').required('Required'),
+  username: Yup.string().email('Invalid email'),
   password: Yup.string()
-  .required('Required')
-  .min(6, 'At least 6 characters')
-  .matches(/[a-z]/, 'At least one lowercase letter (a-z)')
-  .matches(/[A-Z]/, 'At least one uppercase letter (A-Z)')
-  .matches(/[0-9]/, 'At least one number (0-9)')
-  .matches(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/, 'At least one special character'),
+    .min(6, 'At least 6 characters')
+    .matches(/[a-z]/, 'At least one lowercase letter (a-z)')
+    .matches(/[A-Z]/, 'At least one uppercase letter (A-Z)')
+    .matches(/[0-9]/, 'At least one number (0-9)')
+    .matches(
+      /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/,
+      'At least one special character'
+    ),
   confirmPassword: Yup.string()
     .nullable()
-    .oneOf([Yup.ref('password'), null], 'Password must match')
-    .required('Required'),
+    .oneOf([Yup.ref('password'), null, ''], 'Password must match'),
     address: Yup.string()
     .max(100, 'Maximum 100 characters allowed')
     .trim()

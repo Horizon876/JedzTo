@@ -29,6 +29,7 @@ import { calculateDistance, isOpen } from '../../utils/customFunctions'
 import { LocationContext } from '../../context/Location'
 import ShimmerImage from '../../components/ShimmerImage/ShimmerImage'
 import { resolveRestaurantImage as resolveResolvedRestaurantImage } from '../../utils/resolveImageUrl'
+import { isJedzToLocalRestaurantId } from '../../utils/jedztoLocalRestaurants'
 
 const { height } = Dimensions.get('screen')
 
@@ -101,7 +102,8 @@ function Restaurant(props) {
   const { data, refetch, networkStatus, loading, error } = useRestaurant(propsData._id)
   const client = useApolloClient()
   const { data: popularItemsData } = useQuery(POPULAR_ITEMS, {
-    variables: { restaurantId }
+    variables: { restaurantId },
+    skip: isJedzToLocalRestaurantId(restaurantId)
   })
 
   const openSearch = useCallback(() => {
