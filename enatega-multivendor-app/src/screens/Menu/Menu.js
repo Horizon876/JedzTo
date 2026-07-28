@@ -193,7 +193,7 @@ function Menu({ route, props }) {
     if (Platform.OS === 'android') {
       StatusBar.setBackgroundColor(currentTheme.newheaderColor)
     }
-    StatusBar.setBarStyle('dark-content')
+    StatusBar.setBarStyle(themeContext.ThemeValue === 'Dark' ? 'light-content' : 'dark-content')
   })
   useEffect(() => {
     async function Track() {

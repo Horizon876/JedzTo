@@ -19,6 +19,7 @@ import ConfigurationContext from '../../context/Configuration'
 import { useTranslation } from 'react-i18next'
 import CachedImage from '../../components/CachedImage'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { formatMoney } from '../../utils/formatMoney'
 
 // Track view changes only until the image loads, then freeze the marker.
 // (Prevents Android from constantly re-snapshotting markers, while still showing the image.)
@@ -187,14 +188,14 @@ export default function MapSection() {
                         bold
                         Small
                       >
-                        {configuration.currencySymbol}{' '}{configuration.deliveryRate}
+                        {formatMoney(configuration.deliveryRate, configuration.currencySymbol)}
                       </TextDefault>
                     </View>
                     <View
                       style={styles().deliveryTime}
                     >
                       <AntDesign
-                        name='clockcircleo'
+                        name='clock-circle'
                         size={14}
                         color={currentTheme.editProfileButton}
                       />

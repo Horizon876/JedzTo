@@ -1,5 +1,6 @@
 import * as Yup from 'yup';
 import { IDropdownSelectItem } from '../interfaces';
+import { imageUrlSchema } from './image-url';
 
 // Shared by legacy vendor-scoped "add restaurant" forms that still collect a
 // restaurant-level username/password. The Super Admin "create restaurant"
@@ -45,7 +46,7 @@ export const RestaurantSchema = Yup.object().shape({
     .min(1, 'Cuisines field must have at least 1 items')
     .required('Required'),
 
-  image: Yup.string().url('Invalid image URL').required('Required'),
-  logo: Yup.string().url('Invalid logo URL').required('Required'),
+  image: imageUrlSchema(),
+  logo: imageUrlSchema('Invalid logo URL'),
   phoneNumber: Yup.string().required('Required').min(5,"Minimum 5 Numbers are Required"),
 });

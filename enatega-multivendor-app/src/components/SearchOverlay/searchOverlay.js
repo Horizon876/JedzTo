@@ -18,6 +18,7 @@ import { escapeRegExp } from '../../utils/regex'
 import ShimmerImage from '../ShimmerImage/ShimmerImage'
 import { useTranslation } from 'react-i18next'
 import { isOpen } from '../../utils/customFunctions'
+import { formatMoney } from '../../utils/formatMoney'
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight
 
@@ -181,8 +182,7 @@ const SearchOverlay = ({
             bold
             isRTL={isRTL}
           >
-            {configuration.currencySymbol}
-            {item.variations[0].price}
+            {formatMoney(item.variations[0].price, configuration.currencySymbol)}
           </TextDefault>
           {item.variations[0].discounted > 0 && (
             <TextDefault
@@ -195,10 +195,10 @@ const SearchOverlay = ({
               }}
               isRTL={isRTL}
             >
-              {configuration.currencySymbol}
-              {(
-                item.variations[0].price + item.variations[0].discounted
-              ).toFixed(2)}
+              {formatMoney(
+                item.variations[0].price + item.variations[0].discounted,
+                configuration.currencySymbol
+              )}
             </TextDefault>
           )}
         </View>

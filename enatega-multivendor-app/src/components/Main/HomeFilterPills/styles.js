@@ -10,18 +10,18 @@ const styles = () =>
       flexDirection: 'row',
       gap: scale(8),
       paddingHorizontal: scale(16),
-      paddingTop: scale(4),
-      paddingBottom: scale(14)
+      paddingTop: scale(6),
+      paddingBottom: scale(8)
     },
     pill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: scale(6),
-      paddingHorizontal: scale(14),
-      paddingVertical: scale(10),
+      gap: scale(5),
+      paddingHorizontal: scale(12),
+      paddingVertical: scale(8),
       borderRadius: scale(999),
       backgroundColor: '#2A2A2A',
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: '#3A3A3A'
     }
   })

@@ -7,6 +7,7 @@ import styles from './styles'
 import ShimmerImage from '../../ShimmerImage/ShimmerImage'
 import { useTranslation } from 'react-i18next'
 import { calculateDiscountedPrice } from '../../../utils/calculateDiscountedPrice'
+import { formatMoney } from '../../../utils/formatMoney'
 
 const FoodItem = ({ item, currentTheme, configuration, onPress }) => {
   const variation = item.variations?.[0]
@@ -39,11 +40,11 @@ const FoodItem = ({ item, currentTheme, configuration, onPress }) => {
       <View style={styles(currentTheme).detailsContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap:scale(5) }}>
           <TextDefault H5 bold textColor={currentTheme.fontMainColor} style={{ }}>
-            {configuration.currencySymbol} {price}
+            {formatMoney(price, configuration.currencySymbol)}
           </TextDefault>
           {discountedPrice && discountedPrice > 0 && (
             <TextDefault small bold textColor={currentTheme.fontSecondColor} style={{textDecorationLine:  'line-through' }}>
-              {configuration.currencySymbol} {withoutDiscountPrice}
+              {formatMoney(withoutDiscountPrice, configuration.currencySymbol)}
             </TextDefault>
           )}
         </View>

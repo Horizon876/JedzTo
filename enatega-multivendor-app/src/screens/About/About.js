@@ -1,64 +1,120 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { View, StatusBar, Linking, TouchableOpacity, Platform } from 'react-native'
-import { AntDesign, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons'
+import React, { useEffect, useMemo, useState } from 'react'
+import { View, StatusBar, TouchableOpacity } from 'react-native'
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import MapView, { PROVIDER_DEFAULT } from 'react-native-maps'
-import { scale } from '../../utils/scaling'
-import ImageHeader from '../../components/About/Header'
-import styles from './styles'
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
-import TextDefault from '../../components/Text/TextDefault/TextDefault'
-import ThemeContext from '../../ui/ThemeContext/ThemeContext'
-import { theme } from '../../utils/themeColors'
-import { alignment } from '../../utils/alignment'
-import { aboutMapStyle } from '../../utils/aboutMapStyle'
-import CustomMarker from '../../assets/SVG/restaurant-marker'
-import analytics from '../../utils/analytics'
 import { ScrollView } from 'react-native-gesture-handler'
+import { useNavigation } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
-import ConfigurationContext from '../../context/Configuration'
-import FavoriteButton from '../../components/FavButton/FavouriteButton'
-import { mapStyle } from '../../utils/mapStyle'
-import { customMapStyle } from '../../utils/customMapStyles'
-
+import { scale } from '../../utils/scaling'
+import styles from './styles'
+import TextDefault from '../../components/Text/TextDefault/TextDefault'
+import { aboutMapStyle } from '../../utils/aboutMapStyle'
+import analytics from '../../utils/analytics'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 
+const ACCENT = '#00A8FF'
+const BG = '#121212'
+const MUTED = '#8E8E93'
+const MAP_DELTA = 0.004
+
+function formatTimeSlot(timing) {
+  if (!timing?.startTime || !timing?.endTime) return null
+  return `${timing.startTime[0]}:${timing.startTime[1]} - ${timing.endTime[0]}:${timing.endTime[1]}`
+}
+
+function MapPin() {
+  return (
+    <View style={styles().pin}>
+      <View style={styles().pinHead}>
+        <Ionicons name='location' size={scale(14)} color='#FFFFFF' />
+      </View>
+      <View style={styles().pinTip} />
+    </View>
+  )
+}
+
+function HoursModeToggle({ isPickup, onToggle, t }) {
+  return (
+    <View style={styles().toggleContainer}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        accessibilityLabel={t('orderTypeDelivery')}
+        style={[styles().toggleSegment, !isPickup && styles().toggleSegmentActive]}
+        onPress={() => onToggle(false)}
+      >
+        {!isPickup ? (
+          <>
+            <MaterialCommunityIcons name='bicycle' size={16} color={ACCENT} />
+            <TextDefault bolder small textColor={ACCENT} style={styles().toggleLabel}>
+              {t('orderTypeDelivery')}
+            </TextDefault>
+          </>
+        ) : (
+          <MaterialCommunityIcons name='bicycle' size={16} color='#9CA3AF' />
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        accessibilityLabel={t('orderTypePickup')}
+        style={[styles().toggleSegment, isPickup && styles().toggleSegmentActive]}
+        onPress={() => onToggle(true)}
+      >
+        {isPickup ? (
+          <>
+            <Ionicons name='bag-handle' size={15} color={ACCENT} />
+            <TextDefault bolder small textColor={ACCENT} style={styles().toggleLabel}>
+              {t('orderTypePickup')}
+            </TextDefault>
+          </>
+        ) : (
+          <Ionicons name='bag-handle-outline' size={15} color='#9CA3AF' />
+        )}
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+function CompanyRow({ label, value }) {
+  if (!value) return null
+  return (
+    <View style={styles().companyRow}>
+      <TextDefault small textColor={MUTED}>
+        {label}
+      </TextDefault>
+      <TextDefault textColor='#FFFFFF' style={styles().companyValue}>
+        {value}
+      </TextDefault>
+    </View>
+  )
+}
+
 function About(props) {
   const Analytics = analytics()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const navigation = useNavigation()
+  const insets = useSafeAreaInsets()
   const { restaurantObject } = props.route.params
-  const IsOpen = restaurantObject?.IsOpen
-  const themeContext = useContext(ThemeContext)
   const { isConnected: connect } = useNetworkStatus()
-  const configuration = useContext(ConfigurationContext)
+  const [isPickupHours, setIsPickupHours] = useState(false)
 
-  console.log(JSON.stringify(restaurantObject, null, 2), "restaurantObject")
+  const restaurantName = restaurantObject?.restaurantName || restaurantObject?.name || ''
+  const address = restaurantObject?.address || restaurantObject?.restaurantAddress || ''
+  const openingTimes = restaurantObject?.openingTimes || []
+  const business = restaurantObject?.bussinessDetails || {}
+  const deliveryTime = restaurantObject?.deliveryTime
 
-  const currentTheme = {
-    isRTL: i18n.dir() === 'rtl',
-    ...theme[themeContext.ThemeValue]
-  }
-  const RestAbout = {
-    name: restaurantObject.name,
-    id: restaurantObject._id,
-    address: restaurantObject.address,
-    deliveryTime: restaurantObject.deliveryTime,
-    minimumOrder: restaurantObject.minimumOrder,
-    rating: restaurantObject.rating,
-    average: restaurantObject.average,
-    isOpen: restaurantObject.IsOpen,
-    phone: restaurantObject.phone,
-    restaurantUrl: restaurantObject.restaurantUrl,
-    tax : restaurantObject.tax,
-    map: {
-      latitude: Number(restaurantObject.latitude) || 0,
-      longitude: Number(restaurantObject.longitude) || 0,
-      latitudeDelta: 0.5,
-      longitudeDelta: 0.4
+  const mapRegion = useMemo(() => {
+    const latitude = Number(restaurantObject?.latitude) || 0
+    const longitude = Number(restaurantObject?.longitude) || 0
+    return {
+      latitude,
+      longitude,
+      latitudeDelta: MAP_DELTA,
+      longitudeDelta: MAP_DELTA
     }
-  }
-  const currentDayShort = new Date().toLocaleString('en-US', { weekday: 'short' }).toUpperCase()
-  const todayOpeningTimes = restaurantObject.openingTimes.find((opening) => opening.day === currentDayShort)
+  }, [restaurantObject?.latitude, restaurantObject?.longitude])
 
   useEffect(() => {
     async function Track() {
@@ -67,254 +123,108 @@ function About(props) {
     Track()
   }, [])
 
-  const typeName = restaurantObject.__typename;
-  console.log(RestAbout)
-
   if (!connect) return <ErrorView refetchFunctions={[]} />
+
   return (
-    <SafeAreaView style={styles(currentTheme).safeAreaViewStyles}>
-      <StatusBar backgroundColor={currentTheme.themeBackground} barStyle={themeContext.ThemeValue === 'Dark' ? 'light-content' : 'dark-content'} />
+    <SafeAreaView edges={['left', 'right']} style={[styles().safeArea, { backgroundColor: BG, paddingTop: insets.top }]}>
+      <StatusBar backgroundColor={BG} barStyle='light-content' />
+
+      <View style={styles().topBar}>
+        <TouchableOpacity activeOpacity={0.7} style={styles().backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name='arrow-back' size={scale(22)} color='#FFFFFF' />
+        </TouchableOpacity>
+        <TextDefault H4 bolder textColor='#FFFFFF' style={styles().topBarTitle}>
+          {t('address')}
+        </TextDefault>
+        <View style={styles().backButton} />
+      </View>
+
       <ScrollView
-        style={[
-          // { marginTop: inset.top },
-          styles().flex,
-          { backgroundColor: currentTheme.headerMenuBackground }
-        ]}
+        style={styles().flex}
+        contentContainerStyle={[styles().scrollContent, { paddingBottom: insets.bottom + scale(24) }]}
+        showsVerticalScrollIndicator={false}
       >
-        <ImageHeader iconColor={currentTheme.newIconColor} svgNameL='leftArrow' restaurantImage={restaurantObject.restaurantImage} restaurantName={ restaurantObject.restaurantName} deliveryTime={restaurantObject.deliveryTime} total={restaurantObject.total} rating={restaurantObject?.reviews && restaurantObject?.reviews?.length === 0 ? 0 : restaurantObject.reviews && restaurantObject?.reviews[0]?.rating} />
-        {/* map view */}
-        <View style={styles(currentTheme).mapContainer}>
-          <MapView style={styles().flex} scrollEnabled={false} zoomEnabled={false} zoomControlEnabled={false} rotateEnabled={false} cacheEnabled={false} initialRegion={RestAbout.map} customMapStyle={customMapStyle} provider={PROVIDER_DEFAULT} />
-          <View style={styles().marker}>
-            <CustomMarker width={80} height={80} transform={[{ translateY: -20 }]} translateY={-20} />
+        <View style={styles().mapContainer}>
+          <MapView
+            style={styles().map}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            zoomControlEnabled={false}
+            rotateEnabled={false}
+            pitchEnabled={false}
+            initialRegion={mapRegion}
+            customMapStyle={aboutMapStyle}
+            provider={PROVIDER_DEFAULT}
+          />
+          <View style={styles().marker} pointerEvents='none'>
+            <MapPin />
           </View>
         </View>
 
-        {/* other details */}
-        <View style={[styles().flex, styles(currentTheme).mainContainer]}>
-          <View>
-            <View style={styles(currentTheme).subContainer}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <TextDefault
-                  isRTL
-                  H3
-                  bolder
-                  textColor={currentTheme.fontThirdColor}
-                >
-                  {typeName == "RestaurantPreview" ? RestAbout.name : restaurantObject?.restaurantName}
-                </TextDefault>
-              </View>
-              <FavoriteButton iconSize={scale(24)} restaurantId={RestAbout.id} />
-            </View>
+        <TextDefault textColor='#FFFFFF' style={styles().addressText}>
+          {address || t('none')}
+        </TextDefault>
 
-            <View style={alignment.MTxSmall}>
-              {todayOpeningTimes && (
-                <View style={styles(currentTheme).timingRow}>
-                  <View>
-                    <AntDesign name='clockcircle' size={12} color={!IsOpen ? currentTheme.red600 : currentTheme.main} />
+        <View style={styles().section}>
+          <View style={styles().sectionHeaderRow}>
+            <TextDefault H5 bolder textColor='#FFFFFF'>
+              {t('openingHours')}
+            </TextDefault>
+            <HoursModeToggle isPickup={isPickupHours} onToggle={setIsPickupHours} t={t} />
+          </View>
+
+          {!isPickupHours && deliveryTime != null && deliveryTime !== '' ? (
+            <TextDefault small textColor={MUTED} style={styles().modeHint}>
+              {t('deliveryTime')}: {deliveryTime} {t('Min')}
+            </TextDefault>
+          ) : null}
+
+          {isPickupHours ? (
+            <TextDefault small textColor={MUTED} style={styles().modeHint}>
+              {t('pickupTimeHint')}
+            </TextDefault>
+          ) : null}
+
+          <View style={styles().timingList}>
+            {openingTimes.length === 0 ? (
+              <TextDefault textColor={MUTED}>{t('none')}</TextDefault>
+            ) : (
+              openingTimes.map((dayRow, index) => (
+                <View key={`${dayRow.day}-${index}`} style={styles().timingRow}>
+                  <TextDefault bolder textColor='#FFFFFF' style={styles().dayLabel}>
+                    {t(dayRow.day)}
+                  </TextDefault>
+                  <View style={styles().dayTimes}>
+                    {!dayRow?.times?.length ? (
+                      <TextDefault textColor={MUTED}>{t('ClosedAllDay')}</TextDefault>
+                    ) : (
+                      dayRow.times.map((slot, slotIndex) => (
+                        <TextDefault key={slotIndex} textColor='#FFFFFF'>
+                          {formatTimeSlot(slot)}
+                        </TextDefault>
+                      ))
+                    )}
                   </View>
-                  <TextDefault
-                    isRTL
-                    textColor={currentTheme.fontThirdColor}
-                    H5
-                    bold
-                  >
-                    {t(todayOpeningTimes?.day)}{' '}
-                  </TextDefault>
-                  {todayOpeningTimes?.times?.length < 1 ? (
-                    <TextDefault isRTL small bold center>
-                      {t('ClosedAllDay')}
-                    </TextDefault>
-                  ) : (
-                    todayOpeningTimes?.times?.map((timing, index) => (
-                      <TextDefault isRTL key={index} textColor={currentTheme.fontThirdColor} H5 bold>
-                        {timing.startTime[0]}:{timing.startTime[1]} - {timing.endTime[0]}:{timing.endTime[1]}
-                      </TextDefault>
-                    ))
-                  )}
                 </View>
-              )}
-            </View>
-
-            <View style={alignment.MTsmall}>
-              <TextDefault
-                isRTL
-                textColor={currentTheme.fontThirdColor}
-                H5
-                bold
-              >
-                {t('preservationText')}
-              </TextDefault>
-            </View>
+              ))
+            )}
           </View>
+        </View>
 
-          <View>
-            <View style={alignment.MTlarge}>
-              <TextDefault
-                isRTL
-                H3
-                bolder
-                textColor={currentTheme.fontThirdColor}
-              >
-                {t('location')}
-              </TextDefault>
-            </View>
-            <View style={alignment.MTsmall}>
-              <TextDefault
-                isRTL
-                textColor={currentTheme.fontThirdColor}
-                H5
-                bold
-              >
-                {restaurantObject.address}
-              </TextDefault>
-            </View>
+        <View style={styles().section}>
+          <TextDefault H5 bolder textColor='#FFFFFF' style={styles().companyTitle}>
+            {t('companyDetails')}
+          </TextDefault>
+          <View style={styles().companyCard}>
+            <CompanyRow label={t('companyName')} value={restaurantName} />
+            <CompanyRow label={t('address')} value={address} />
+            <CompanyRow label={t('nip')} value={business?.companyRegNo ? String(business.companyRegNo) : null} />
+            <CompanyRow label={t('regon')} value={business?.bussinessRegNo ? String(business.bussinessRegNo) : null} />
           </View>
-
-          <View>
-            <View style={alignment.MTlarge}>
-              <TextDefault
-                isRTL
-                H3
-                textColor={currentTheme.fontThirdColor}
-                bolder
-              >
-                {t('openingHours')}
-              </TextDefault>
-            </View>
-
-            <View style={styles().timingContainer}>
-              {restaurantObject.openingTimes.map((v, index) => (
-                <View key={index} style={styles(currentTheme).timingRowMain}>
-                  <TextDefault isRTL style={styles().timingText} textColor={currentTheme.fontThirdColor} bolder large>
-                    {t(v.day)}{' '}
-                  </TextDefault>
-                  {v?.times?.length < 1 ? (
-                    <TextDefault isRTL key={index + 8} small bold center>
-                      {t('ClosedAllDay')}
-                    </TextDefault>
-                  ) : (
-                    v?.times?.map((t) => (
-                      <TextDefault isRTL key={index + 8} textColor={currentTheme.fontThirdColor} large>
-                        {t.startTime[0]}:{t.startTime[1]}
-                        {' - '}
-                        {t.endTime[0]}:{t.endTime[1]}
-                      </TextDefault>
-                    ))
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View>
-            <View style={[alignment.MTlarge]}>
-              <TextDefault
-                isRTL
-                H3
-                bolder
-                textColor={currentTheme.fontThirdColor}
-              >
-                {t('deliveryInformation')}
-              </TextDefault>
-            </View>
-            <View style={alignment.MTsmall}>
-              <TextDefault isRTL H5 textColor={currentTheme.fontThirdColor} bold style={alignment.MTxSmall}>
-                {t('minimumOrder')} {configuration.currencySymbol}
-                {typeName == "RestaurantPreview" ? RestAbout.minimumOrder :restaurantObject.restaurantMinOrder}
-              </TextDefault>
-
-              <TextDefault isRTL H5 textColor={currentTheme.fontThirdColor} bold style={alignment.MTxSmall}>
-                {t('delivery')} {typeName == "RestaurantPreview" ? RestAbout.deliveryTime : restaurantObject.deliveryTime} {t('Min')}
-              </TextDefault>
-
-              <TextDefault isRTL H5 textColor={currentTheme.fontThirdColor} bold style={alignment.MTxSmall}>
-
-                {t('salesTax')} {configuration.currencySymbol}
-                {typeName == "RestaurantPreview" ? RestAbout.tax : restaurantObject.restaurantTax}
-              </TextDefault>
-            </View>
-          </View>
-
-          <View>
-            <View style={alignment.MTlarge}>
-              <TextDefault
-                isRTL
-                H3
-                bolder
-                textColor={currentTheme.fontThirdColor}
-              >
-                {t('contact')}
-              </TextDefault>
-            </View>
-
-            <View style={alignment.MTsmall}>
-              <TextDefault
-                isRTL
-                textColor={currentTheme.fontThirdColor}
-                H5
-                bold
-              >
-                {t('restrictionsInstructions')}
-              </TextDefault>
-            </View>
-
-            <View
-              style={[styles(currentTheme).subContainer, alignment.MTsmall]}
-            >
-              <View>
-                <TextDefault isRTL H5 bold>
-                  {t('restaurant')}
-                </TextDefault>
-              </View>
-              {RestAbout?.phone ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    Linking.openURL(`tel:${RestAbout?.phone}`)
-                  }}
-                >
-                  <TextDefault isRTL H5 bold textColor={currentTheme.linkColor}>
-                    {RestAbout?.phone}
-                  </TextDefault>
-                </TouchableOpacity>
-              ) : (
-                <TextDefault isRTL H5 bold textColor={currentTheme.linkColor}>
-                  {t('none')}
-                </TextDefault>
-              )}
-            </View>
-
-            <View style={styles().line} />
-
-
-            <View style={[styles(currentTheme).subContainer, alignment.MTsmall]}>
-              <View>
-                <TextDefault isRTL H5 bold>
-                  {t('website')}
-                </TextDefault>
-              </View>
-              {RestAbout?.restaurantUrl ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    Linking.openURL(RestAbout?.restaurantUrl)
-                  }}
-                >
-                  <TextDefault isRTL H5 bold textColor={currentTheme.linkColor}>
-                    {t('viewWebsite')}
-                  </TextDefault>
-                </TouchableOpacity>
-              ) : (
-                <TextDefault isRTL H5 bold textColor={currentTheme.linkColor}>
-                  {t('none')}
-                </TextDefault>
-              )}
-            </View>
-          </View>
-
-          <View style={styles().line} />
         </View>
       </ScrollView>
     </SafeAreaView>
   )
 }
+
 export default About

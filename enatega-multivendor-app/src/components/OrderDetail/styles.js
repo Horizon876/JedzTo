@@ -1,43 +1,43 @@
 import { StyleSheet } from 'react-native'
 import { scale } from '../../utils/scaling'
+
+const SURFACE = '#1C1C1E'
+const HAIRLINE = '#2C2C2E'
+const ACCENT = '#00A8FF'
+
 export default StyleSheet.create({
-  cancelButtonContainer: theme => ({
+  cancelButtonContainer: () => ({
     alignItems: 'center',
     justifyContent: 'center',
-    borderColor: theme.red600,
-    borderWidth: 1,
-    borderRadius: scale(25),
-    width: scale(200)
+    backgroundColor: '#FF453A',
+    borderRadius: scale(999),
+    width: '100%',
+    height: scale(48)
   }),
-  dismissButtonContainer: theme => ({
+  dismissButtonContainer: () => ({
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderRadius: scale(25),
-    width: scale(200),
-    borderColor: theme.newIconColor
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: scale(999),
+    width: '100%',
+    height: scale(48),
+    borderColor: HAIRLINE,
+    backgroundColor: 'transparent'
   }),
-  modalContainer: theme => ({
-    borderWidth:scale(1),
-    borderColor:theme.white,
-    margin: 10,
-    backgroundColor: theme.themeBackground,
-    borderRadius: 20,
-    padding: 35,
-    // alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
+  modalContainer: () => ({
+    margin: scale(16),
+    backgroundColor: SURFACE,
+    borderRadius: scale(20),
+    padding: scale(22),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: HAIRLINE,
+    width: '90%',
+    alignSelf: 'center'
   }),
-  container: theme => ({
+  container: () => ({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000'
+    backgroundColor: 'rgba(0,0,0,0.6)'
   })
 })

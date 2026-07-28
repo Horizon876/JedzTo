@@ -24,6 +24,7 @@ const { height } = Dimensions.get('screen')
 
 import { useTranslation } from 'react-i18next'
 import { ItemCard } from '../../components/ItemCards/ItemCards'
+import { formatMoney } from '../../utils/formatMoney'
 
 // Animated Section List component
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList)
@@ -504,11 +505,11 @@ function Restaurant(props) {
                           </TextDefault>
                           <View style={styles(currentTheme).dealPrice}>
                             <TextDefault numberOfLines={1} textColor={currentTheme.fontMainColor} style={styles(currentTheme).priceText} bolder small>
-                              {configuration.currencySymbol} {parseFloat(item.variations[0].price).toFixed(2)}
+                              {formatMoney(item.variations[0].price, configuration.currencySymbol)}
                             </TextDefault>
                             {item.variations[0].discounted > 0 && (
                               <TextDefault numberOfLines={1} textColor={currentTheme.fontSecondColor} style={styles().priceText} small lineOver>
-                                {configuration.currencySymbol} {(item.variations[0].price + item.variations[0].discounted).toFixed(2)}
+                                {formatMoney(item.variations[0].price + item.variations[0].discounted, configuration.currencySymbol)}
                               </TextDefault>
                             )}
                           </View>

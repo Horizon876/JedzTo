@@ -1,4 +1,5 @@
 import { User, Restaurant, Category, Food, Order, ShopType } from './models/index.js'
+import { publishRestaurantMenu } from './services/menu.js'
 
 const IMG = {
   pizza: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&q=80',
@@ -150,7 +151,15 @@ export async function seedDatabase({ force = false } = {}) {
     openingTimes: OPENING_TIMES,
     reviewCount: 24,
     reviewAverage: 4.6,
-    rating: 4.6
+    rating: 4.6,
+    deliveryAreas: [
+      { name: 'Sułkowice', fee: 0, minOrder: 30, latitude: 49.8408, longitude: 19.8011, radiusKm: 3 },
+      { name: 'Myślenice', fee: 6, minOrder: 40, latitude: 49.8339, longitude: 19.9381, radiusKm: 4 }
+    ],
+    bussinessDetails: {
+      companyRegNo: '5250000001',
+      bussinessRegNo: '000000001'
+    }
   })
 
   const burger = await Restaurant.create({
@@ -170,7 +179,18 @@ export async function seedDatabase({ force = false } = {}) {
     openingTimes: OPENING_TIMES,
     reviewCount: 18,
     reviewAverage: 4.5,
-    rating: 4.5
+    rating: 4.5,
+    // Matches the pricing the owner described: free inside Myślenice, 4 zł to
+    // Jawornik, and nothing at all further out (e.g. Rudnik) — that address
+    // simply will not see this restaurant.
+    deliveryAreas: [
+      { name: 'Myślenice', fee: 0, minOrder: 28, latitude: 49.8339, longitude: 19.9381, radiusKm: 4 },
+      { name: 'Jawornik', fee: 4, minOrder: 35, latitude: 49.8858, longitude: 19.9314, radiusKm: 2.5 }
+    ],
+    bussinessDetails: {
+      companyRegNo: '5250000002',
+      bussinessRegNo: '000000002'
+    }
   })
 
   await addMenu(pizzeria._id, [
@@ -217,6 +237,11 @@ export async function seedDatabase({ force = false } = {}) {
   await owner1.save()
   owner2.restaurantId = burger._id
   await owner2.save()
+
+  // Customers only ever see the published snapshot, so the seeded menus have
+  // to be pushed live or the app would start out empty.
+  await publishRestaurantMenu(pizzeria._id)
+  await publishRestaurantMenu(burger._id)
 
   console.log('[seed] Multi-vendor seed complete')
   console.log(`  SUPER_ADMIN:       ${CREDENTIALS.admin.email} / ${CREDENTIALS.admin.password}`)

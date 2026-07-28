@@ -222,7 +222,7 @@ export const NotificationErrors: INoticiationErrors = {
 export const FoodErrors: IFoodErrors = {
   title: ['Required', 'Name cannot be only spaces'],
   description: [],
-  image: ['Required'],
+  image: ['Required', 'Invalid image URL'],
   category: ['Required'],
   subCategory: [''],
 };

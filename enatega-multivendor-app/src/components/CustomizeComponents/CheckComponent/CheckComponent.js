@@ -8,6 +8,7 @@ import styles from './styles'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import { alignment } from '../../../utils/alignment'
 import { useTranslation } from 'react-i18next'
+import { formatMoney } from '../../../utils/formatMoney'
 
 function CheckComponent(props) {
   const { i18n } = useTranslation()
@@ -53,7 +54,7 @@ function CheckComponent(props) {
             <TextDefault
               textColor={currentTheme.gray900}
               H6
-              bolder>{`${configuration.currencySymbol}${option.price}`}</TextDefault>
+              bolder>{formatMoney(option.price, configuration.currencySymbol)}</TextDefault>
           </View>
         </TouchableOpacity>
       ))}

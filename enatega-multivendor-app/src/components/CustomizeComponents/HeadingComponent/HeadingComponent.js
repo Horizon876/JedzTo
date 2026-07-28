@@ -5,7 +5,7 @@ import ThemeContext from '../../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../../utils/themeColors'
 import styles from './styles'
 import TextDefault from '../../Text/TextDefault/TextDefault'
-import { formatNumber } from '../../../utils/formatNumber'
+import { formatMoney } from '../../../utils/formatMoney'
 import { useTranslation } from 'react-i18next'
 import { scale } from '../../../utils/scaling'
 import { calculateDiscountedPrice } from '../../../utils/calculateDiscountedPrice'
@@ -15,7 +15,6 @@ function HeadingComponent(props) {
   const configuration = useContext(ConfigurationContext)
   const themeContext = useContext(ThemeContext)
   const currentTheme = { isRTL: i18n.dir() === 'rtl', ...theme[themeContext.ThemeValue] }
-  console.log(props?.price, props?.discountedPrice);
 
   const withoutDiscountPrice = calculateDiscountedPrice(props?.price, props?.discountedPrice)
 
@@ -29,11 +28,11 @@ function HeadingComponent(props) {
         </View>
          <View style={{ flexDirection: 'row', alignItems: 'center', gap: scale(5) }}>
           <TextDefault numberOfLines={2} textColor={currentTheme.fontMainColor} H4 bolder style={{ }}>
-            {configuration.currencySymbol} {props?.price}
+            {formatMoney(props?.price, configuration.currencySymbol)}
           </TextDefault>
           {props?.discountedPrice && props?.discountedPrice > 0 && (
             <TextDefault small bold textColor={currentTheme.fontSecondColor} style={{textDecorationLine:  'line-through' }}>
-              {configuration.currencySymbol} {withoutDiscountPrice}
+              {formatMoney(withoutDiscountPrice, configuration.currencySymbol)}
             </TextDefault>
           )}
         </View>

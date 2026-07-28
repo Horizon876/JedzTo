@@ -190,22 +190,22 @@ function ItemDetail(props) {
         await addToCart(quantity, restaurant !== restaurantCart)
       } else if (food?.restaurant !== restaurantCart) {
         Alert.alert(
-          '',
+          t('clearCartTitle'),
           t('cartClearWarning'),
           [
             {
               text: t('Cancel'),
-              onPress: () => console.log('Cancel Pressed'),
+              onPress: () => {},
               style: 'cancel'
             },
             {
-              text: t('okText'),
+              text: t('clearCartConfirm'),
               onPress: async () => {
                 await addToCart(quantity, true)
               }
             }
           ],
-          { cancelable: false }
+          { cancelable: true }
         )
       }
     }

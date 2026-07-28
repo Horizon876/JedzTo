@@ -1,37 +1,27 @@
 import React from 'react'
 import { Pressable, View } from 'react-native'
-import { alignment } from '../../utils/alignment'
-import { scale } from '../../utils/scaling'
 import { FontAwesome } from '@expo/vector-icons'
 import TextDefault from '../Text/TextDefault/TextDefault'
-import RadioButton from '../../ui/FdRadioBtn/RadioBtn'
+import { scale } from '../../utils/scaling'
+import { useStyles, ACCENT, MUTED } from './styles'
 
-export const PaymentModeOption = ({ theme, icon, title, selected, onSelect }) => {
-    return (<Pressable onPress={onSelect} style={{ flexDirection: theme?.isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginVertical: scale(8) }}>
-        <View style={{ flex: 1 }}>
-            <FontAwesome
-                name={icon}
-                size={scale(16)}
-                color={theme?.fontFourthColor} />
-        </View>
-        <View style={{ flex: 6 }}>
-            <TextDefault
-                textColor={theme?.fontFourthColor}
-                style={{ marginHorizontal : scale(10) }}
-                bold
-            isRTL>
-                {title}
-            </TextDefault>
-        </View>
-        <View style={{ flex: 1 }}>
-            <RadioButton
-                size={scale(10)}
-                outerColor={theme?.color12}
-                innerColor={theme?.main}
-                animation={'bounceIn'}
-                isSelected={selected}
-                onPress={onSelect}
-            />
-        </View>
-    </Pressable>)
+export const PaymentModeOption = ({ theme, icon, title, selected, onSelect, isLast }) => {
+  const styles = useStyles(theme)
+
+  return (
+    <Pressable
+      onPress={onSelect}
+      style={[styles.paymentOption, isLast && styles.paymentOptionLast]}
+    >
+      <View style={styles.paymentIconWrap}>
+        <FontAwesome name={icon} size={scale(15)} color={selected ? ACCENT : MUTED} />
+      </View>
+      <TextDefault style={styles.paymentTitle} bold isRTL>
+        {title}
+      </TextDefault>
+      <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
+        {selected ? <View style={styles.radioInner} /> : null}
+      </View>
+    </Pressable>
+  )
 }

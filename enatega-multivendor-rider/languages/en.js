@@ -327,5 +327,49 @@ export const en = {
   "Time slot overlaps with another existing slot": "Time slot overlaps with another existing slot",
   "Account holder name": "Account holder name",
   "Tips": "Tips",
-  "Account not found, Please create your account." : "Account not found, Please create your account."
+  "Account not found, Please create your account." : "Account not found, Please create your account.",
+
+  Kitchen: "Kitchen",
+  Delivery: "Delivery",
+  Settings: "Settings",
+  "Choose role": "Choose role",
+  "Select kitchen or delivery for this device":
+    "Select kitchen or delivery mode for this device",
+  "Accept orders and send them for delivery":
+    "Accept orders and hand them off for delivery",
+  "Pick up ready orders and mark them delivered":
+    "Take ready orders and mark them as delivered",
+  "Current role": "Current role",
+  "Switch role": "Switch role",
+  "Kitchen login": "Kitchen login",
+  "Use the same email and password as the owner panel":
+    "Use the same email and password as the owner panel",
+  "Test account": "Test account",
+  "In progress": "In progress",
+  "Out for delivery": "Out for delivery",
+  "For delivery": "For delivery",
+  Delivered: "Delivered",
+  Sent: "Sent",
+  Received: "Received",
+  "New order": "New order",
+  Accept: "Accept",
+  Reject: "Reject",
+  "Send for delivery": "Send for delivery",
+  "Mark as delivered": "Delivered",
+  "Mark as sent": "Mark as sent",
+  "Mark as received": "Mark as received",
+  "No orders yet": "No orders yet",
+  "Ordered items": "Ordered items",
+  "Delivery address": "Delivery address",
+  Instructions: "Instructions",
+  Customer: "Customer",
+  Pickup: "Pickup",
+  "No address": "No address",
+  "More waiting": "More waiting",
+  "Only restaurant accounts can use the kitchen app":
+    "Only restaurant accounts can use the kitchen app",
+  "No restaurant linked to this account":
+    "No restaurant linked to this account",
+  "Invalid username or password": "Invalid email or password",
+  "Unable to connect. Please try again.": "Unable to connect. Please try again.",
 };

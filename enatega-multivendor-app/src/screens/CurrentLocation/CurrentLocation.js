@@ -13,7 +13,6 @@ import Logo from '../../components/Logo/Logo'
 import LocationHero from '../../components/Location/LocationHero'
 import analytics from '../../utils/analytics'
 import { useTranslation } from 'react-i18next'
-import ModalDropdown from '../../components/Picker/ModalDropdown'
 import SearchModal from '../../components/Address/SearchModal'
 import { LocationContext } from '../../context/Location'
 import useGeocoding from '../../ui/hooks/useGeocoding'
@@ -42,7 +41,6 @@ export default function CurrentLocation() {
 
   const [gpsLoading, setGpsLoading] = useState(false)
   const [isCheckingZone, setIsCheckingZone] = useState(false)
-  const [citiesModalVisible, setCitiesModalVisible] = useState(false)
   const [searchVisible, setSearchVisible] = useState(false)
   const [pendingSelection, setPendingSelection] = useState(null)
 
@@ -57,7 +55,7 @@ export default function CurrentLocation() {
     if (Platform.OS === 'android') {
       StatusBar.setBackgroundColor(currentTheme.themeBackground)
     }
-    StatusBar.setBarStyle('dark-content')
+    StatusBar.setBarStyle(themeContext.ThemeValue === 'Dark' ? 'light-content' : 'dark-content')
   })
 
   const filterCities = () => cities?.filter((city) => !isNaN(city.latitude) && !isNaN(city.longitude)) || []
@@ -107,7 +105,15 @@ export default function CurrentLocation() {
 
       setTimeout(() => {
         setIsCheckingZone(false)
-        navigation.navigate('Main')
+        // Reset so Android back doesn't return to the previous empty-state screen.
+        if (navigation.canGoBack()) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Main' }]
+          })
+        } else {
+          navigation.navigate('Main')
+        }
       }, 100)
     } catch (error) {
       setIsCheckingZone(false)
@@ -142,12 +148,6 @@ export default function CurrentLocation() {
     setSearchVisible(false)
     setIsCheckingZone(true)
     setPendingSelection({ latitude: coords.lat, longitude: coords.lng, address: description })
-  }
-
-  const handleCityPress = (city) => {
-    setCitiesModalVisible(false)
-    setIsCheckingZone(true)
-    setPendingSelection({ latitude: city.latitude, longitude: city.longitude })
   }
 
   if (!connect) return <ErrorView refetchFunctions={[]} />
@@ -206,16 +206,6 @@ export default function CurrentLocation() {
               {t('searchAddress')}
             </TextDefault>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles(currentTheme).cityLinkButton}
-            onPress={() => setCitiesModalVisible(true)}
-          >
-            <TextDefault textColor={currentTheme.fontSecondColor} center H5>
-              {t('exploreCities')}
-            </TextDefault>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -227,7 +217,6 @@ export default function CurrentLocation() {
 
       <ForceUpdate />
 
-      <ModalDropdown theme={currentTheme} visible={citiesModalVisible} onItemPress={handleCityPress} onClose={() => setCitiesModalVisible(false)} />
       <SearchModal visible={searchVisible} onClose={() => setSearchVisible(false)} onSubmit={handleSearchSubmit} />
     </SafeAreaView>
   )

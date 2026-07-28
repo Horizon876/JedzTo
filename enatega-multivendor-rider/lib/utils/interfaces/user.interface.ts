@@ -13,9 +13,13 @@ export interface IUserContextProps {
   errorProfile: ApolloError | undefined;
   dataProfile: IRiderProfile | null;
   userId: string | null;
+  restaurantId?: string;
   loadingAssigned: boolean;
   errorAssigned: ApolloError | undefined;
   assignedOrders: IOrder[] | null;
+  pendingOrders?: IOrder[];
+  setOrderStatus?: (orderId: string, orderStatus: string) => Promise<void>;
+  updatingStatus?: boolean;
   refetchAssigned: () => void;
   refetchProfile: () => Promise<unknown>;
   networkStatusAssigned: NetworkStatus;

@@ -17,6 +17,7 @@ import { Restaurant } from './src/models/index.js'
 import { connectMongo } from './src/db.js'
 import { UPLOADS_DIR } from './src/utils/imageUpload.js'
 import { mapsRouter } from './src/routes/maps.js'
+import { backfillUnpublishedMenus } from './src/services/menu.js'
 
 const buildContext = (req) => {
   const authorization = req?.headers?.authorization || ''
@@ -49,6 +50,8 @@ async function start() {
   if (SEED_ON_START) {
     await seedDatabase({ force: false })
   }
+
+  await backfillUnpublishedMenus()
 
   const app = express()
   app.use(cors({ origin: true, credentials: true }))

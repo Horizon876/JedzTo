@@ -1,140 +1,108 @@
-import { AuthContext } from "@/lib/context/global/auth.context";
-import SpinnerComponent from "@/lib/ui/useable-components/spinner";
-import { Redirect, Tabs, usePathname } from "expo-router";
-import { Platform } from "react-native";
-
-// UI Components
-import { HapticTab } from "@/lib/ui/useable-components/HapticTab";
-import {
-  CurrencyIcon,
-  HomeIcon,
-  PersonIcon,
-  WalletIcon,
-} from "@/lib/ui/useable-components/svg";
-
-// Hooks
-import { useApptheme } from "@/lib/context/global/theme.context";
-import { useContext, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { AuthContext } from '@/lib/context/global/auth.context'
+import { useWorkMode } from '@/lib/context/global/work-mode.context'
+import SpinnerComponent from '@/lib/ui/useable-components/spinner'
+import { Redirect, Tabs } from 'expo-router'
+import { Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { HapticTab } from '@/lib/ui/useable-components/HapticTab'
+import { HomeIcon, PersonIcon } from '@/lib/ui/useable-components/svg'
+import { useApptheme } from '@/lib/context/global/theme.context'
+import { useContext } from 'react'
+import { useTranslation } from 'react-i18next'
+import { ROUTES } from '@/lib/utils/constants'
 
 const RootLayout = () => {
-  // States
-  const [tabKey, setTabKey] = useState(1);
+  const { t } = useTranslation()
+  const { appTheme } = useApptheme()
+  const insets = useSafeAreaInsets()
+  const { token, isAuthReady } = useContext(AuthContext)
+  const { workMode, isWorkModeReady } = useWorkMode()
 
-  // Hooks
-  const pathName = usePathname();
-  const { t } = useTranslation();
-  const { appTheme } = useApptheme();
-  const { token, isAuthReady } = useContext(AuthContext);
-
-  useEffect(() => {
-    if (pathName.startsWith("/wallet/success")) {
-      setTabKey((prev) => prev + 1); // Force a re-render of the tab bar
-    }
-  }, [pathName]);
-
-  if (!isAuthReady) {
-    return <SpinnerComponent />;
+  if (!isAuthReady || !isWorkModeReady) {
+    return <SpinnerComponent />
   }
 
   if (!token) {
-    return <Redirect href="/login" />;
+    return <Redirect href="/login" />
   }
+
+  if (!workMode) {
+    return <Redirect href={ROUTES.roleSelect} />
+  }
+
+  const homeTitle = workMode === 'delivery' ? t('Delivery') : t('Kitchen')
+  const tabBarHeight = 56 + Math.max(insets.bottom, 8)
 
   return (
     <Tabs
-      key={tabKey}
+      key={workMode}
       screenOptions={{
         tabBarActiveTintColor: appTheme.primary,
+        tabBarInactiveTintColor: '#9CA3AF',
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: Platform.select({
-          ios: {
-            position: "absolute",
-            backgroundColor: "#1F2937",
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            borderTopWidth: 0.5, // Optional border at the top
-            shadowColor: "#000", // Shadow for iOS
-            shadowOffset: { width: 0, height: -5 },
-            shadowOpacity: 0.1,
-            shadowRadius: 5,
-            // display: isDrawerOpen === 'open' ? 'none' : 'flex',
-          },
-          android: {
-            position: "absolute",
-            backgroundColor: "#1F2937",
-            // display: (isDrawerOpen === 'open'||pathName.startsWith('/wallet/success') )? 'none' : 'flex',
-
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            borderTopWidth: 0.5, // Optional border at the top
-            elevation: 5, // Shadow for Android
-            shadowOffset: { width: 0, height: -5 },
-            shadowOpacity: 0.1,
-            shadowRadius: 5,
-          },
-        }),
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          marginBottom: 4,
+        },
+        tabBarStyle: {
+          position: 'relative',
+          backgroundColor: '#111827',
+          borderTopWidth: 0,
+          height: tabBarHeight,
+          paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 8),
+          ...Platform.select({
+            ios: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.12,
+              shadowRadius: 6,
+            },
+            android: {
+              elevation: 8,
+            },
+          }),
+        },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          href: "/(tabs)/home/orders",
-
-          title: t("Home"),
+          href: '/(tabs)/home/orders',
+          title: homeTitle,
           tabBarIcon: ({ color }) => (
-            // <IconSymbol size={28} name="home" color={color} />
-            <HomeIcon
-              color={color}
-              width={25}
-              height={25}
-            />
+            <HomeIcon color={color} width={24} height={24} />
           ),
         }}
       />
       <Tabs.Screen
         name="wallet"
         options={{
-          title: t("Wallet"),
-          tabBarIcon: ({ color }) => (
-            <WalletIcon
-              color={color}
-              width={25}
-              height={25}
-            />
-          ),
+          href: null,
+          title: t('Wallet'),
         }}
       />
       <Tabs.Screen
         name="earnings"
         options={{
-          title: t("Earnings"),
-          tabBarIcon: ({ color }) => (
-            <CurrencyIcon
-              color={color}
-              width={25}
-              height={25}
-            />
-          ),
+          href: null,
+          title: t('Earnings'),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: t("Profile"),
+          title: t('Settings'),
           headerShown: false,
           tabBarIcon: ({ color }) => (
-            <PersonIcon
-              color={color}
-              width={25}
-              height={25}
-            />
+            <PersonIcon color={color} width={24} height={24} />
           ),
         }}
       />
     </Tabs>
-  );
-};
+  )
+}
 
-export default RootLayout;
+export default RootLayout

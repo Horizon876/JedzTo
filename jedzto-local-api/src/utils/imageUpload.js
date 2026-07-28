@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { v4 as uuidv4 } from 'uuid'
 import { GraphQLError } from 'graphql'
+import { getPublicApiBase } from './publicUrl.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads')
@@ -36,8 +37,8 @@ export const saveBase64Image = async (dataUrl, req) => {
 
   await fs.promises.writeFile(filePath, Buffer.from(base64Data, 'base64'))
 
-  const host = req?.get ? req.get('host') : req?.headers?.host
-  const protocol = req?.protocol || 'http'
-  const base = host ? `${protocol}://${host}` : ''
+  // Always advertise a phone-reachable base URL. The admin panel may call us
+  // via localhost, but the mobile app cannot load http://localhost/... images.
+  const base = getPublicApiBase()
   return `${base}/uploads/${filename}`
 }

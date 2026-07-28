@@ -38,6 +38,18 @@ export const typeDefs = `#graphql
     reviews: [JSON]
   }
 
+  # Order.review must be an object type — client placeOrder/order queries
+  # select subfields like _id and rating. A JSON scalar rejects that.
+  type OrderReview {
+    _id: ID
+    rating: Int
+    description: String
+    comments: String
+    isActive: Boolean
+    createdAt: String
+    updatedAt: String
+  }
+
   type Variation {
     _id: ID
     id: ID
@@ -104,6 +116,106 @@ export const typeDefs = `#graphql
     deliveryFee: Float
   }
 
+  # A named circular area a restaurant delivers to, with its own price.
+  type DeliveryArea {
+    _id: ID
+    name: String
+    fee: Float
+    minOrder: Float
+    latitude: Float
+    longitude: Float
+    radiusKm: Float
+    isActive: Boolean
+  }
+
+  input DeliveryAreaInput {
+    name: String!
+    fee: Float!
+    minOrder: Float
+    latitude: Float!
+    longitude: Float!
+    radiusKm: Float!
+    isActive: Boolean
+  }
+
+  # Answer to "does this restaurant deliver to these coordinates, and for how
+  # much?" — used by the customer app at checkout.
+  type DeliveryQuote {
+    available: Boolean
+    fee: Float
+    minOrder: Float
+    areaName: String
+  }
+
+  type MenuPublishStatus {
+    restaurantId: ID
+    menuPublishedAt: String
+    hasUnpublishedMenuChanges: Boolean
+    publishedCategories: Int
+    publishedItems: Int
+  }
+
+  # --- Dashboard statistics -------------------------------------------------
+
+  type DashboardUsersPercentChange {
+    usersPercent: Float
+    vendorsPercent: Float
+    restaurantsPercent: Float
+    ridersPercent: Float
+  }
+
+  type DashboardUsers {
+    usersCount: Int
+    vendorsCount: Int
+    restaurantsCount: Int
+    ridersCount: Int
+    percentageChange: DashboardUsersPercentChange
+  }
+
+  type DashboardLabelValue {
+    value: Float
+    label: String
+  }
+
+  type RestaurantSalesOrderCountByYear {
+    salesAmount: [Float!]
+    ordersCount: [Int!]
+  }
+
+  type PaymentMethodTotals {
+    total_orders: Int
+    total_sales: Float
+    total_sales_without_delivery: Float
+    total_delivery_fee: Float
+  }
+
+  type PaymentMethodBucket {
+    _type: String
+    data: PaymentMethodTotals
+  }
+
+  type RestaurantOrderCount {
+    total_orders: Int
+  }
+
+  type RestaurantPaymentStats {
+    total_orders: Int
+    total_sales: Float
+    total_sales_without_delivery: Float
+    total_delivery_fee: Float
+    pickup_total_orders: Int
+    delivery_total_orders: Int
+    pickup_orders: Float
+    delivery_orders: Float
+    pickup: RestaurantOrderCount
+    delivery: RestaurantOrderCount
+    # Each bucket is an array of All / Pickup / Delivery breakdowns so the
+    # dashboard table can call .map() on them.
+    all: [PaymentMethodBucket!]
+    cod: [PaymentMethodBucket!]
+    card: [PaymentMethodBucket!]
+  }
+
   type BussinessDetails {
     bankName: String
     accountName: String
@@ -157,6 +269,9 @@ export const typeDefs = `#graphql
     zone: Zone
     ownerId: ID
     owner: RestaurantOwner
+    deliveryAreas: [DeliveryArea!]
+    menuPublishedAt: String
+    hasUnpublishedMenuChanges: Boolean
   }
 
   # Same shape as RestaurantPreview — the mobile app's home-screen carousels
@@ -181,6 +296,8 @@ export const typeDefs = `#graphql
     acceptVouchers: Boolean
     location: Point
     openingTimes: [OpeningTime!]
+    deliveryFee: Float
+    deliveryAreaName: String
   }
 
   type RestaurantPreview {
@@ -201,6 +318,9 @@ export const typeDefs = `#graphql
     acceptVouchers: Boolean
     location: Point
     openingTimes: [OpeningTime!]
+    deliveryFee: Float
+    deliveryAreaName: String
+    address: String
   }
 
   type Offer {
@@ -329,6 +449,7 @@ export const typeDefs = `#graphql
     tokenExpiration: Int
     email: String
     userType: String
+    shopType: String
     restaurantId: ID
     restaurants: [OwnerRestaurant!]
     permissions: [String!]
@@ -377,11 +498,17 @@ export const typeDefs = `#graphql
     quantity: Int
     variation: Variation
     addons: [OrderItemAddon!]
+    specialInstructions: String
+    isActive: Boolean
+    createdAt: String
+    updatedAt: String
   }
 
   type Rider {
     _id: ID
     name: String
+    username: String
+    available: Boolean
     phone: String
     location: Point
   }
@@ -411,7 +538,7 @@ export const typeDefs = `#graphql
     items: [OrderItem!]
     user: OrderUser
     rider: Rider
-    review: JSON
+    review: OrderReview
     paymentMethod: String
     paidAmount: Float
     orderAmount: Float
@@ -433,6 +560,24 @@ export const typeDefs = `#graphql
     assignedAt: String
     instructions: String
     discountAmount: Float
+    status: Boolean
+    isActive: Boolean
+    reason: String
+    zone: Zone
+  }
+
+  type OrdersPaginatedResponse {
+    orders: [Order!]
+    totalCount: Int
+    currentPage: Int
+    totalPages: Int
+    prevPage: Int
+    nextPage: Int
+  }
+
+  type ActiveOrdersResponse {
+    orders: [Order!]
+    totalCount: Int
   }
 
   type OrderStatusChangedPayload {
@@ -557,8 +702,9 @@ export const typeDefs = `#graphql
 
   input AddressInput {
     _id: String
-    longitude: Float
-    latitude: Float
+    # Clients (mobile + web) send coordinates as strings ("" + number).
+    longitude: String
+    latitude: String
     deliveryAddress: String
     details: String
     label: String
@@ -611,6 +757,82 @@ export const typeDefs = `#graphql
     shopType: String
     salesTax: Float
     cuisines: [String!]
+  }
+
+  input RestaurantProfileInput {
+    _id: String!
+    name: String
+    address: String
+    phone: String
+    image: String
+    logo: String
+    deliveryTime: Int
+    minimumOrder: Float
+    username: String
+    password: String
+    shopType: String
+    salesTax: Float
+    orderPrefix: String
+    cuisines: [String!]
+    isAvailable: Boolean
+    openingTimes: JSON
+  }
+
+  # Customer accounts as listed on the super admin's Users screen.
+  type AdminUser {
+    _id: ID
+    name: String
+    email: String
+    phone: String
+    createdAt: String
+    userType: String
+    status: String
+    lastLogin: String
+    notes: String
+    addresses: [Address!]
+  }
+
+  type UsersPaginatedResponse {
+    data: [AdminUser!]
+    totalCount: Int
+    currentPage: Int
+    totalPages: Int
+  }
+
+  # Restaurant owners as listed on the super admin's Vendors screen.
+  type Vendor {
+    _id: ID
+    unique_id: ID
+    email: String
+    userType: String
+    isActive: Boolean
+    name: String
+    image: String
+    firstName: String
+    lastName: String
+    phoneNumber: String
+    restaurants: [Restaurant!]
+  }
+
+  type RestaurantOwnerRestaurants {
+    _id: ID
+    email: String
+    userType: String
+    restaurants: [Restaurant!]
+  }
+
+  type CircleBounds {
+    radius: Float
+  }
+
+  type RestaurantDeliveryZoneInfo {
+    boundType: String
+    deliveryBounds: Point
+    location: Point
+    circleBounds: CircleBounds
+    address: String
+    city: String
+    postCode: String
   }
 
   type GeneratedOwnerCredentials {
@@ -675,6 +897,13 @@ export const typeDefs = `#graphql
     totalPages: Int
   }
 
+  type CategoriesPaginatedResponse {
+    data: [Category!]
+    totalCount: Int
+    currentPage: Int
+    totalPages: Int
+  }
+
   type Query {
     # Simplified Multi-Vendor API
     restaurants: [Restaurant!]
@@ -682,6 +911,7 @@ export const typeDefs = `#graphql
     # "Cloned" restaurants aren't a jedzto-local-api concept — always empty.
     getClonedRestaurantsPaginated(page: Int, limit: Int, search: String): RestaurantsPaginatedResponse
     categories(restaurantId: ID): [Category!]
+    restaurantCategoriesPaginated(restaurantId: String!, page: Int, limit: Int, search: String): CategoriesPaginatedResponse
     food(restaurantId: ID!): [FoodItem!]
 
     # Enatega-compatible customer app
@@ -727,6 +957,40 @@ export const typeDefs = `#graphql
     hasOwnerPermission(permission: String!): Boolean
     myRestaurants: [Restaurant!]
     restaurantOrders(restaurantId: ID!): [Order!]
+    ordersByRestId(restaurant: String!, page: Int, rows: Int, search: String, orderStatus: [String]): OrdersPaginatedResponse
+    ordersByRestIdWithoutPagination(restaurant: String!, search: String): [Order!]
+    allOrders(page: Int): [Order!]
+    allOrdersPaginated(
+      page: Int
+      rows: Int
+      dateKeyword: String
+      starting_date: String
+      ending_date: String
+      orderStatus: [String]
+      search: String
+    ): OrdersPaginatedResponse
+    allOrdersWithoutPagination(dateKeyword: String, starting_date: String, ending_date: String): [Order!]
+    getActiveOrders(restaurantId: ID, page: Int, rowsPerPage: Int, actions: [String], search: String): ActiveOrdersResponse
+    getRestaurantDeliveryZoneInfo(id: ID!): RestaurantDeliveryZoneInfo
+    restaurantByOwner(id: String): RestaurantOwnerRestaurants
+    users: [AdminUser!]
+    usersPaginated(page: Int, limit: Int, search: String, registrationMethod: String, status: String): UsersPaginatedResponse
+    vendors: [Vendor!]
+    getVendor(id: String!): Vendor
+    subCategory(_id: String!): SubCategory
+    deliveryQuote(restaurantId: ID!, latitude: Float!, longitude: Float!): DeliveryQuote
+    menuPublishStatus(restaurantId: ID!): MenuPublishStatus
+    getDashboardUsers: DashboardUsers
+    getDashboardUsersByYear(year: Int!): DashboardUsers
+    getDashboardOrdersByType: [DashboardLabelValue!]
+    getDashboardSalesByType: [DashboardLabelValue!]
+    getRestaurantDashboardSalesOrderCountDetailsByYear(restaurant: String!, year: Int!): RestaurantSalesOrderCountByYear
+    getRestaurantDashboardOrderSalesDetailsByPaymentMethod(
+      restaurant: String!
+      starting_date: String!
+      ending_date: String!
+      dateKeyword: String
+    ): RestaurantPaymentStats
   }
 
   type Mutation {
@@ -734,6 +998,7 @@ export const typeDefs = `#graphql
     ownerLogin(email: String!, password: String!): OwnerAuthPayload
     login(email: String, password: String, type: String!, appleId: String, idToken: String, name: String, notificationToken: String): AuthPayload
     createUser(userInput: UserInput!): AuthPayload
+    guestCheckout(name: String!, phone: String!): AuthPayload
     updateUser(updateUserInput: UpdateUserInput!): UserProfile
     emailExist(email: String!): Boolean
     phoneExist(phone: String!): Boolean
@@ -787,6 +1052,11 @@ export const typeDefs = `#graphql
     deleteFood(id: String!, restaurant: String!, categoryId: String!): Restaurant
     updateFoodOutOfStock(id: String!, restaurant: String!, categoryId: String!): Boolean
     uploadImageToS3(image: String!): UploadImageResult
+    updateDeliveryAreas(restaurantId: ID!, areas: [DeliveryAreaInput!]!): Restaurant
+    publishMenu(restaurantId: ID!): MenuPublishStatus
+    updateStatus(id: String!, orderStatus: String!): Order
+    editRestaurant(restaurant: RestaurantProfileInput!): Restaurant
+    refreshToken(refreshToken: String!, userType: String!): OwnerAuthPayload
   }
 
   type Subscription {
@@ -796,3 +1066,5 @@ export const typeDefs = `#graphql
     subscriptionNewMessage(order: ID!): ChatMessage
   }
 `
+
+

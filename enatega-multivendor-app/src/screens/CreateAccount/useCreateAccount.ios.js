@@ -12,7 +12,7 @@ import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import { useMutation } from '@apollo/client'
 import * as AppleAuthentication from 'expo-apple-authentication'
-import { useFocusEffect, useNavigation } from '@react-navigation/native'
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import * as Linking from 'expo-linking'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import analytics from '../../utils/analytics'
@@ -36,6 +36,8 @@ const LOGIN = gql`
 export const useCreateAccount = () => {
   const Analytics = analytics()
   const navigation = useNavigation()
+  const route = useRoute()
+  const nextScreen = route?.params?.nextScreen
   const { t, i18n } = useTranslation()
   const [mutate] = useMutation(LOGIN, { onCompleted, onError })
   const [enableApple, setEnableApple] = useState(false)
@@ -194,7 +196,7 @@ export const useCreateAccount = () => {
   }
 
   const navigateToLogin = () => {
-    navigation.navigate('Login')
+    navigation.navigate('Login', nextScreen ? { nextScreen } : undefined)
   }
 
   const navigateToRegister = () => {
@@ -204,7 +206,8 @@ export const useCreateAccount = () => {
   const navigateToPhone = () => {
     navigation.navigate('PhoneNumber', {
       name: googleUser,
-      phone: ''
+      phone: '',
+      ...(nextScreen ? { screen: nextScreen } : {})
     })
   }
 
@@ -213,6 +216,14 @@ export const useCreateAccount = () => {
       name: 'Main',
       merge: true
     })
+  }
+
+  const navigateAfterLogin = () => {
+    if (nextScreen) {
+      navigation.navigate(nextScreen)
+      return
+    }
+    navigateToMain()
   }
 
   async function mutateLogin(user) {
@@ -304,8 +315,8 @@ export const useCreateAccount = () => {
         logStep('onCompleted: no phone on account → navigate to PhoneNumber')
         navigateToPhone()
       } else {
-        logStep('onCompleted: navigate to Main')
-        navigateToMain()
+        logStep('onCompleted: navigate after login', { nextScreen })
+        navigateAfterLogin()
       }
     } finally {
       setLoading(false)

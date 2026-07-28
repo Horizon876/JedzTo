@@ -34,8 +34,8 @@ import { ILoginInitialValues } from "@/lib/utils/interfaces";
 import { CustomContinueButton } from "../../useable-components";
 
 const initial: ILoginInitialValues = {
-  username: "ryanabotreef",
-  password: "Rider@123",
+  username: "owner1@jedzto.local",
+  password: "owner1234",
 };
 
 const LoginScreen = () => {
@@ -124,13 +124,13 @@ const LoginScreen = () => {
                     className="text-center text-xl font-semibold "
                     style={{ color: appTheme.fontMainColor }}
                   >
-                    {t("Enter Your Credentials to login")}
+                    {t("Kitchen login")}
                   </Text>
                   <Text
                     className="text-center text-sm mb-5"
                     style={{ color: appTheme.fontSecondColor }}
                   >
-                    {t("We'll check if you have an account")}
+                    {t("Use the same email and password as the owner panel")}
                   </Text>
 
                   {/* Email Input */}
@@ -199,7 +199,7 @@ const LoginScreen = () => {
                     className="text-center text-xs mb-2"
                     style={{ color: appTheme.fontSecondColor }}
                   >
-                    Above placeholder credentials are for testing purposes.
+                    {t("Test account")}: owner1@jedzto.local / owner1234
                   </Text>
 
                   <CustomContinueButton

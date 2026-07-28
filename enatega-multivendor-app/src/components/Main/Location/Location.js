@@ -49,17 +49,15 @@ function Location({
   const onLocationPress = (event) => {
 
     if (screenName === 'checkout') {
-      if (addresses && !addresses.length) {
-        navigation.navigate('AddNewAddress', {
-          prevScreen: 'Checkout',
-          latitude: location.latitude,
-          longitude: location.longitude
-        })
-      } else {
-        navigation.navigate('CartAddress', {
-          address: location
-        })
+      // Prefer the always-available location picker so guests (no saved
+      // addresses yet) can still confirm/change delivery address.
+      if (!addresses?.length) {
+        navigation.navigate('SelectLocation')
+        return
       }
+      navigation.navigate('CartAddress', {
+        address: location
+      })
     }
     else
       modalOn()

@@ -1,80 +1,111 @@
 import { StyleSheet } from 'react-native'
-import { alignment } from '../../utils/alignment'
-import { scale, verticalScale } from '../../utils/scaling'
+import { scale } from '../../utils/scaling'
+
+const ACCENT = '#00A8FF'
+const SURFACE = '#1C1C1E'
+const HAIRLINE = '#2C2C2E'
+const MUTED = '#8E8E93'
+const PAGE = '#121212'
 
 const styles = (props = null) =>
   StyleSheet.create({
     flex: {
       flex: 1
     },
-    container: {
-      ...alignment.PLmedium,
-      ...alignment.PRmedium,
-      ...alignment.PTlarge,
-      ...alignment.PBlarge
+    screen: {
+      flex: 1,
+      backgroundColor: PAGE
     },
-    marginBottom20: {
-      ...alignment.MBlarge
+    scrollContent: {
+      flexGrow: 1,
+      backgroundColor: PAGE,
+      paddingBottom: scale(160)
     },
-    marginBottom10: {
-      ...alignment.MBsmall
-    },
-
-    orderReceipt: theme => ({
-      elevation: 1,
-      shadowColor: theme.shadow,
-      shadowOffset: {
-        width: 0,
-        height: -verticalScale(2)
-      },
-      shadowOpacity: 0.5,
-      shadowRadius: verticalScale(2),
-      borderRadius: 20,
-      backgroundColor: theme.white
-    }),
-
-    horizontalLine: {
-      borderBottomColor: props !== null ? props?.horizontalLine : 'pink',
-      borderBottomWidth: StyleSheet.hairlineWidth
-    },
-    review: {
-      flexDirection: 'row',
-      justifyContent: 'space-around'
-    },
-    floatView: {
-      flexDirection: 'row',
-      padding: 7,
-      width: '60%',
+    statusSection: {
+      width: '100%',
+      backgroundColor: SURFACE,
       alignItems: 'center',
-      borderRadius: 20,
-      backgroundColor: 'black',
-      margin: 15
+      paddingHorizontal: scale(14),
+      paddingTop: scale(28),
+      paddingBottom: scale(28),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: HAIRLINE
     },
-    bottomContainer: (theme) => ({
+    checkIconWrap: {
+      width: scale(96),
+      height: scale(96),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: scale(8)
+    },
+    statusTitle: {
+      color: '#FFFFFF',
+      textAlign: 'center',
+      marginTop: scale(4)
+    },
+    statusSubtitle: {
+      color: MUTED,
+      textAlign: 'center',
+      marginTop: scale(8),
+      fontSize: scale(14),
+      lineHeight: scale(20),
+      paddingHorizontal: scale(8)
+    },
+    etaLabel: {
+      color: MUTED,
+      marginTop: scale(10)
+    },
+    etaValue: {
+      color: '#FFFFFF',
+      marginTop: scale(4)
+    },
+    sectionHeader: {
+      paddingHorizontal: scale(14),
+      paddingVertical: scale(12),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: HAIRLINE
+    },
+    sectionTitle: {
+      color: '#FFFFFF'
+    },
+    summaryBlock: {
+      width: '100%',
+      backgroundColor: SURFACE,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: HAIRLINE,
+      paddingHorizontal: scale(14),
+      paddingVertical: scale(8),
+      marginTop: scale(8)
+    },
+    bottomContainer: () => ({
       position: 'absolute',
       bottom: 0,
       left: 0,
       width: '100%',
-      // height: scale(80),
-      backgroundColor: theme.themeBackground,
-      justifyContent: 'center',
-      ...alignment.Pmedium,
-      borderColor: theme.borderLight,
-      borderTopWidth: StyleSheet.hairlineWidth
+      backgroundColor: SURFACE,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: HAIRLINE,
+      paddingHorizontal: scale(14),
+      paddingTop: scale(14)
     }),
-    cancelButtonContainer: theme => ({
+    cancelButtonContainer: () => ({
       alignItems: 'center',
       justifyContent: 'center',
-      borderColor: theme.red600,
-      borderWidth: 1,
-      borderRadius: scale(25)
+      borderColor: '#FF453A',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: scale(999),
+      height: scale(48),
+      width: '100%',
+      backgroundColor: 'transparent'
     }),
-    dismissButtonContainer: theme => ({
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderColor: theme.red600,
-      borderWidth: 1,
-      borderRadius: scale(25)
-    })
+    cancelButtonDisabled: {
+      opacity: 0.35
+    },
+    lottie: {
+      width: scale(160),
+      height: scale(160)
+    }
   })
+
 export default styles
+export { ACCENT, SURFACE, HAIRLINE, MUTED, PAGE }

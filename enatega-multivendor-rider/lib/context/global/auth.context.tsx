@@ -2,7 +2,7 @@ import * as Location from "expo-location";
 import React, { useEffect, useState } from "react";
 
 // Interfaces§
-import { RIDER_ID, RIDER_TOKEN } from "@/lib/utils/constants";
+import { RIDER_ID, RIDER_TOKEN, WORK_MODE } from "@/lib/utils/constants";
 import { getSecureItem } from "@/lib/services/secure-storage";
 import {
   removeSecureItem,
@@ -11,6 +11,7 @@ import {
 import { removeItem } from "@/lib/services/async-storage";
 import { IAuthContext, IAuthProviderProps } from "@/lib/utils/interfaces";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const AuthContext = React.createContext<IAuthContext>(
   {} as IAuthContext
@@ -64,6 +65,8 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({
       await Promise.all([
         removeSecureItem(RIDER_TOKEN),
         removeItem(RIDER_ID),
+        removeItem("restaurant-id"),
+        AsyncStorage.removeItem(WORK_MODE),
       ]);
 
       try {

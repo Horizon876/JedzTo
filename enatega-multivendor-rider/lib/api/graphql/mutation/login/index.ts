@@ -1,28 +1,19 @@
-import { gql } from "@apollo/client";
+import { gql } from '@apollo/client'
 
-export const RIDER_LOGIN = gql`
-  mutation RiderLogin(
-    $username: String
-    $password: String
-    $notificationToken: String
-    $timeZone: String!
-  ) {
-    riderLogin(
-      username: $username
-      password: $password
-      notificationToken: $notificationToken
-      timeZone: $timeZone
-    ) {
+export const OWNER_LOGIN = gql`
+  mutation OwnerLogin($email: String!, $password: String!) {
+    ownerLogin(email: $email, password: $password) {
       userId
       token
+      email
+      userType
+      userTypeId
+      restaurantId
+      name
+      restaurants {
+        _id
+        name
+      }
     }
   }
-`;
-
-export const DEFAULT_RIDER_CREDS = gql`
-  query LastOrderCreds {
-    lastOrderCreds {
-      riderUsername
-    }
-  }
-`;
+`

@@ -5,10 +5,12 @@
   "scripts": {
     "api": "npm --prefix jedzto-local-api start",
     "api:dev": "npm --prefix jedzto-local-api run dev",
-    "app": "npm --prefix enatega-multivendor-app start",
+    "app": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-expo-lan.ps1 -Target app",
+    "kitchen": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-expo-lan.ps1 -Target kitchen",
     "admin": "npm --prefix enatega-multivendor-admin run dev",
     "web": "npm --prefix enatega-multivendor-web run dev -- --port 3001",
     "install:api": "npm --prefix jedzto-local-api install",
-    "install:app": "npm --prefix enatega-multivendor-app install"
+    "install:app": "npm --prefix enatega-multivendor-app install",
+    "install:kitchen": "npm --prefix enatega-multivendor-rider install"
   }
 }

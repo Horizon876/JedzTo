@@ -2,124 +2,183 @@ import { verticalScale, scale } from '../../utils/scaling'
 import { StyleSheet } from 'react-native'
 import { alignment } from '../../utils/alignment'
 
+const ACCENT = '#00A8FF'
+const SURFACE = '#1C1C1E'
+const MUTED = '#8E8E93'
+
 const styles = (props = null) =>
   StyleSheet.create({
     flex: {
       flex: 1
     },
-
     pT10: {
       ...alignment.PTsmall
     },
-    locationContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-
     mB10: {
       ...alignment.MBsmall
     },
     width100: {
       width: '100%'
     },
-    width30: {
-      width: '30%'
-    },
     screenBackground: {
-      backgroundColor: props != null ? props.themeBackground : '#FFF'
+      backgroundColor: props != null ? props.themeBackground : '#121212'
     },
     mainContainer: {
       flex: 1,
-      backgroundColor: props !== null ? props.themeBackground : 'transparent'
-      //...alignment.PTsmall
+      backgroundColor: '#121212'
+    },
+    cartItems: {
+      paddingBottom: scale(16)
     },
     dealContainer: {
       width: '100%',
-      backgroundColor: props !== null ? props.themeBackground : 'transparent',
-      borderRadius: scale(10),
-      ...alignment.PLsmall,
-      ...alignment.PRsmall
+      backgroundColor: 'transparent'
     },
-    totalOrder: {
+    sectionHeader: {
+      paddingHorizontal: scale(14),
+      paddingVertical: scale(12),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#2C2C2E'
+    },
+    sectionTitle: {
+      marginBottom: 0,
+      marginTop: 0,
+      color: '#FFFFFF',
+      textAlign: props?.isRTL ? 'right' : 'left'
+    },
+    restaurantChip: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(8),
+      backgroundColor: SURFACE,
+      borderRadius: scale(12),
+      paddingHorizontal: scale(12),
+      paddingVertical: scale(10),
       marginBottom: scale(12)
     },
-    termsContainer: {
-      width: '100%',
-      backgroundColor: props !== null ? props.backgroundColor : 'transparent',
-      borderRadius: scale(5),
-      ...alignment.PLsmall,
-      ...alignment.PRsmall
-    },
     itemContainer: {
-      width: '100%',
-      backgroundColor: props !== null ? props.backgroundColor : 'transparent'
-    },
-    priceContainer: {
-      width: '100%',
-      borderRadius: scale(20),
-      borderBottomColor:
-        props !== null ? props.lightHorizontalLine : 'transparent',
-      ...alignment.PLsmall,
-      ...alignment.PRsmall
-    },
-    modal: {
-      backgroundColor: props != null ? props.themeBackground : '#FFF',
-      borderTopEndRadius: scale(20),
-      borderTopStartRadius: scale(20),
-      shadowOpacity: 0
-    },
-    overlay: {
-      backgroundColor: props !== null ? props.backgroundColor2 : 'transparent'
-    },
-    handle: {
-      width: 150,
-      backgroundColor: props !== null ? props.hex : '#b0afbc'
-    },
-    floatView: {
-      width: '100%',
-      flexDirection: 'row',
-      alignItems: 'center'
-    },
-    floatLeft: {
-      width: '30%',
-      textAlign: 'left'
-    },
-    floatRight: {
-      width: '70%',
-      textAlign: 'right'
-    },
-    horizontalLine: {
-      borderBottomColor: props !== null ? props.black : 'black',
-      borderBottomWidth: StyleSheet.hairlineWidth
+      width: '100%'
     },
     suggestedItems: {
       paddingBottom: scale(30),
-      ...alignment.PLlarge
+      paddingLeft: scale(14)
     },
-    suggestItemDesciption: {
-      ...alignment.PRlarge
-    },
-    suggestItemImg: {
+    totalBillContainer: {
       width: '100%',
-      // aspectRatio: 18/8,
-      height: scale(70)
+      backgroundColor: SURFACE,
+      overflow: 'hidden',
+      paddingBottom: scale(10)
+    },
+    cartHintBar: {
+      width: '100%',
+      backgroundColor: '#2C2C2E',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(8),
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(10)
+    },
+    cartHintText: {
+      flex: 1,
+      fontSize: scale(13),
+      lineHeight: scale(18),
+      color: '#FFFFFF'
+    },
+    summaryInner: {
+      paddingHorizontal: scale(16),
+      paddingTop: scale(14)
+    },
+    summaryRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: scale(6)
+    },
+    summaryLabel: {
+      color: MUTED,
+      fontSize: scale(13)
+    },
+    summaryValue: {
+      color: '#FFFFFF',
+      fontSize: scale(13)
+    },
+    totalRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: scale(6),
+      marginBottom: scale(14)
+    },
+    button: {
+      backgroundColor: ACCENT,
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      height: scale(50),
+      borderRadius: scale(999)
+    },
+    buttonDisabled: {
+      opacity: 0.55
+    },
+    subContainerImage: {
+      flex: 1,
+      justifyContent: 'center',
+      alignContent: 'center',
+      paddingHorizontal: scale(24)
+    },
+    imageContainer: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...alignment.MBlarge
+    },
+    descriptionEmpty: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: scale(6),
+      ...alignment.Plarge
+    },
+    emptyButton: {
+      backgroundColor: ACCENT,
+      width: '70%',
+      height: scale(44),
+      borderRadius: scale(999),
+      justifyContent: 'center',
+      alignItems: 'center',
+      alignSelf: 'center',
+      marginTop: scale(12)
+    },
+    placeHolderContainer: {
+      backgroundColor: SURFACE,
+      borderRadius: 12,
+      marginBottom: 12,
+      padding: 12
+    },
+    placeHolderFadeColor: {
+      backgroundColor: '#2C2C2E'
+    },
+    height100: {
+      height: 100
+    },
+    height60: {
+      height: 60
     },
     suggestItemContainer: {
       borderWidth: 1,
-      borderColor: props != null ? props.customBorder : '#181818',
+      borderColor: '#2C2C2E',
       borderRadius: 12,
       padding: scale(8),
       width: scale(120),
       marginTop: scale(14),
-      backgroundColor: props != null ? props.cardBackground : '#181818'
+      backgroundColor: SURFACE
     },
     suggestItemImgContainer: {
-      backgroundColor: '#F3F4F6',
-      borderWidth: 1,
-      borderColor: '#E5E7EB',
+      backgroundColor: '#2C2C2E',
       borderRadius: 8,
-      padding: scale(4)
+      overflow: 'hidden'
+    },
+    suggestItemImg: {
+      width: '100%',
+      height: scale(70)
     },
     suggestItemName: {
       marginVertical: scale(10)
@@ -131,91 +190,13 @@ const styles = (props = null) =>
       width: scale(25),
       height: scale(25),
       borderRadius: scale(12.5),
-      backgroundColor: props !== null ? props.newFontcolor : '#f0f0f0',
+      backgroundColor: ACCENT,
       justifyContent: 'center',
       alignItems: 'center'
     },
-    totalBillContainer: {
-      width: '100%',
-      height: '20%',
-      backgroundColor: props !== null ? props.newheaderColor : '#00E676',
-      ...alignment.PLlarge,
-      ...alignment.PRlarge
-    },
-    cartAmount: {
-      width: '50%'
-    },
-    buttonContainer: {
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingTop: scale(28)
-    },
-    button: {
-      backgroundColor: '#111827',
-      justifyContent: 'center',
-      alignItems: 'center',
-      width: scale(140),
-      height: scale(40),
-      borderRadius: 40
-    },
-    subContainerImage: {
-      flex: 1,
-      justifyContent: 'center',
-      alignContent: 'center'
-    },
-    imageContainer: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      ...alignment.MBlarge
-    },
-    image: {
-      width: scale(100),
-      height: scale(100)
-    },
-    descriptionEmpty: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      ...alignment.Plarge
-    },
-    emptyButton: {
-      backgroundColor: props !== null ? props.newheaderColor : 'transparent',
-      width: '70%',
-      height: scale(40),
-      borderRadius: scale(20),
-      justifyContent: 'center',
-      alignItems: 'center',
-      alignSelf: 'center'
-    },
-    placeHolderContainer: {
-      backgroundColor: props != null ? props.cartContainer : '#B8B8B8',
-      borderRadius: 3,
-      elevation: 3,
-      marginBottom: 12,
-      padding: 12
-    },
-    placeHolderFadeColor: {
-      backgroundColor: props != null ? props.gray : '#B8B8B8'
-    },
-    height100: {
-      height: 100
-    },
-    height60: {
-      height: 60
-    },
-    trashIcon: {
-      backgroundColor: 'red',
-      width: '100%',
-      height: '100%',
-      justifyContent: 'center',
-      alignItems: 'center'
-    },
-    trashContainer: {
-      ...alignment.PLmedium,
-      ...alignment.MBxSmall,
-      justifyContent: 'center',
-      alignItems: 'center',
-      width: '20%'
+    horizontalLine: {
+      borderBottomColor: '#2C2C2E',
+      borderBottomWidth: StyleSheet.hairlineWidth
     },
     tipRow: {
       alignItems: 'center',
@@ -230,94 +211,33 @@ const styles = (props = null) =>
       borderRadius: scale(10),
       width: '22%',
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: props !== null ? props.horizontalLine : 'transparent',
+      borderColor: '#2C2C2E',
       justifyContent: 'center',
       height: scale(30)
     },
     activeLabel: {
       marginRight: 10,
       borderRadius: scale(10),
-      backgroundColor: props !== null ? props.main : 'transparent',
+      backgroundColor: ACCENT,
       width: '22%',
-      //borderWidth: 2,
       justifyContent: 'center',
-      color: props !== null ? props.tagColor : 'transparent',
-      borderColor: props !== null ? props.tagColor : 'transparent',
       height: scale(30)
-    },
-    headerContainer: {
-      backgroundColor: props !== null ? props.themeBackground : '#6FCF97',
-      borderBottomRightRadius: 20,
-      borderBottomLeftRadius: 20,
-      ...alignment.PLsmall,
-      ...alignment.PRlarge,
-      ...alignment.PBsmall
-    },
-    location: {
-      ...alignment.PLsmall,
-      ...alignment.PRsmall
-    },
-    cartInnerContainer: {
-      ...alignment.MTxSmall
-    },
-    couponContainer: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end'
-    },
-    tipContainer: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      alignItems: 'center'
-    },
-    changeAddressContainer: {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    },
-    changeAddressBtn: {
-      borderRadius: scale(10),
-      backgroundColor: props != null ? props.main : '#B8B8B8',
-      width: '40%',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: scale(30)
-    },
-    addressAllignment: {
-      width: '100%',
-      marginLeft: scale(15)
-    },
-    addressDetailAllign: {
-      width: '65%',
-      display: 'flex',
-      alignItems: 'flex-end'
     },
     locationIcon: {
-      backgroundColor: props != null ? props.newBorderColor : '#E5E7EB',
+      backgroundColor: '#2C2C2E',
       width: scale(30),
       height: scale(30),
       borderRadius: 30,
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: scale(10),
-      borderWidth: 1,
-      borderColor: props?.iconBackground || '#E5E7EB'
+      marginTop: scale(10)
     },
-    pickupButton: {
-      backgroundColor: props !== null ? props.color3 : 'transparent',
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexDirection: 'row',
-      height: scale(40),
-      borderRadius: 40,
-      borderWidth: 1,
-      borderColor: props !== null ? props.borderColor : 'black',
-      width: '70%',
-      alignSelf: 'center'
-    },
-    applyButton: {
-      fontSize: 20,
-      fontWeight: '500',
-      color: props != null ? props.newFontcolor : '#E5E7EB'
+    minOrderHint: {
+      color: MUTED,
+      fontSize: scale(12),
+      marginBottom: scale(10),
+      textAlign: 'center'
     }
   })
+
 export default styles

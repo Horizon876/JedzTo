@@ -8,6 +8,7 @@ import styles from './styles'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import { alignment } from '../../../utils/alignment'
 import { useTranslation } from 'react-i18next'
+import { formatMoney } from '../../../utils/formatMoney'
 
 function RadioComponent(props) {
   const { i18n } = useTranslation()
@@ -58,7 +59,7 @@ function RadioComponent(props) {
               textColor={currentTheme.fontMainColor}
               bolder
               isRTL
-            >{`${configuration.currencySymbol}${option.price}`}</TextDefault>
+            >{formatMoney(option.price, configuration.currencySymbol)}</TextDefault>
           </View>
         </TouchableOpacity>
       ))}

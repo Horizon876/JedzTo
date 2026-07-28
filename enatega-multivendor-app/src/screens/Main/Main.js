@@ -6,7 +6,7 @@ import { AntDesign, SimpleLineIcons } from '@expo/vector-icons'
 import { useMutation, useQuery, gql } from '@apollo/client'
 import { useLocation } from '../../ui/hooks'
 import UserContext from '../../context/User'
-import { getBanners, getCuisines, restaurantListPreview } from '../../apollo/queries'
+import { getBanners, restaurantListPreview } from '../../apollo/queries'
 import { selectAddress } from '../../apollo/mutations'
 import { scale } from '../../utils/scaling'
 import styles from './styles'
@@ -18,20 +18,16 @@ import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import { LocationContext } from '../../context/Location'
 import analytics from '../../utils/analytics'
 import { useTranslation } from 'react-i18next'
-import MainRestaurantCard from '../../components/Main/MainRestaurantCard/MainRestaurantCard'
-import { TopBrands } from '../../components/Main/TopBrands'
+import NewRestaurantCard from '../../components/Main/RestaurantCard/NewRestaurantCard'
 import CustomHomeIcon from '../../assets/SVG/imageComponents/CustomHomeIcon'
 import CustomOtherIcon from '../../assets/SVG/imageComponents/CustomOtherIcon'
 import CustomWorkIcon from '../../assets/SVG/imageComponents/CustomWorkIcon'
-import useHomeRestaurants from '../../ui/hooks/useRestaurantOrderInfo'
 import ErrorView from '../../components/ErrorView/ErrorView'
-import ActiveOrders from '../../components/Main/ActiveOrders/ActiveOrders'
 import MainLoadingUI from '../../components/Main/LoadingUI/MainLoadingUI'
-import TopBrandsLoadingUI from '../../components/Main/LoadingUI/TopBrandsLoadingUI'
 import Spinner from '../../components/Spinner/Spinner'
 import CustomApartmentIcon from '../../assets/SVG/imageComponents/CustomApartmentIcon'
 import MainModalize from '../../components/Main/Modalize/MainModalize'
-import { getErrorMessage, sortRestaurantsByOpenStatus } from '../../utils/customFunctions'
+import { getErrorMessage, isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions'
 import useGeocoding from '../../ui/hooks/useGeocoding'
 import ForceUpdate from '../../components/Update/ForceUpdate'
 
@@ -39,12 +35,11 @@ import useNetworkStatus from '../../utils/useNetworkStatus'
 import ModalDropdown from '../../components/Picker/ModalDropdown'
 import { useRestaurantQueries } from '../../ui/hooks/useRestaurantQueries'
 import DiscoveryHero from '../../components/Main/DiscoveryHero/DiscoveryHero'
-import HomeFilterPills from '../../components/Main/HomeFilterPills/HomeFilterPills'
-import TasteCategories from '../../components/Main/TasteCategories/TasteCategories'
+import TasteCategories, { TASTE_CATEGORIES } from '../../components/Main/TasteCategories/TasteCategories'
+import NoDeliveryArea from '../../components/Main/NoDeliveryArea/NoDeliveryArea'
 import {
   getJedzToLocalRestaurantPreviews,
-  jedzToLocalRestaurantsEnabled,
-  JEDZTO_LOCAL_CUISINES
+  jedzToLocalRestaurantsEnabled
 } from '../../utils/jedztoLocalRestaurants'
 
 const RESTAURANTS = gql`
@@ -56,9 +51,6 @@ const SELECT_ADDRESS = gql`
 const GET_BANNERS = gql`
   ${getBanners}
 `
-const GET_CUISINES = gql`
-  ${getCuisines}
-`
 
 // Number of times a transient network failure is silently retried before the
 // full-screen error is shown to the user.
@@ -69,13 +61,11 @@ function Main(props) {
 
   const { t, i18n } = useTranslation()
   const [busy, setBusy] = useState(false)
-  const { isLoggedIn, profile } = useContext(UserContext)
+  const { isLoggedIn, profile, isPickup, setIsPickup } = useContext(UserContext)
   const { location, setLocation } = useContext(LocationContext)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  // Krok "Header" — Home header's right-side "Dostawa/Odbiór" pill. Purely a
-  // browsing-mode preference for now (mirrors Glovo's home toggle); it does
-  // not yet re-filter the restaurant list.
-  const [isPickup, setIsPickup] = useState(false)
+  // Outside delivery area → user can still browse restaurants in pickup-only mode.
+  const [pickupOnlyBrowsing, setPickupOnlyBrowsing] = useState(false)
   const modalRef = useRef(null)
   const navigation = useNavigation()
   const themeContext = useContext(ThemeContext)
@@ -88,15 +78,22 @@ function Main(props) {
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
 
   const locationData = location
-  const [hasActiveOrders, setHasActiveOrders] = useState(false)
   const [citiesModalVisible, setCitiesModalVisible] = useState(false)
   const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
+  // Null coords skip delivery-area filtering on the API (pickup browsing).
   const restaurantVariables = useMemo(() => ({
-    longitude: location?.longitude || null,
-    latitude: location?.latitude || null,
+    longitude: pickupOnlyBrowsing ? null : (location?.longitude || null),
+    latitude: pickupOnlyBrowsing ? null : (location?.latitude || null),
     shopType: null,
     ip: null
-  }), [location?.longitude, location?.latitude])
+  }), [location?.longitude, location?.latitude, pickupOnlyBrowsing])
+  const browseLocation = useMemo(
+    () =>
+      pickupOnlyBrowsing
+        ? { ...location, latitude: null, longitude: null }
+        : location,
+    [location, pickupOnlyBrowsing]
+  )
   const {
     data: remoteRestaurantData,
     loading: remoteLoading,
@@ -134,6 +131,7 @@ function Main(props) {
   useEffect(() => {
     retryCountRef.current = 0
     setRetriesExhausted(false)
+    setPickupOnlyBrowsing(false)
   }, [location?.latitude, location?.longitude])
 
   useEffect(() => {
@@ -160,15 +158,6 @@ function Main(props) {
     nextFetchPolicy: 'cache-first',
     skip: useLocalRestaurants
   })
-  const { data: remoteCuisines } = useQuery(GET_CUISINES, {
-    fetchPolicy: 'cache-and-network',
-    skip: useLocalRestaurants
-  })
-  const allCuisines = useMemo(() => {
-    if (useLocalRestaurants) return { cuisines: JEDZTO_LOCAL_CUISINES }
-    return remoteCuisines
-  }, [useLocalRestaurants, remoteCuisines])
-  const { orderLoading, orderError, orderData } = useHomeRestaurants()
 
   function onError(error) {
     console.log(error)
@@ -176,14 +165,9 @@ function Main(props) {
   const [mutate] = useMutation(SELECT_ADDRESS, {
     onError
   })
-  const recentOrderRestaurantsVar = orderData?.recentOrderRestaurants
-  const mostOrderedRestaurantsVar = orderData?.mostOrderedRestaurants
 
-  const { restaurantData: restaurantorders, loading: restaurantordersLoading, error: restaurantordersError } = useRestaurantQueries('restaurant', location, 'restaurant')
+  const { restaurantData: restaurantorders, loading: restaurantordersLoading } = useRestaurantQueries('restaurant', browseLocation, 'restaurant')
 
-  const handleActiveOrdersChange = (activeOrdersExist) => {
-    setHasActiveOrders(activeOrdersExist)
-  }
   const handleRefresh = async () => {
     setIsRefreshing(true)
     await refetchBanners()
@@ -401,11 +385,6 @@ function Main(props) {
   //   return []
   // }
 
-  const restaurantCuisines = useMemo(() => {
-    if (!allCuisines?.cuisines) return []
-    return allCuisines.cuisines.filter((cuisine) => cuisine?.shopType?.toLowerCase() === 'restaurant')
-  }, [allCuisines])
-
   // Prefer a short street-style label for the header (matches the reference
   // "Piastowska 20" look). Fall back to the full delivery address / current
   // location string, truncated so it never pushes the Delivery/Pickup pill.
@@ -417,15 +396,22 @@ function Main(props) {
   }, [locationData?.deliveryAddress, t])
 
   const handleToggleOrderType = useCallback((nextIsPickup) => {
+    if (pickupOnlyBrowsing && !nextIsPickup) {
+      // Delivery is unavailable here — leave pickup browsing and show empty state.
+      setPickupOnlyBrowsing(false)
+      setIsPickup(false)
+      return
+    }
     setIsPickup(nextIsPickup)
-  }, [])
+  }, [pickupOnlyBrowsing, setIsPickup])
+
+  const handleOrderForPickup = useCallback(() => {
+    setIsPickup(true)
+    setPickupOnlyBrowsing(true)
+  }, [setIsPickup])
 
   const handleHeroSearchPress = useCallback(() => {
     navigation.navigate('Search')
-  }, [navigation])
-
-  const handleHeroFilterPress = useCallback(() => {
-    navigation.navigate('Menu', { selectedType: 'restaurant', queryType: 'restaurant' })
   }, [navigation])
 
   const handleTasteCuisinePress = useCallback(
@@ -439,27 +425,11 @@ function Main(props) {
     navigation.navigate('Collection', {
       collectionType: 'Restaurants',
       title: t('findYourTaste'),
-      data: restaurantCuisines,
+      data: TASTE_CATEGORIES,
       showHeader: false
     })
-  }, [navigation, restaurantCuisines, t])
+  }, [navigation, t])
 
-  const handleFreeDeliveryPillPress = useCallback(() => {
-    navigation.navigate('Menu', { presetOffer: 'Free Delivery', selectedType: 'restaurant', queryType: 'restaurant' })
-  }, [navigation])
-
-  const handlePromoPillPress = useCallback(() => {
-    navigation.navigate('Menu', { selectedType: 'restaurant', queryType: 'restaurant' })
-  }, [navigation])
-
-  const sortedRecentOrderRestaurants = useMemo(
-    () => sortRestaurantsByOpenStatus(recentOrderRestaurantsVar || []),
-    [recentOrderRestaurantsVar]
-  )
-  const sortedMostOrderedRestaurants = useMemo(
-    () => sortRestaurantsByOpenStatus(mostOrderedRestaurantsVar || []),
-    [mostOrderedRestaurantsVar]
-  )
   const sortedRestaurantOrders = useMemo(
     () => sortRestaurantsByOpenStatus(restaurantorders || []),
     [restaurantorders]
@@ -470,71 +440,101 @@ function Main(props) {
   // the user never sees the full-screen "something went wrong" for a blip.
   const isAutoRetrying = !!error && isTransientNetworkError && !retriesExhausted
   const showErrorView = !!error && (!isTransientNetworkError || retriesExhausted)
+  const showDiscoveryFeed =
+    loading || isAutoRetrying || restaurantordersLoading || restaurantorders?.length > 0 || pickupOnlyBrowsing
+  const showNoDeliveryArea = !showDiscoveryFeed && !!location
+
+  const handleChangeAddressFromEmpty = useCallback(() => {
+    const parent = navigation.getParent()
+    if (parent) {
+      parent.navigate('ChangeAddress')
+    } else {
+      navigation.navigate('ChangeAddress')
+    }
+  }, [navigation])
+
+  // Hide bottom tabs while the out-of-area empty state owns the screen.
+  useLayoutEffect(() => {
+    const visibleTabBar = {
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      paddingBottom: Platform.OS === 'ios' ? 25 : 15,
+      height: Platform.OS === 'ios' ? 90 : 70,
+      backgroundColor: '#1A1A1A',
+      borderTopWidth: 0,
+      elevation: 0,
+      shadowOpacity: 0
+    }
+    navigation.setOptions({
+      tabBarStyle: showNoDeliveryArea ? { display: 'none' } : visibleTabBar
+    })
+    return () => {
+      navigation.setOptions({ tabBarStyle: visibleTabBar })
+    }
+  }, [navigation, showNoDeliveryArea])
+
   if (showErrorView) return <ErrorView refetchFunctions={[refetchRestaurants, refetchBanners]} errorMessage={userFriendlyErrorMessage} />
   return (
     <>
       {!connect ? (
         <ErrorView refetchFunctions={[refetchRestaurants, refetchBanners]} />
       ) : (
-        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles().flex, { backgroundColor: '#121212' }]}>
+        <SafeAreaView
+          edges={['left', 'right']}
+          style={[styles().flex, { backgroundColor: '#121212' }]}
+        >
           <View style={[styles().flex, { backgroundColor: '#121212' }]}>
             <View style={styles().flex}>
               <View style={styles().mainContentContainer}>
                 <View style={[styles().flex, styles().subContainer]}>
-                  {loading || isAutoRetrying || restaurantordersLoading || restaurantorders?.length > 0 ? (
-                    <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor='#FFFFFF' />}>
-                      <DiscoveryHero
-                        currentTheme={currentTheme}
-                        addressLabel={heroAddressLabel}
-                        onAddressPress={onOpen}
-                        isPickup={isPickup}
-                        onToggleOrderType={handleToggleOrderType}
-                        onSearchPress={handleHeroSearchPress}
-                        onFilterPress={handleHeroFilterPress}
-                      />
-                      <TasteCategories
-                        cuisines={restaurantCuisines}
-                        onCuisinePress={handleTasteCuisinePress}
-                        onSeeAllPress={handleTasteSeeAllPress}
-                      />
-                      <HomeFilterPills
-                        onPromoPress={handlePromoPillPress}
-                        onFreeDeliveryPress={handleFreeDeliveryPillPress}
-                      />
-                      <View style={{ gap: 12, backgroundColor: '#121212', paddingTop: 4 }}>
-                        <View>{isLoggedIn && sortedRecentOrderRestaurants?.length > 0 && <>{orderLoading || isRefreshing ? <MainLoadingUI /> : <MainRestaurantCard orders={sortedRecentOrderRestaurants} loading={orderLoading} error={orderError} title={'Order it again'} queryType='orderAgain' titleColor='#FFFFFF' />}</>}</View>
-
-                        <View>{orderLoading || isRefreshing ? <MainLoadingUI /> : <MainRestaurantCard orders={sortedMostOrderedRestaurants} loading={orderLoading} error={orderError} title={t('Popular right now')} queryType='topPicks' icon='trending' titleColor='#FFFFFF' />}</View>
-
-                        <View>{loading || isRefreshing ? <MainLoadingUI /> : <MainRestaurantCard shopType='restaurant' orders={sortedRestaurantOrders} loading={orderLoading} error={orderError} title={t('Restaurants near you')} queryType='restaurant' icon='restaurant' titleColor='#FFFFFF' />}</View>
+                  {showDiscoveryFeed ? (
+                    <ScrollView
+                      showsVerticalScrollIndicator={false}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingBottom: scale(24) }}
+                      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor='#FFFFFF' />}
+                    >
+                      <View style={{ backgroundColor: '#222222', borderBottomWidth: 1, borderBottomColor: '#3A3A3A' }}>
+                        <DiscoveryHero
+                          currentTheme={currentTheme}
+                          addressLabel={heroAddressLabel}
+                          onAddressPress={handleChangeAddressFromEmpty}
+                          isPickup={isPickup}
+                          pickupOnly={pickupOnlyBrowsing}
+                          onToggleOrderType={handleToggleOrderType}
+                          onSearchPress={handleHeroSearchPress}
+                        />
+                        <TasteCategories
+                          onCuisinePress={handleTasteCuisinePress}
+                          onSeeAllPress={handleTasteSeeAllPress}
+                        />
                       </View>
-                      <View style={styles(currentTheme, hasActiveOrders).topBrandsMargin}>{orderLoading ? <TopBrandsLoadingUI /> : <TopBrands />}</View>
+                      <View style={{ gap: scale(16), backgroundColor: '#121212', paddingTop: scale(12), paddingHorizontal: scale(16) }}>
+                        {restaurantordersLoading || isRefreshing ? (
+                          <MainLoadingUI />
+                        ) : (
+                          sortedRestaurantOrders.map((item) => (
+                            <NewRestaurantCard key={item._id} {...item} fullWidth isOpen={isOpen(item)} />
+                          ))
+                        )}
+                      </View>
                     </ScrollView>
                   ) : !location ? (
                     <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}>
                       <Spinner backColor='transparent' />
                     </View>
                   ) : (
-                    <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}>
-                      <TextDefault bold H4 style={{ textAlign: 'center', marginBottom: 4 }}>
-                        {t('We are currently not available in your location.')}
-                      </TextDefault>
-                      <TextDefault style={{ textAlign: 'center', marginBottom: 10 }}>{t('Please check back later or try a different location.')}</TextDefault>
-
-                    
-
-                      <TouchableOpacity activeOpacity={0.7} onPress={() => setCitiesModalVisible(true)} style={[styles(currentTheme).button, { opacity: 1 }]}>
-                        <TextDefault textColor={currentTheme.color4} style={{ paddingHorizontal: 10 }} bold H7>
-                          {t('Select different location')}
-                        </TextDefault>
-                      </TouchableOpacity>
-                    </View>
+                    <NoDeliveryArea
+                      currentTheme={currentTheme}
+                      location={location}
+                      onChangeAddress={handleChangeAddressFromEmpty}
+                      onOrderPickup={handleOrderForPickup}
+                    />
                   )}
                 </View>
                 <ForceUpdate />
               </View>
             </View>
-            <ActiveOrders onActiveOrdersChange={handleActiveOrdersChange} />
 
             <MainModalize modalRef={modalRef} currentTheme={currentTheme} isLoggedIn={isLoggedIn} addressIcons={addressIcons} modalHeader={modalHeader} modalFooter={modalFooter} setAddressLocation={setAddressLocation} profile={profile} location={location} />
             <ModalDropdown theme={currentTheme} visible={citiesModalVisible} onItemPress={handleMarkerPress} onClose={() => setCitiesModalVisible(false)} />

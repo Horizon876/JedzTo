@@ -11,6 +11,8 @@ const IMG = {
   pizza2: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d264?w=800&q=80',
   chinese: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=800&q=80',
   burger: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80',
+  sushi: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800&q=80',
+  kebab: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=800&q=80',
   chicken: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=800&q=80',
   logo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&q=80',
   food: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80'
@@ -83,7 +85,8 @@ const restaurant = ({
   reviewCount: 24,
   reviewAverage: 4.6,
   reviewData: { total: 24, ratings: 4.6 },
-  freeDelivery: false,
+  freeDelivery: true,
+  deliveryFee: 0,
   acceptVouchers: true,
   isAvailable: true,
   phone,
@@ -98,11 +101,11 @@ const restaurant = ({
 })
 
 export const JEDZTO_LOCAL_CUISINES = [
-  { _id: 'c-pizza', name: 'Pizza', description: 'Pizzerie', image: IMG.pizza, shopType: 'restaurant' },
-  { _id: 'c-burgery', name: 'Burgery', description: 'Burgery', image: IMG.burger, shopType: 'restaurant' },
-  { _id: 'c-chinska', name: 'Chińska', description: 'Kuchnia azjatycka', image: IMG.chinese, shopType: 'restaurant' },
-  { _id: 'c-kurczak', name: 'Kurczak', description: 'Chicken', image: IMG.chicken, shopType: 'restaurant' },
-  { _id: 'c-wloska', name: 'Włoska', description: 'Kuchnia włoska', image: IMG.pizza2, shopType: 'restaurant' }
+  { _id: 'c-pizza', name: 'Pizza', description: 'Pizza', image: IMG.pizza, shopType: 'restaurant' },
+  { _id: 'c-burger', name: 'Burger', description: 'Burgery', image: IMG.burger, shopType: 'restaurant' },
+  { _id: 'c-sushi', name: 'Sushi', description: 'Sushi', image: IMG.sushi, shopType: 'restaurant' },
+  { _id: 'c-kebab', name: 'Kebab', description: 'Kebab', image: IMG.kebab, shopType: 'restaurant' },
+  { _id: 'c-kurczak', name: 'Kurczak', description: 'Kurczak', image: IMG.chicken, shopType: 'restaurant' }
 ]
 
 export const JEDZTO_LOCAL_RESTAURANTS = [
@@ -200,7 +203,7 @@ export const JEDZTO_LOCAL_RESTAURANTS = [
     address: 'ul. Przedmieście 3, 32-400 Myślenice',
     phone: '+48123450004',
     image: IMG.burger,
-    cuisines: ['Burgery', 'Amerykańska'],
+    cuisines: ['Burger', 'Burgery', 'Amerykańska'],
     deliveryTime: 25,
     minimumOrder: 28,
     longitude: 19.9425,
@@ -273,8 +276,10 @@ export const getJedzToLocalRestaurantPreviews = () =>
     reviewCount: r.reviewCount,
     reviewAverage: r.reviewAverage,
     freeDelivery: r.freeDelivery,
+    deliveryFee: r.deliveryFee ?? (r.freeDelivery ? 0 : 5),
     acceptVouchers: r.acceptVouchers,
     location: r.location,
+    address: r.address,
     openingTimes: r.openingTimes
   }))
 

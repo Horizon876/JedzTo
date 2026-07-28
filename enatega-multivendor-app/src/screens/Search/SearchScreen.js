@@ -1,107 +1,77 @@
-import React, { useState, useEffect, useContext, useLayoutEffect, useMemo } from 'react'
-import { View, RefreshControl, Animated, Platform, TouchableOpacity } from 'react-native'
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StatusBar,
+  ActivityIndicator
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, gql } from '@apollo/client'
-import { useNavigation } from '@react-navigation/native'
-import Search from '../../components/Main/Search/Search'
-import { scale } from '../../utils/scaling'
-import styles from './styles'
-import { theme } from '../../utils/themeColors'
-import { useTranslation } from 'react-i18next'
-import ThemeContext from '../../ui/ThemeContext/ThemeContext'
-import { restaurantListPreview, topRatedVendorsInfo, recentOrderRestaurantsQuery, mostOrderedRestaurantsQuery } from '../../apollo/queries'
-import TextDefault from '../../components/Text/TextDefault/TextDefault'
-import Item from '../../components/Main/Item/Item'
-import { LocationContext } from '../../context/Location'
-import { useCollapsibleSubHeader } from 'react-navigation-collapsible'
-import Spinner from '../../components/Spinner/Spinner'
-import { alignment } from '../../utils/alignment'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { storeSearch, getRecentSearches, clearRecentSearches } from '../../utils/recentSearch'
-import NewRestaurantCard from '../../components/Main/RestaurantCard/NewRestaurantCard'
-import { ScrollView } from 'react-native-gesture-handler'
-import { isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions'
-
-import useNetworkStatus from '../../utils/useNetworkStatus'
-import ErrorView from '../../components/ErrorView/ErrorView'
-import { useRestaurantQueries } from '../../ui/hooks/useRestaurantQueries'
+import { useTranslation } from 'react-i18next'
+import { restaurantListPreview } from '../../apollo/queries'
+import { LocationContext } from '../../context/Location'
+import { scale } from '../../utils/scaling'
+import { storeSearch, getRecentSearches, removeRecentSearch } from '../../utils/recentSearch'
 import {
   getJedzToLocalRestaurantPreviews,
   jedzToLocalRestaurantsEnabled
 } from '../../utils/jedztoLocalRestaurants'
+import useNetworkStatus from '../../utils/useNetworkStatus'
+import ErrorView from '../../components/ErrorView/ErrorView'
+import TextDefault from '../../components/Text/TextDefault/TextDefault'
+import styles, { ACCENT, MUTED, BG } from './styles'
 
 const RESTAURANTS = gql`
   ${restaurantListPreview}
 `
 
-const TOP_RATED_VENDORS = gql`
-  ${topRatedVendorsInfo}
-`
-
-const RECENT_ORDER_RESTAURANTS = gql`
-  ${recentOrderRestaurantsQuery}
-`
-
-const MOST_ORDERED_RESTAURANTS = gql`
-  ${mostOrderedRestaurantsQuery}
-`
-
 const SearchScreen = () => {
-  const { t, i18n } = useTranslation()
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const { location, setLocation } = useContext(LocationContext)
+  const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const navigation = useNavigation()
-  const themeContext = useContext(ThemeContext)
-  const currentTheme = {
-    isRTL: i18n.dir() === 'rtl',
-    ...theme[themeContext.ThemeValue]
-  }
-  const newheaderColor = currentTheme.backgroundColor
+  const { location } = useContext(LocationContext)
+  const { isConnected: connect } = useNetworkStatus()
+
+  const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [recentSearches, setRecentSearches] = useState([])
-  const [hasAnimated, setHasAnimated] = useState(false) // Track first render
-
-  // CustomItem component to handle animation
-  const CustomItem = ({ index, children }) => {
-    const scaleValue = new Animated.Value(0)
-
-    React.useEffect(() => {
-      if (!hasAnimated) {
-        Animated.timing(scaleValue, {
-          toValue: 1,
-          delay: index * 40,
-          duration: 300, // Set duration for the animation
-          useNativeDriver: true
-        }).start(() => {
-          // Update hasAnimated to true after the first animation
-          if (index === restaurants.length - 1) {
-            setHasAnimated(true)
-          }
-        })
-      }
-    }, [index, hasAnimated])
-
-    return (
-      <Animated.View
-        style={{
-          opacity: scaleValue
-        }}
-      >
-        {children}
-      </Animated.View>
-    )
-  }
 
   const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
+  const themedStyles = styles()
+
+  useFocusEffect(
+    useCallback(() => {
+      StatusBar.setBarStyle('light-content')
+      void getRecentSearches().then(setRecentSearches)
+      return undefined
+    }, [])
+  )
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false })
+  }, [navigation])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchText.trim())
+    }, 250)
+    return () => clearTimeout(timeoutId)
+  }, [searchText])
+
   const localPreviews = useMemo(
     () => (useLocalRestaurants ? getJedzToLocalRestaurantPreviews() : []),
     [useLocalRestaurants]
   )
 
-  const { data: remoteData, refetch, networkStatus, loading: remoteLoading, error: remoteError } = useQuery(RESTAURANTS, {
+  const { data: remoteData, loading: remoteLoading } = useQuery(RESTAURANTS, {
     variables: {
-      longitude: location.longitude || null,
-      latitude: location.latitude || null,
+      longitude: location?.longitude || null,
+      latitude: location?.latitude || null,
       shopType: null,
       ip: null
     },
@@ -109,103 +79,10 @@ const SearchScreen = () => {
     skip: useLocalRestaurants
   })
 
-  const data = useMemo(() => {
-    if (!useLocalRestaurants) return remoteData
-    return { nearByRestaurantsPreview: { restaurants: localPreviews } }
-  }, [useLocalRestaurants, remoteData, localPreviews])
-  const loading = useLocalRestaurants ? false : remoteLoading
-  const error = useLocalRestaurants ? undefined : remoteError
-
-  const { data: topRatedData } = useQuery(TOP_RATED_VENDORS, {
-    variables: {
-      longitude: location.longitude || null,
-      latitude: location.latitude || null
-    },
-    skip: useLocalRestaurants || !location.latitude || !location.longitude,
-    fetchPolicy: 'cache-and-network'
-  })
-
-  const { data: recentOrderData } = useQuery(RECENT_ORDER_RESTAURANTS, {
-    variables: {
-      longitude: location.longitude || null,
-      latitude: location.latitude || null
-    },
-    skip: useLocalRestaurants || !location.latitude || !location.longitude,
-    fetchPolicy: 'cache-and-network'
-  })
-
-  const { data: mostOrderedData } = useQuery(MOST_ORDERED_RESTAURANTS, {
-    variables: {
-      longitude: location.longitude || null,
-      latitude: location.latitude || null
-    },
-    fetchPolicy: 'cache-and-network',
-    skip: useLocalRestaurants || !location.latitude || !location.longitude
-  })
-
-  useEffect(() => {
-    navigation.setOptions({
-      title: t('searchTitle'),
-      headerTitleAlign: 'center',
-      headerRight: null,
-      headerTitleStyle: {
-        color: currentTheme.newFontcolor,
-        fontWeight: 'bold'
-      },
-      headerTitleContainerStyle: {
-        paddingTop: scale(12),
-        paddingLeft: scale(25),
-        paddingRight: scale(25),
-        marginLeft: 0
-      },
-      headerStyle: {
-        backgroundColor: currentTheme.themeBackground,
-        elevation: 0
-      }
-    })
-  }, [navigation, currentTheme])
-
-  useEffect(() => {
-    getRecentSearches().then((searches) => setRecentSearches(searches))
-  }, [])
-
-  useEffect(() => {
-    const trimmedSearch = search.trim()
-    const timeoutId = setTimeout(() => {
-      setDebouncedSearch(trimmedSearch)
-    }, 250)
-
-    return () => clearTimeout(timeoutId)
-  }, [search])
-
-  const { onScroll /* Event handler */, containerPaddingTop /* number */, scrollIndicatorInsetTop /* number */ } = useCollapsibleSubHeader()
-
-  const nearbyRestaurants = data?.nearByRestaurantsPreview?.restaurants || []
-  const topRatedRestaurants = topRatedData?.topRatedVendorsPreview || []
-  const recentOrderRestaurants = recentOrderData?.recentOrderRestaurantsPreview || []
-  const mostOrderedRestaurants = mostOrderedData?.mostOrderedRestaurantsPreview || []
-  const { restaurantData: nearByGroceryStores } = useRestaurantQueries('grocery', location, 'grocery')
-
-  // Combine all restaurants and remove duplicates
   const restaurants = useMemo(() => {
-    const allRestaurants = [
-      ...nearbyRestaurants,
-      ...topRatedRestaurants,
-      ...recentOrderRestaurants,
-      ...mostOrderedRestaurants,
-      ...(nearByGroceryStores || [])
-    ]
-
-    return allRestaurants.filter((restaurant, index, self) =>
-      index === self.findIndex((item) => item._id === restaurant._id)
-    )
-  }, [
-    nearbyRestaurants,
-    topRatedRestaurants,
-    recentOrderRestaurants,
-    mostOrderedRestaurants,
-    nearByGroceryStores
-  ])
+    if (useLocalRestaurants) return localPreviews
+    return remoteData?.nearByRestaurantsPreview?.restaurants || []
+  }, [useLocalRestaurants, localPreviews, remoteData])
 
   const filteredRestaurants = useMemo(() => {
     if (!debouncedSearch) return []
@@ -217,207 +94,205 @@ const SearchScreen = () => {
     restaurants.forEach((restaurant) => {
       const restaurantName = restaurant?.name?.toLowerCase?.() || ''
       const cuisines = restaurant?.cuisines || []
-      const tags = restaurant?.tags || []
-      const keywords = restaurant?.keywords || []
       const matchesName = restaurantName.includes(normalizedSearch)
       const matchesCuisine = cuisines.some((cuisine) =>
-        cuisine?.toLowerCase?.().includes(normalizedSearch)
-      )
-      const matchesTag = tags.some((tag) =>
-        tag?.toLowerCase?.().includes(normalizedSearch)
-      )
-      const matchesKeyword = keywords.some((keyword) =>
-        keyword?.toLowerCase?.().includes(normalizedSearch)
+        String(cuisine).toLowerCase().includes(normalizedSearch)
       )
 
       if (matchesName) {
         nameMatches.push(restaurant)
         return
       }
-
-      if (matchesCuisine || matchesTag || matchesKeyword) {
-        secondaryMatches.push(restaurant)
-      }
+      if (matchesCuisine) secondaryMatches.push(restaurant)
     })
 
     return [...nameMatches, ...secondaryMatches]
   }, [debouncedSearch, restaurants])
 
-  function getUniqueTags(restaurants) {
-    const allTags = new Set()
-    restaurants?.forEach((restaurant) => {
-      restaurant?.tags.forEach((tag) => allTags.add(tag))
-    })
-    return Array.from(allTags) // Convert Set back to an array
+  const handleCancel = useCallback(() => {
+    setSearchText('')
+    setDebouncedSearch('')
+    navigation.navigate('Discovery')
+  }, [navigation])
+
+  const clearSearch = useCallback(() => {
+    setSearchText('')
+    setDebouncedSearch('')
+  }, [])
+
+  const handleHistorySelect = useCallback((term) => {
+    setSearchText(term)
+  }, [])
+
+  const handleRemoveHistory = useCallback(async (term) => {
+    const next = await removeRecentSearch(term)
+    setRecentSearches(next)
+  }, [])
+
+  const handleRestaurantSelect = useCallback(
+    async (restaurant) => {
+      if (!restaurant?._id) return
+      const next = await storeSearch(restaurant.name)
+      setRecentSearches(next)
+      if (restaurant.shopType === 'grocery') {
+        navigation.navigate('NewRestaurantDetailDesign', { ...restaurant })
+      } else {
+        navigation.navigate('Restaurant', { ...restaurant })
+      }
+    },
+    [navigation]
+  )
+
+  const renderHistoryItem = ({ item }) => (
+    <TouchableOpacity
+      style={themedStyles.historyRow}
+      onPress={() => handleHistorySelect(item)}
+      activeOpacity={0.75}
+    >
+      <View style={themedStyles.historyIcon}>
+        <Ionicons name='time-outline' size={scale(18)} color={MUTED} />
+      </View>
+      <TextDefault numberOfLines={1} textColor='#FFFFFF' style={themedStyles.historyText}>
+        {item}
+      </TextDefault>
+      <TouchableOpacity
+        style={themedStyles.removeButton}
+        onPress={() => handleRemoveHistory(item)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityRole='button'
+        accessibilityLabel={t('cancel')}
+      >
+        <Ionicons name='close' size={scale(18)} color={MUTED} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  )
+
+  const renderRestaurantItem = ({ item }) => {
+    const cuisineLabel = Array.isArray(item?.cuisines) ? item.cuisines.slice(0, 2).join(' · ') : ''
+    return (
+      <TouchableOpacity
+        style={themedStyles.resultRow}
+        onPress={() => handleRestaurantSelect(item)}
+        activeOpacity={0.75}
+      >
+        <View style={themedStyles.historyIcon}>
+          <Ionicons name='restaurant-outline' size={scale(18)} color={MUTED} />
+        </View>
+        <View style={themedStyles.resultMeta}>
+          <TextDefault numberOfLines={1} textColor='#FFFFFF' bolder>
+            {item?.name}
+          </TextDefault>
+          {cuisineLabel ? (
+            <TextDefault numberOfLines={1} small textColor={MUTED}>
+              {cuisineLabel}
+            </TextDefault>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    )
   }
 
-  const uniqueTags = getUniqueTags(restaurants)
-
-  const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
   if (!connect) return <ErrorView />
 
-  const emptyView = () => {
-    return (
-      <View style={styles(currentTheme).emptyViewContainer}>
-        <View style={styles(currentTheme).emptyViewBox}>
-          <TextDefault textColor={currentTheme.fontGrayNew} center>
-            {t('noResults')}
-          </TextDefault>
-        </View>
-      </View>
-    )
-    // }
-  }
-
-  const handleTagPress = (tag) => {
-    setSearch(tag)
-  }
-
-  const handleClearRecentSearches = async () => {
-    try {
-      await clearRecentSearches()
-      setRecentSearches([]) // Update state with empty array
-    } catch (error) {
-      console.log('Error clearing searches:', error)
-    }
-  }
-
-  const renderTagsOrSearches = () => {
-    if (search) {
-      return (
-        <View style={styles().searchList}>
-          <Animated.FlatList
-            contentInset={{
-              top: containerPaddingTop
-            }}
-            contentContainerStyle={{
-              paddingTop: Platform.OS === 'ios' ? 0 : containerPaddingTop,
-              gap: 16,
-              ...alignment.PBlarge
-            }}
-            contentOffset={{
-              y: -containerPaddingTop
-            }}
-            onScroll={onScroll}
-            scrollIndicatorInsets={{
-              top: scrollIndicatorInsetTop
-            }}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={emptyView()}
-            keyExtractor={(item, index) => index.toString()}
-            refreshControl={
-              <RefreshControl
-                progressViewOffset={containerPaddingTop}
-                colors={[currentTheme.iconColorPink]}
-                refreshing={useLocalRestaurants ? false : networkStatus === 4}
-                onRefresh={() => {
-                  if (useLocalRestaurants) return
-                  if (networkStatus === 7) {
-                    refetch()
-                  }
-                }}
-              />
-            }
-            data={sortRestaurantsByOpenStatus(filteredRestaurants)}
-            renderItem={({ item }) => {
-              const restaurantOpen = isOpen(item)
-              return <NewRestaurantCard {...item} isSearch={search} fullWidth isOpen={restaurantOpen} />
-            }}
-          />
-        </View>
-      )
-    } else if (recentSearches.length > 0) {
-      return (
-        <View style={styles(currentTheme).recentSearchContainer}>
-          <View style={styles(currentTheme).flexRow}>
-            <View>
-              <TextDefault style={styles().drawerContainer} textColor={currentTheme.fontMainColor} small H4 bolder>
-                {t('recentSearches')}
-              </TextDefault>
-            </View>
-            <View>
-              <TouchableOpacity onPress={() => handleClearRecentSearches()}>
-                <TextDefault style={styles().drawerContainer} textColor={currentTheme.fontMainColor} normal bolder>
-                  {t('clear')}
-                </TextDefault>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles().line} />
-
-          {/* recent seareches list */}
-
-          {recentSearches.map((recentSearch, index) => (
-            <React.Fragment key={index}>
-              <TouchableOpacity onPress={() => handleTagPress(recentSearch)} style={styles(currentTheme).recentListBtn}>
-                <View>
-                  <Ionicons name='search' color={currentTheme.gray500} size={scale(20)} />
-                </View>
-                <View>
-                  <TextDefault>{recentSearch}</TextDefault>
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles().line} />
-            </React.Fragment>
-          ))}
-        </View>
-      )
-    } else {
-      return (
-        <View style={styles(currentTheme).tagView}>
-          {loading ? (
-            <View style={{ ...alignment.MTmedium }}>
-              <Spinner size={'small'} backColor={'transparent'} spinnerColor={currentTheme.main} />
-            </View>
-          ) : (
-            uniqueTags.map((tag, index) =>
-              hasAnimated ? (
-                <TouchableOpacity key={index} onPress={() => handleTagPress(tag)}>
-                  <View style={styles(currentTheme).tagItem}>
-                    <TextDefault numberOfLines={1} ellipsizeMode='tail'>{tag}</TextDefault>
-                  </View>
-                </TouchableOpacity>
-              ) : (
-                <CustomItem index={index}>
-                  <TouchableOpacity key={tag} onPress={() => handleTagPress(tag)}>
-                    <View style={styles(currentTheme).tagItem}>
-                      <TextDefault numberOfLines={1} ellipsizeMode='tail'>{tag}</TextDefault>
-                    </View>
-                  </TouchableOpacity>
-                </CustomItem>
-              )
-            )
-          )}
-        </View>
-      )
-    }
-  }
+  const showHistoryPanel = !searchText
+  const showResults = searchText.length > 0
+  const loading = !useLocalRestaurants && remoteLoading
 
   return (
-    <ScrollView style={styles(currentTheme).flex}>
-      <View
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            colors={[currentTheme.iconColorPink]}
-            refreshing={useLocalRestaurants ? false : networkStatus === 4}
-            onRefresh={() => {
-              if (useLocalRestaurants) return
-              if (networkStatus === 7) {
-                refetch()
-              }
-            }}
-          />
-        }
-      >
-        <View style={styles().searchbar}>
-          <Search setSearch={setSearch} search={search} newheaderColor={newheaderColor} placeHolder={t('searchRestaurant')} />
+    <View style={themedStyles.fullScreen}>
+      <StatusBar barStyle='light-content' backgroundColor={BG} />
+      <View style={themedStyles.content}>
+        <View style={[themedStyles.topSurface, { paddingTop: insets.top + scale(8) }]}>
+          <View style={themedStyles.topBar}>
+            <View style={themedStyles.searchPill}>
+              <Ionicons name='search' size={scale(20)} color={ACCENT} />
+              <TextInput
+                style={themedStyles.searchInput}
+                placeholder={t('lookingForCategory')}
+                placeholderTextColor={MUTED}
+                value={searchText}
+                onChangeText={setSearchText}
+                autoFocus
+                returnKeyType='search'
+                autoCapitalize='none'
+                autoCorrect={false}
+                selectionColor={ACCENT}
+              />
+              {loading && searchText.length > 0 ? (
+                <ActivityIndicator size='small' color={ACCENT} />
+              ) : searchText.length > 0 ? (
+                <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name='close-circle' size={scale(18)} color={MUTED} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={themedStyles.cancelButton}
+              onPress={handleCancel}
+              accessibilityRole='button'
+            >
+              <TextDefault bolder style={themedStyles.cancelText}>
+                {t('cancel')}
+              </TextDefault>
+            </TouchableOpacity>
+          </View>
         </View>
-        {renderTagsOrSearches()}
+
+        {showHistoryPanel ? (
+          <View style={themedStyles.listArea}>
+            <TextDefault bolder H5 textColor='#FFFFFF' style={themedStyles.sectionTitle}>
+              {t('recentSearches')}
+            </TextDefault>
+            {recentSearches.length > 0 ? (
+              <FlatList
+                data={recentSearches}
+                renderItem={renderHistoryItem}
+                keyExtractor={(item, index) => `${item}-${index}`}
+                keyboardShouldPersistTaps='handled'
+                showsVerticalScrollIndicator={false}
+                style={themedStyles.list}
+              />
+            ) : (
+              <View style={themedStyles.emptyHistory}>
+                <Ionicons name='time-outline' size={scale(18)} color={MUTED} />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                  style={themedStyles.emptyHistoryText}
+                >
+                  {t('addressSearchHistoryEmpty')}
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        {showResults ? (
+          <View style={themedStyles.listArea}>
+            {filteredRestaurants.length > 0 ? (
+              <FlatList
+                style={themedStyles.list}
+                data={filteredRestaurants}
+                renderItem={renderRestaurantItem}
+                keyExtractor={(item) => String(item._id)}
+                keyboardShouldPersistTaps='handled'
+                showsVerticalScrollIndicator={false}
+              />
+            ) : debouncedSearch.length > 1 && !loading ? (
+              <View style={themedStyles.emptyState}>
+                <Ionicons name='search-outline' size={32} color={MUTED} />
+                <TextDefault textColor={MUTED} style={{ marginTop: 8 }}>
+                  {t('noResults')}
+                </TextDefault>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
-    </ScrollView>
+    </View>
   )
 }
 

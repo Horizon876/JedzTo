@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo, useState, useEffect } from 'react'
+import React, { useCallback, useContext, useMemo } from 'react'
 import { View, TouchableOpacity, FlatList } from 'react-native'
 import { useSubscription } from '@apollo/client'
 import gql from 'graphql-tag'
@@ -7,17 +7,15 @@ import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import TextDefault from '../Text/TextDefault/TextDefault'
 import TextError from '../Text/TextError/TextError'
-import { alignment } from '../../utils/alignment'
-import styles from './styles'
-import { scale } from '../../utils/scaling'
+import styles, { ACCENT, BG, MUTED } from './styles'
 import { useTranslation } from 'react-i18next'
 import ConfigurationContext from '../../context/Configuration'
+import { formatMoney } from '../../utils/formatMoney'
 import OrdersContext from '../../context/Orders'
-import { ProgressBar } from '../Main/ActiveOrders/ProgressBar'
-import { calulateRemainingTime } from '../../utils/customFunctions'
 import Spinner from '../Spinner/Spinner'
 import EmptyView from '../EmptyView/EmptyView'
 import CachedImage from '../CachedImage'
+import { getOrderStatusLabelKey } from '../../utils/orderStatusLabel'
 
 const ActiveOrders = ({ navigation, loading, error, activeOrders }) => {
   const { i18n } = useTranslation()
@@ -29,28 +27,55 @@ const ActiveOrders = ({ navigation, loading, error, activeOrders }) => {
   const configuration = useContext(ConfigurationContext)
   const { reFetchOrders, networkStatusActiveOrders } = useContext(OrdersContext)
 
-  const emptyView = () => {
-    return <EmptyView title={'titleEmptyActiveOrders'} description={'emptyActiveOrdersDesc'} buttonText={'emptyActiveOrdersBtn'} navigateTo='Discovery' />
-  }
+  const emptyView = () => (
+    <EmptyView
+      title={'titleEmptyActiveOrders'}
+      description={'emptyActiveOrdersDesc'}
+      buttonText={'emptyActiveOrdersBtn'}
+      navigateTo='Discovery'
+      accentColor={ACCENT}
+      backgroundColor={BG}
+      textColor='#FFFFFF'
+    />
+  )
 
-  const renderItem = useCallback(({ item }) => <Item item={item} navigation={navigation} currentTheme={currentTheme} configuration={configuration} />, [configuration, currentTheme, navigation])
+  const renderItem = useCallback(
+    ({ item }) => (
+      <Item item={item} navigation={navigation} currentTheme={currentTheme} configuration={configuration} />
+    ),
+    [configuration, currentTheme, navigation]
+  )
   const emptyState = useMemo(() => emptyView(), [])
 
-  // Spinner only on the first load; during pull-to-refresh keep the list mounted.
   if (networkStatusActiveOrders === 1) {
-    return <Spinner size={'small'} backColor={currentTheme.themeBackground} spinnerColor={currentTheme.main} />
+    return <Spinner size={'small'} backColor={BG} spinnerColor={ACCENT} />
   }
   if (error) return <TextError text={error.message} />
 
-  return <FlatList data={activeOrders} renderItem={renderItem} keyExtractor={(item) => item._id} ListEmptyComponent={emptyState} refreshing={networkStatusActiveOrders === 4} onRefresh={() => networkStatusActiveOrders === 7 && reFetchOrders()} initialNumToRender={4} maxToRenderPerBatch={4} windowSize={5} removeClippedSubviews />
+  return (
+    <FlatList
+      data={activeOrders}
+      renderItem={renderItem}
+      keyExtractor={(item) => item._id}
+      ListEmptyComponent={emptyState}
+      contentContainerStyle={styles().listContent}
+      refreshing={networkStatusActiveOrders === 4}
+      onRefresh={() => networkStatusActiveOrders === 7 && reFetchOrders()}
+      initialNumToRender={4}
+      maxToRenderPerBatch={4}
+      windowSize={5}
+      removeClippedSubviews
+    />
+  )
 }
 
 const getItems = (items) => {
-  return items?.map((item) => `${item.quantity}x ${item.title}${item.variation.title ? `(${item.variation.title})` : ''}`).join('\n')
+  return items
+    ?.map((item) => `${item.quantity}x ${item.title}${item.variation.title ? `(${item.variation.title})` : ''}`)
+    .join(', ')
 }
 
 const Item = ({ item, navigation, currentTheme, configuration }) => {
-  const [remainingTimeState, setRemainingTimeState] = useState(calulateRemainingTime(item))
   const { t } = useTranslation()
 
   useSubscription(
@@ -60,91 +85,38 @@ const Item = ({ item, navigation, currentTheme, configuration }) => {
     { variables: { id: item._id } }
   )
 
-  // Add useEffect to update the remaining time every second
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      const updatedTime = calulateRemainingTime(item)
-      setRemainingTimeState(updatedTime)
-
-      // Clear interval if time reaches zero
-      if (updatedTime <= 0) {
-        clearInterval(intervalId)
-      }
-    }, 1000)
-
-    // Clean up interval on unmount
-    return () => clearInterval(intervalId)
-  }, [item])
+  const statusLabel = t(getOrderStatusLabelKey(item.orderStatus))
 
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('OrderDetail', { _id: item?._id })}>
-      <View style={{ flex: 1 }}>
-        <View style={styles(currentTheme).subContainer}>
-          <View style={styles().orderDescriptionContainer}>
-            <TextDefault h5 bold textColor={currentTheme.gray500} isRTL>
-              {t('estimatedDeliveryTime')}
-            </TextDefault>
-          </View>
-          <View style={styles().orderDescriptionContainer}>
-            <TextDefault Regular textColor={currentTheme.gray900} H1 bolder isRTL>
-              {remainingTimeState}-{remainingTimeState + 5} {t('mins')}
-            </TextDefault>
-          </View>
-          <View style={{ flex: 1 }}>
-            <ProgressBar configuration={configuration} currentTheme={currentTheme} item={item} navigation={navigation} customWidth={scale(65)} isPicked={item?.isPickedUp} />
-          </View>
-          <View
-            style={{
-              ...styles().orderDescriptionContainer,
-              ...alignment.PTxSmall
-            }}
-          >
-            <TextDefault h5 bold textColor={currentTheme.secondaryText} isRTL>
-              {item.orderStatus === 'PENDING' ? t('PenddingText') : t('PenddingText1')}
-            </TextDefault>
-          </View>
-          <View
-            style={{
-              flex: 1,
-              flexDirection: currentTheme?.isRTL ? 'row-reverse' : 'row',
-              //alignItems: 'center',
-              justifyContent: 'center',
-              ...alignment.Mmedium,
-              ...alignment.MTlarge,
-              ...alignment.PLmedium
-            }}
-          >
-            <CachedImage style={styles(currentTheme).restaurantImage1} resizeMode='cover' source={{ uri: item?.restaurant?.image }} />
-            <View style={styles(currentTheme).textContainer2}>
-              <View style={styles().subContainerLeft}>
-                <TextDefault textColor={currentTheme.fontMainColor} uppercase bolder numberOfLines={2} style={styles(currentTheme).orderInfo} isRTL>
-                  {item?.restaurant?.name}
-                </TextDefault>
-                <TextDefault
-                  numberOfLines={2}
-                  // style={{ ...alignment.MTxSmall }}
-                  style={styles(currentTheme).orderInfo}
-                  textColor={currentTheme.fontMainColor}
-                  bolder
-                  small
-                  isRTL
-                >
-                  {getItems(item.items)}
-                </TextDefault>
-              </View>
-            </View>
-            <View style={styles(currentTheme).subContainerRight}>
-              <TextDefault
-                //numberOfLines={1}
-                textColor={currentTheme.fontMainColor}
-                bolder
-                isRTL
-              >
-                {configuration.currencySymbol}
-                {parseFloat(item.orderAmount).toFixed(2)}
-              </TextDefault>
-            </View>
-          </View>
+    <TouchableOpacity
+      activeOpacity={0.75}
+      onPress={() => navigation.navigate('OrderDetail', { _id: item?._id })}
+      style={styles(currentTheme).orderRow}
+    >
+      <View style={styles().etaBlock}>
+        <TextDefault H5 bolder textColor='#FFFFFF' isRTL>
+          {statusLabel}
+        </TextDefault>
+      </View>
+
+      <View style={styles(currentTheme).rowBody}>
+        <CachedImage
+          style={styles(currentTheme).restaurantImage1}
+          resizeMode='cover'
+          source={{ uri: item?.restaurant?.image }}
+        />
+        <View style={styles(currentTheme).textContainer2}>
+          <TextDefault textColor='#FFFFFF' bolder numberOfLines={1} isRTL>
+            {item?.restaurant?.name}
+          </TextDefault>
+          <TextDefault numberOfLines={2} textColor={MUTED} small isRTL>
+            {getItems(item.items)}
+          </TextDefault>
+        </View>
+        <View style={styles(currentTheme).subContainerRight}>
+          <TextDefault textColor='#FFFFFF' bolder isRTL>
+            {formatMoney(item.orderAmount, configuration.currencySymbol)}
+          </TextDefault>
         </View>
       </View>
     </TouchableOpacity>

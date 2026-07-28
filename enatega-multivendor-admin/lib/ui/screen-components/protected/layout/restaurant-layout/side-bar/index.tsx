@@ -95,6 +95,11 @@ export default function MakeSidebar() {
           isParent: false,
         },
         {
+          text: t('Delivery Areas'),
+          route: '/admin/store/general/delivery-areas',
+          isParent: false,
+        },
+        {
           text: t('Payment'),
           route: '/admin/store/general/payment',
           isParent: false,

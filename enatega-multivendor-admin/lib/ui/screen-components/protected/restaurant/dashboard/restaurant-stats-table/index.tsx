@@ -92,7 +92,7 @@ export default function RestaurantStatesTable({
                     })}
                   </div>
                 ) : (
-                  items.map((item, index) => {
+                  (Array.isArray(items) ? items : []).map((item, index) => {
                     return (
                       <DashboardRestaurantStatsTable
                         key={index}

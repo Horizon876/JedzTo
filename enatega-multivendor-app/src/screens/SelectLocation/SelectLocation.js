@@ -18,6 +18,7 @@ import { useLocation } from '../../ui/hooks'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import darkMapStyle from '../../utils/DarkMapStyles'
 import CustomMarker from '../../assets/SVG/imageComponents/CustomMarker'
+import MapboxTileOverlay from '../../components/Map/MapboxTileOverlay'
 import analytics from '../../utils/analytics'
 import { Feather, EvilIcons } from '@expo/vector-icons'
 import { customMapStyle } from '../../utils/customMapStyles'
@@ -77,7 +78,7 @@ export default function SelectLocation(props) {
   })
 
 
-  StatusBar.setBarStyle('dark-content')
+  StatusBar.setBarStyle(themeContext.ThemeValue === 'Dark' ? 'light-content' : 'dark-content')
 
   const setCurrentLocation = async () => {
     setLoading(true)
@@ -137,7 +138,9 @@ export default function SelectLocation(props) {
             maxZoomLevel={15}
             customMapStyle={ themeContext.ThemeValue === 'Dark'  ? darkMapStyle  : customMapStyle }
             onRegionChangeComplete={onRegionChangeComplete}
-          />
+          >
+            <MapboxTileOverlay styleId={themeContext.ThemeValue === 'Dark' ? 'dark-v11' : 'streets-v12'} />
+          </MapView>
           <View style={styles().mainContainer}>
             <CustomMarker
               width={40}

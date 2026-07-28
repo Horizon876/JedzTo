@@ -1,9 +1,11 @@
 import { StyleSheet } from 'react-native'
 import { scale } from '../../../utils/scaling'
+
 export default StyleSheet.create({
-  priceRow: theme=> ({
+  priceRow: (theme) => ({
     flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
-    marginBottom: scale(10)
+    alignItems: 'center',
+    marginBottom: scale(12)
   })
 })

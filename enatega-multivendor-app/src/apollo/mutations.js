@@ -371,6 +371,18 @@ export const createUser = `
         }
       }`
 
+export const guestCheckout = `
+  mutation GuestCheckout($name: String!, $phone: String!) {
+    guestCheckout(name: $name, phone: $phone) {
+      userId
+      token
+      tokenExpiration
+      name
+      email
+      phone
+    }
+  }`
+
 export const updateUser = `
       mutation UpdateUser($name:String!,$phone:String,$phoneIsVerified:Boolean,$emailIsVerified:Boolean){
           updateUser(updateUserInput:{name:$name,phone:$phone,phoneIsVerified:$phoneIsVerified,emailIsVerified:$emailIsVerified}){

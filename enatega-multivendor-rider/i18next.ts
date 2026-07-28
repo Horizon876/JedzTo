@@ -71,11 +71,11 @@ export const languageResources: { [key: string]: { translation: object } } = {
   nl: { translation: nl },
 };
 
-const defaultLanguage = Localization.getLocales()[0]?.languageCode || "en";
+const defaultLanguage = Localization.getLocales()[0]?.languageCode || "pl";
 
 i18next.use(initReactI18next).init({
   lng: defaultLanguage,
-  fallbackLng: "en",
+  fallbackLng: "pl",
   resources: languageResources,
   interpolation: {
     escapeValue: false,

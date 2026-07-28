@@ -1,174 +1,115 @@
 import { scale, verticalScale } from '../../utils/scaling'
 import { StyleSheet } from 'react-native'
-import { alignment } from '../../utils/alignment'
+
+const ACCENT = '#00A8FF'
+const BG = '#121212'
+const SURFACE = '#1C1C1E'
+const ROW = '#1C1C1E'
+const BORDER = '#2C2C2E'
+const MUTED = '#8E8E93'
 
 const styles = (props = null) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: props !== null ? props?.cartContainer : '#FFF',
-      borderRadius: scale(8),
-      elevation: 3,
-      shadowColor: 'black',
-      shadowOffset: {
-        width: 0,
-        height: verticalScale(1)
-      },
-      shadowOpacity: 0.5,
-      shadowRadius: verticalScale(1),
-      //flexDirection: 'row',
-      justifyContent: 'space-between',
-      ...alignment.MRsmall,
-      ...alignment.MLsmall,
-      ...alignment.MTsmall,
-      ...alignment.PTxSmall,
-      ...alignment.PBxSmall,
-      ...alignment.PRsmall,
-      ...alignment.PLxSmall
+    listContent: {
+      paddingBottom: scale(24),
+      flexGrow: 1
     },
-    image: {
-      height: '100%',
-      width: '25%',
-      borderRadius: scale(10)
+    orderRow: {
+      backgroundColor: ROW,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: BORDER,
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(14),
+      gap: scale(10)
     },
-    textContainer: {
-      width: '55%',
-      ...alignment.PTlarge,
-      ...alignment.PBlarge,
-      ...alignment.PLsmall
+    etaBlock: {
+      gap: scale(4)
+    },
+    rowBody: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(12)
+    },
+    restaurantImage: {
+      height: scale(64),
+      width: scale(64),
+      borderRadius: scale(12)
+    },
+    restaurantImage1: {
+      height: scale(64),
+      width: scale(64),
+      borderRadius: scale(12)
     },
     textContainer2: {
-      width: '58%',
-      paddingHorizontal: scale(10)
+      flex: 1,
+      minWidth: 0,
+      gap: scale(4)
     },
     subContainerLeft: {
-      width: '100%'
-    },
-    leftContainer: {
-      width: '95%'
-    },
-    rightContainer: {
-      width: '20%',
-      justifyContent: 'center',
-      alignItems: 'center'
+      width: '100%',
+      gap: scale(2)
     },
     subContainerRight: {
       justifyContent: 'flex-start',
-      width: '35%',
-    },
-    rateOrderContainer: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'row',
-      marginTop: scale(20),
-      justifyContent: 'center',
-      alignItems: 'flex-end'
-    },
-    subContainerButton: {
-      backgroundColor: props !== null ? props?.newheaderColor : '#00E676',
-      ...alignment.MTxSmall,
-      borderRadius: 40,
-      width: '70%',
-      height: verticalScale(30),
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    subContainerReviewButton: {
-      backgroundColor: props !== null ? props?.secondaryBackground : 'grey',
-      ...alignment.MTxSmall,
-      borderRadius: 10,
-      width: scale(80),
-      height: verticalScale(25),
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    headingContainer: {
-      width: '100%',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      backgroundColor: props !== null ? props?.themeBackground : 'grey',
-      alignItems: 'center',
-      ...alignment.PTlarge,
-      ...alignment.PBlarge,
-      ...alignment.MTsmall
-    },
-    line: {
-      borderRightWidth: StyleSheet.hairlineWidth,
-      borderRightColor: props !== null ? props?.horizontalLine : 'grey'
-    },
-    headingLine: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: props !== null ? props?.horizontalLine : 'grey'
-    },
-    subContainer: {
-      flex: 1,
-      backgroundColor: props !== null ? props?.cardBackground : '#F3F4F6',
-      borderColor: props !== null ? props?.customBorder : '#fff',
-      borderWidth:scale(1),
-      borderRadius: scale(8),
-      elevation: 1,
-      ...alignment.MRmedium,
-      ...alignment.MLmedium,
-      ...alignment.MTsmall,
-      ...alignment.Pmedium
-    },
-    restaurantImage: {
-      height: 85,
-      width: 85,
-      borderRadius: 10,
-    },
-    restaurantImage1: {
-      height: 85,
-      width: 85,
-      borderRadius: 10
+      alignItems: props?.isRTL ? 'flex-start' : 'flex-end'
     },
     orderInfo: {
-      ...alignment.MBxSmall
+      marginBottom: scale(2)
     },
-    subContainerImage: {
-      flex: 1,
-      justifyContent: 'center',
-      alignContent: 'center',
-      ...alignment.PBlarge
+    restaurantName: {
+      marginBottom: scale(2)
     },
-    imageContainer: {
-      justifyContent: 'center',
+    rateOrderContainer: {
+      flexDirection: 'row',
+      marginTop: scale(4),
+      justifyContent: 'flex-start',
+      alignItems: 'center'
+    },
+    subContainerButton: {
+      backgroundColor: ACCENT,
+      borderRadius: scale(20),
+      paddingHorizontal: scale(18),
+      height: verticalScale(34),
       alignItems: 'center',
-      ...alignment.MBxSmall
-    },
-    descriptionEmpty: {
       justifyContent: 'center',
+      minWidth: scale(140)
+    },
+    cancelledBadge: {
+      alignSelf: props?.isRTL ? 'flex-start' : 'flex-end',
+      backgroundColor: '#3A2A2A',
+      borderRadius: scale(12),
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(5),
+      marginBottom: scale(4)
+    },
+    starsContainer: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      ...alignment.Plarge
+      justifyContent: 'space-between',
+      width: '100%',
+      marginTop: scale(6)
+    },
+    // legacy keys kept for safety
+    subContainer: {
+      backgroundColor: SURFACE,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: BORDER,
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(14)
+    },
+    orderDescriptionContainer: {
+      marginTop: scale(2)
     },
     emptyButton: {
       width: '85%',
       padding: scale(10),
-      backgroundColor: props !== null ? props?.buttonBackground : 'grey',
+      backgroundColor: ACCENT,
       justifyContent: 'center',
       alignItems: 'center',
       alignSelf: 'center',
       borderRadius: scale(10)
-    },
-    starsContainer: {
-      flexDirection: props?.isRTL ? 'row-reverse' :'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      width: '100%',
-      height: scale(50)
-      //backgroundColor: props !== null ? props?.gray200 : '#F3F4F6'
-    },
-    starsStyle: {
-      borderColor: props !== null ? props?.newheaderColor : '#00E676',
-      borderWidth: 1,
-      borderRadius: 5,
-      justifyContent: 'center',
-      alignItems: 'center',
-      alignSelf: 'center'
-    },
-    orderDescriptionContainer: {
-      ...alignment.MTxSmall
     }
   })
 
 export default styles
+export { ACCENT, BG, SURFACE, MUTED, BORDER }

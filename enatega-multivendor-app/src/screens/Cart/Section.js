@@ -14,6 +14,7 @@ import ConfigurationContext from '../../context/Configuration'
 import { useTranslation } from 'react-i18next'
 import { IMAGE_LINK } from '../../utils/constants'
 import CachedImage from '../../components/CachedImage'
+import { formatMoney } from '../../utils/formatMoney'
 
 const RELATED_ITEMS = gql`${relatedItemsQuery}`
 const RESTAURANT = gql`${restaurantQuery}`
@@ -79,7 +80,7 @@ const Section = ({ itemId, restaurantId }) => {
             textColor={currentTheme.fontFourthColor}
             normal
             bolder>
-            {`${configuration.currencySymbol}${food.variations[0].price}`}
+            {formatMoney(food.variations[0].price, configuration.currencySymbol)}
           </TextDefault>
           <TouchableOpacity onPress={onAdd}>
             <View style={styles(currentTheme).addToCart}>

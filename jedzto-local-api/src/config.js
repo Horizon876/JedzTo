@@ -8,3 +8,4 @@ export const SEED_ON_START = process.env.SEED_ON_START !== '0'
 export const LOCAL_API_OPEN = process.env.LOCAL_API_OPEN !== '0'
 export const PUBLIC_TOKEN_TTL_HOURS = 12
 export const USER_TOKEN_TTL_DAYS = 30
+export const MAPBOX_ACCESS_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || ''

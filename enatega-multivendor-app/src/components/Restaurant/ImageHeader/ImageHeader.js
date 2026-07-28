@@ -1,22 +1,18 @@
 import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native'
-import { Entypo, Ionicons, SimpleLineIcons } from '@expo/vector-icons'
-import Animated, { Extrapolation, interpolate, interpolateColor, useAnimatedStyle } from 'react-native-reanimated'
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native'
+import { Ionicons, SimpleLineIcons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
-import { RectButton } from 'react-native-gesture-handler'
 import { useTranslation } from 'react-i18next'
-import Search from '../../../components/Main/Search/Search'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import ThemeContext from '../../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../../utils/themeColors'
 import { scale } from '../../../utils/scaling'
-import { textStyles } from '../../../utils/textStyles'
 import styles from './styles'
 import { resolveLogoImage } from '../../../utils/resolveImageUrl'
 
-const AnimatedText = Animated.createAnimatedComponent(Text)
-
-const CATEGORY_RAIL_HEIGHT = scale(56)
+const CATEGORY_RAIL_HEIGHT = scale(48)
+const CATEGORY_ACCENT = '#00A8FF'
+const CATEGORY_MUTED = '#8E8E93'
 
 function normalizeCategories({ categories = [], topBarData = [], updatedDeals = [] }) {
   if (categories.length > 0) return categories
@@ -46,7 +42,7 @@ function CategoryTabsBase({ categories, activeCategoryIndex, onPressCategory, cu
     const offset = Math.min(Math.max(0, centeredOffset), maxOffset)
 
     categoryListRef.current.scrollTo({
-      animated: true,
+      animated: false,
       x: offset,
       y: 0
     })
@@ -83,17 +79,21 @@ function CategoryTabsBase({ categories, activeCategoryIndex, onPressCategory, cu
                 categoryLayoutsRef.current.set(item.categoryIndex, event.nativeEvent.layout)
                 setLayoutVersion((value) => value + 1)
               }}
-              style={isActive ? styles(currentTheme).activeHeader : styles(currentTheme).inactiveHeader}
             >
-              <RectButton
-                rippleColor={currentTheme.rippleColor}
+              <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() => onPressCategory(item.categoryIndex)}
                 style={styles(currentTheme).headerContainer}
               >
-                <TextDefault style={isActive ? textStyles.Bolder : textStyles.H5} textColor={isActive ? currentTheme.newButtonText : currentTheme.gray500} center H5>
+                <TextDefault
+                  style={isActive ? styles().categoryTabTextActive : styles().categoryTabText}
+                  textColor={isActive ? CATEGORY_ACCENT : CATEGORY_MUTED}
+                  bolder={isActive}
+                  center
+                >
                   {t(item.title)}
                 </TextDefault>
-              </RectButton>
+              </TouchableOpacity>
             </View>
           )
         })}
@@ -136,15 +136,7 @@ function HeaderContent({
   categories,
   activeCategoryIndex,
   onPressCategory,
-  searchOpen,
-  search,
-  setSearch,
-  searchHandler,
-  searchPopupHandler,
-  scrollY,
   insetTop,
-  collapseDistance,
-  displayedDeliveryMinutes,
   showCategories = true
 }) {
   const navigation = useNavigation()
@@ -159,101 +151,44 @@ function HeaderContent({
   )
 
   const topBarHeight = insetTop + scale(52)
-  const headerHeight = topBarHeight + (showCategories && !searchOpen && categories.length > 0 ? CATEGORY_RAIL_HEIGHT : 0)
-
-  const containerAnimatedStyle = useAnimatedStyle(() => ({
-    borderBottomColor: searchOpen ? currentTheme.newBorderColor : interpolateColor(scrollY.value, [0, collapseDistance * 0.3], ['rgba(0,0,0,0)', currentTheme.newBorderColor])
-  }))
-
-  const backgroundAnimatedStyle = useAnimatedStyle(() => ({
-    backgroundColor: currentTheme.themeBackground,
-    opacity: searchOpen ? 1 : interpolate(scrollY.value, [0, collapseDistance * 0.14, collapseDistance * 0.28], [0, 0.82, 1], Extrapolation.CLAMP)
-  }))
-
-  const titleAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, collapseDistance * 0.35, collapseDistance * 0.8], [0, 0.5, 1], Extrapolation.CLAMP)
-  }))
+  const headerHeight = topBarHeight + (showCategories && categories.length > 0 ? CATEGORY_RAIL_HEIGHT : 0)
 
   return (
-    <Animated.View style={[styles(currentTheme).container, containerAnimatedStyle, { height: headerHeight }]}>
-      <Animated.View pointerEvents='none' style={[styles(currentTheme).backgroundFill, backgroundAnimatedStyle]} />
+    <View style={[styles(currentTheme).container, { height: headerHeight, backgroundColor: currentTheme.themeBackground, borderBottomColor: currentTheme.newBorderColor, borderBottomWidth: StyleSheet.hairlineWidth }]}>
       <View style={[styles(currentTheme).topRow, { paddingTop: insetTop }]}>
         <View style={styles(currentTheme).leadingArea}>
-          {searchOpen ? (
-            <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).touchArea} onPress={searchPopupHandler}>
-              <Entypo name='cross' color={currentTheme.newIconColor} size={scale(22)} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).touchArea} onPress={() => navigation.goBack()}>
-              <Ionicons name='arrow-back' color={currentTheme.newIconColor} size={scale(22)} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).touchArea} onPress={() => navigation.goBack()}>
+            <Ionicons name='arrow-back' color={currentTheme.newIconColor} size={scale(22)} />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles(currentTheme).centerArea}>
-          {searchOpen ? (
-            <Search setSearch={setSearch} search={search} newheaderColor={currentTheme.backgroundColor} cartContainer={currentTheme.gray500} placeHolder={t('searchItems')} />
-          ) : (
-            <AnimatedText numberOfLines={1} style={[styles(currentTheme).headerTitle, titleAnimatedStyle]}>
-              {t('delivery')} {displayedDeliveryMinutes} {t('Min')}
-            </AnimatedText>
-          )}
-        </View>
+        <View style={styles(currentTheme).centerArea} />
 
-        {!searchOpen && (
-          <View style={styles(currentTheme).trailingArea}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles(currentTheme).touchArea}
-              onPress={() => {
-                navigation.navigate('About', {
-                  restaurantObject: { ...aboutObject },
-                  tab: false
-                })
-              }}
-            >
-              <SimpleLineIcons name='info' size={scale(17)} color={currentTheme.newIconColor} />
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).touchArea} onPress={searchHandler}>
-              <Ionicons name='search-outline' style={{ fontSize: scale(20) }} color={currentTheme.newIconColor} />
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles(currentTheme).trailingArea}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles(currentTheme).touchArea}
+            onPress={() => {
+              navigation.navigate('About', {
+                restaurantObject: { ...aboutObject },
+                tab: false
+              })
+            }}
+          >
+            <SimpleLineIcons name='info' size={scale(17)} color={currentTheme.newIconColor} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {showCategories && !searchOpen && <CategoryTabsBase categories={categories} activeCategoryIndex={activeCategoryIndex} onPressCategory={onPressCategory} currentTheme={currentTheme} t={t} />}
-    </Animated.View>
+      {showCategories && <CategoryTabsBase categories={categories} activeCategoryIndex={activeCategoryIndex} onPressCategory={onPressCategory} currentTheme={currentTheme} t={t} />}
+    </View>
   )
 }
 
 function ImageHeader(props) {
   const resolvedAboutObject = resolveAboutObject(props)
   const resolvedCategories = normalizeCategories(props)
-  const collapseDistance = props.collapseDistance ?? 0
-  const scrollY = props.scrollY ?? { value: 0 }
   const insetTop = props.insetTop ?? props.topInset ?? 0
-  const displayedDeliveryMinutes = props.displayedDeliveryMinutes ?? resolvedAboutObject.deliveryTime ?? '...'
-
-  if (props.loading || props.topBarData || props.updatedDeals) {
-    return (
-      <HeaderContent
-        aboutObject={resolvedAboutObject}
-        categories={resolvedCategories}
-        activeCategoryIndex={props.activeCategoryIndex ?? 0}
-        onPressCategory={props.onPressCategory ?? (() => {})}
-        searchOpen={props.searchOpen ?? false}
-        search={props.search ?? ''}
-        setSearch={props.setSearch ?? (() => {})}
-        searchHandler={props.searchHandler ?? (() => {})}
-        searchPopupHandler={props.searchPopupHandler ?? (() => {})}
-        scrollY={props.translationY ?? scrollY}
-        insetTop={insetTop}
-        collapseDistance={collapseDistance}
-        displayedDeliveryMinutes={displayedDeliveryMinutes}
-        showCategories={props.showCategories ?? true}
-      />
-    )
-  }
 
   return (
     <HeaderContent
@@ -261,15 +196,7 @@ function ImageHeader(props) {
       categories={resolvedCategories}
       activeCategoryIndex={props.activeCategoryIndex ?? 0}
       onPressCategory={props.onPressCategory ?? (() => {})}
-      searchOpen={props.searchOpen ?? false}
-      search={props.search ?? ''}
-      setSearch={props.setSearch ?? (() => {})}
-      searchHandler={props.searchHandler ?? (() => {})}
-      searchPopupHandler={props.searchPopupHandler ?? (() => {})}
-      scrollY={scrollY}
       insetTop={insetTop}
-      collapseDistance={collapseDistance}
-      displayedDeliveryMinutes={displayedDeliveryMinutes}
       showCategories={props.showCategories ?? true}
     />
   )
@@ -286,7 +213,17 @@ export const CategoryTabsRow = memo(function CategoryTabsRow({ categories, activ
     [i18n, themeContext.ThemeValue]
   )
 
-  return <CategoryTabsBase categories={categories} activeCategoryIndex={activeCategoryIndex} onPressCategory={onPressCategory} currentTheme={currentTheme} t={t} />
+  return (
+    <View style={{ backgroundColor: '#222222', zIndex: 20, elevation: 4 }}>
+      <CategoryTabsBase
+        categories={categories}
+        activeCategoryIndex={activeCategoryIndex}
+        onPressCategory={onPressCategory}
+        currentTheme={currentTheme}
+        t={t}
+      />
+    </View>
+  )
 })
 
 export default memo(ImageHeader)

@@ -1,11 +1,10 @@
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
-import React, { useState, useContext, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react'
-import { View, TouchableOpacity, Alert, StatusBar, Platform, Dimensions, FlatList, Pressable } from 'react-native'
-import Animated, { Extrapolation, interpolate, useSharedValue, withTiming, withRepeat, useAnimatedStyle, useAnimatedScrollHandler } from 'react-native-reanimated'
+import React, { useState, useContext, useEffect, useRef, useMemo, useCallback } from 'react'
+import { View, TouchableOpacity, Alert, StatusBar, Platform, FlatList, Pressable, StyleSheet } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Placeholder, PlaceholderMedia, PlaceholderLine, Fade } from 'rn-placeholder'
 import { gql, useApolloClient, useQuery } from '@apollo/client'
-import { MaterialIcons } from '@expo/vector-icons'
+import { MaterialIcons, Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import ImageHeader, { CategoryTabsRow } from '../../components/Restaurant/ImageHeader'
 import RestaurantHero from '../../components/Restaurant/RestaurantHero'
@@ -24,18 +23,15 @@ import { popularItems, food } from '../../apollo/queries'
 import ItemCard from '../../components/ItemCards/ItemCards'
 import { IMAGE_LINK } from '../../utils/constants'
 import PopularIcon from '../../assets/SVG/popular'
-import { escapeRegExp } from '../../utils/regex'
 import { calculateDistance, isOpen } from '../../utils/customFunctions'
 import { LocationContext } from '../../context/Location'
 import ShimmerImage from '../../components/ShimmerImage/ShimmerImage'
 import { resolveRestaurantImage as resolveResolvedRestaurantImage } from '../../utils/resolveImageUrl'
 import { isJedzToLocalRestaurantId } from '../../utils/jedztoLocalRestaurants'
+import { getPopulatedCartQuantityTotal, populateCart, pruneCartToRestaurant } from '../../utils/populateCart'
+import { formatMoney } from '../../utils/formatMoney'
 
-const { height } = Dimensions.get('screen')
-
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
-const HERO_FADE_DISTANCE = height * 0.32
-const CATEGORY_RAIL_HEIGHT = scale(56)
+const CATEGORY_RAIL_HEIGHT = scale(48)
 const LIST_BOTTOM_PADDING = scale(120)
 const POPULAR_ROW_LIMIT = 4
 
@@ -77,13 +73,12 @@ function Restaurant(props) {
   const pendingCategoryRef = useRef(null)
   const pendingCategoryTimerRef = useRef(null)
   const viewabilityConfigRef = useRef({
-    itemVisiblePercentThreshold: 15,
-    minimumViewTime: 80
+    itemVisiblePercentThreshold: 20,
+    minimumViewTime: 16
   })
   const navigation = useNavigation()
   const route = useRoute()
   const propsData = route.params
-  const scrollY = useSharedValue(0)
   const themeContext = useContext(ThemeContext)
   const currentTheme = useMemo(
     () => ({
@@ -95,25 +90,13 @@ function Restaurant(props) {
   const configuration = useContext(ConfigurationContext)
   const { location } = useContext(LocationContext)
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const deferredSearch = useDeferredValue(search)
-  const { restaurant: restaurantCart, setCartRestaurant, cartCount, addCartItem, addQuantity, clearCart, checkItemCart } = useContext(UserContext)
+  const { restaurant: restaurantCart, setCartRestaurant, cartCount, cart, addCartItem, addQuantity, clearCart, checkItemCart, isPickup, updateCart } = useContext(UserContext)
   const { data, refetch, networkStatus, loading, error } = useRestaurant(propsData._id)
   const client = useApolloClient()
   const { data: popularItemsData } = useQuery(POPULAR_ITEMS, {
     variables: { restaurantId },
     skip: isJedzToLocalRestaurantId(restaurantId)
   })
-
-  const openSearch = useCallback(() => {
-    setSearchOpen(true)
-  }, [])
-
-  const closeSearch = useCallback(() => {
-    setSearchOpen(false)
-    setSearch('')
-  }, [])
 
   useFocusEffect(
     useCallback(() => {
@@ -141,10 +124,6 @@ function Restaurant(props) {
   )
 
   const restaurant = data?.restaurant
-
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y
-  })
 
   const dataList = useMemo(() => {
     const popularRows = popularItemsData?.popularItems ?? []
@@ -201,18 +180,20 @@ function Restaurant(props) {
   const onViewableItemsChanged = useCallback(({ viewableItems }) => {
     if (pendingCategoryRef.current != null || categories.length === 0) return
 
-    const nextVisibleItem = viewableItems.find((viewableItem) => {
-      const row = viewableItem?.item
-      if (!row || row.categoryIndex == null) return false
+    const candidates = viewableItems
+      .filter((viewableItem) => {
+        const row = viewableItem?.item
+        if (!row || row.categoryIndex == null) return false
+        return (
+          row.type === 'section-anchor' ||
+          row.type === 'section-title' ||
+          row.type === 'popular-grid' ||
+          row.type === 'food-item'
+        )
+      })
+      .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
 
-      return row.type === 'section-anchor' ||
-        row.type === 'section-title' ||
-        row.type === 'popular-grid' ||
-        row.type === 'food-item'
-    })
-
-    const nextCategoryIndex = nextVisibleItem?.item?.categoryIndex
-
+    const nextCategoryIndex = candidates[0]?.item?.categoryIndex
     if (nextCategoryIndex == null) return
 
     setActiveCategoryIndex((currentValue) => (
@@ -234,25 +215,30 @@ function Restaurant(props) {
     () => ({
       latitude: restaurant ? restaurant.location.coordinates[1] : '',
       longitude: restaurant ? restaurant.location.coordinates[0] : '',
-      address: restaurant ? restaurant.address : '',
+      address: restaurant ? restaurant.address : propsData?.address || '',
+      restaurantAddress: restaurant?.address ?? propsData?.address ?? '',
       restaurantId: propsData?._id,
       restaurantName: propsData?.name ?? restaurant?.name,
       restaurantImage: resolveRestaurantImage(restaurant, propsData),
       restaurantLogo: restaurant?.logo ?? propsData?.logo ?? '',
-      restaurantCuisines: restaurant?.cuisines ?? [],
+      restaurantCuisines: restaurant?.cuisines ?? propsData?.cuisines ?? [],
       restaurantTax: propsData?.tax ?? restaurant?.tax,
       restaurantMinOrder: propsData?.minimumOrder ?? restaurant?.minimumOrder,
-      deliveryTime: restaurant?.deliveryTime ?? '...',
-      minimumOrder: restaurant?.minimumOrder ?? '...',
-      average: restaurant?.reviewData?.ratings ?? '...',
-      total: restaurant?.reviewData?.total ?? '...',
-      reviews: restaurant?.reviewData?.reviews ?? '...',
+      deliveryTime: restaurant?.deliveryTime ?? propsData?.deliveryTime,
+      minimumOrder: propsData?.minimumOrder ?? restaurant?.minimumOrder,
+      deliveryFee: propsData?.deliveryFee ?? restaurant?.deliveryFee,
+      freeDelivery: propsData?.freeDelivery ?? restaurant?.freeDelivery,
+      average: restaurant?.reviewData?.ratings ?? restaurant?.reviewAverage ?? propsData?.reviewAverage,
+      total: restaurant?.reviewData?.total ?? propsData?.reviewCount,
+      reviews: restaurant?.reviewData?.reviews ?? [],
       isAvailable: restaurant?.isAvailable ?? true,
       openingTimes: restaurant?.openingTimes ?? [],
       phone: restaurant?.phone ?? '',
       restaurantUrl: restaurant?.restaurantUrl ?? '',
       IsOpen: isOpen(restaurant ?? ''),
-      reviewsCount: restaurant?.reviewCount ?? '...',
+      reviewsCount: restaurant?.reviewCount ?? propsData?.reviewCount,
+      bussinessDetails: restaurant?.bussinessDetails ?? null,
+      name: propsData?.name ?? restaurant?.name,
       _id: propsData?._id
     }),
     [propsData, restaurant]
@@ -278,20 +264,6 @@ function Restaurant(props) {
       )
     }
   }, [navigation, restaurant, t])
-
-  const searchResults = useMemo(() => {
-    const sourceRows = []
-    deals.forEach((category) => {
-      category.data.forEach((item) => {
-        sourceRows.push(item)
-      })
-    })
-
-    if (!deferredSearch.trim()) return sourceRows
-
-    const regex = new RegExp(escapeRegExp(deferredSearch.trim()), 'i')
-    return sourceRows.filter((item) => regex.test(item?.title ?? '') || regex.test(item?.description ?? ''))
-  }, [deals, deferredSearch])
 
   const flatRows = useMemo(() => {
     const rows = [{ key: 'hero', type: 'hero' }, { key: 'category-tabs', type: 'category-tabs' }]
@@ -349,19 +321,55 @@ function Restaurant(props) {
     return indexMap
   }, [flatRows])
 
-  const circleSize = scale(18)
-  const radiusSize = scale(9)
-  const scaleValue = useSharedValue(1)
+  const cartTotal = useMemo(() => {
+    const populatedCart = populateCart(restaurant, cart || [])
+    return populatedCart.reduce((sum, item) => sum + (Number(item.lineTotal) || Number(item.price || 0) * Number(item.quantity || 0)), 0)
+  }, [cart, restaurant])
 
-  const scaleStyles = useAnimatedStyle(() => ({
-    transform: [{ scale: Math.max(0.1, scaleValue.value) }]
-  }))
+  const displayCartCount = useMemo(
+    () => getPopulatedCartQuantityTotal(restaurant, cart || []),
+    [cart, restaurant]
+  )
 
-  const animate = useCallback(() => {
-    scaleValue.value = withRepeat(withTiming(1.5, { duration: 250 }), 2, true, () => {
-      scaleValue.value = 1
-    })
-  }, [scaleValue])
+  const cartTotalLabel = useMemo(() => {
+    return formatMoney(cartTotal, configuration?.currencySymbol || 'zł')
+  }, [cartTotal, configuration?.currencySymbol])
+
+  const showCartBar = useMemo(() => {
+    if (displayCartCount <= 0) return false
+    if (!restaurantCart || !restaurantId) return false
+    return String(restaurantCart) === String(restaurantId)
+  }, [displayCartCount, restaurantCart, restaurantId])
+
+  useEffect(() => {
+    if (!restaurant || !Array.isArray(cart) || cart.length === 0) return
+    if (String(restaurantCart) !== String(restaurantId)) return
+
+    const pruned = pruneCartToRestaurant(restaurant, cart)
+    const serialize = (items) =>
+      JSON.stringify(
+        items
+          .map((item) => ({
+            key: item.key,
+            id: item._id,
+            variation: item.variation?._id,
+            quantity: Number(item.quantity || 0)
+          }))
+          .sort((a, b) => String(a.key).localeCompare(String(b.key)))
+      )
+
+    if (serialize(pruned) !== serialize(cart)) {
+      updateCart(pruned)
+    }
+  }, [cart, restaurant, restaurantCart, restaurantId, updateCart])
+
+  const deliveryGapLabel = useMemo(() => {
+    if (isPickup || !showCartBar) return null
+    const minimumOrder = Number(restaurant?.minimumOrder ?? aboutObject?.minimumOrder ?? 0)
+    if (!minimumOrder || cartTotal >= minimumOrder) return null
+    const remaining = minimumOrder - cartTotal
+    return t('addForDelivery', { amount: formatMoney(remaining, configuration?.currencySymbol || 'zł') })
+  }, [aboutObject?.minimumOrder, cartTotal, configuration?.currencySymbol, isPickup, restaurant?.minimumOrder, showCartBar, t])
 
   const onPressItem = useCallback(
     async (foodItem) => {
@@ -389,7 +397,7 @@ function Restaurant(props) {
         await addToCart(foodItem, foodItem.restaurant !== restaurantCart)
       } else {
         Alert.alert(
-          '',
+          t('clearCartTitle'),
           t('clearCartText'),
           [
             {
@@ -398,13 +406,13 @@ function Restaurant(props) {
               style: 'cancel'
             },
             {
-              text: t('okText'),
+              text: t('clearCartConfirm'),
               onPress: async () => {
                 await addToCart(foodItem, true)
               }
             }
           ],
-          { cancelable: false }
+          { cancelable: true }
         )
       }
     },
@@ -415,10 +423,7 @@ function Restaurant(props) {
     async (foodItem, clearFlag) => {
       if (foodItem.variations.length === 1 && foodItem.variations[0].addons.length === 0) {
         await setCartRestaurant(foodItem.restaurant)
-        const result = checkItemCart(foodItem._id)
-        if (result.exist) await addQuantity(result.key)
-        else await addCartItem(foodItem._id, foodItem.variations[0]._id, 1, [], clearFlag)
-        animate()
+        await addCartItem(foodItem._id, foodItem.variations[0]._id, 1, [], clearFlag)
         return
       }
 
@@ -430,10 +435,8 @@ function Restaurant(props) {
         options: restaurant.options,
         restaurant: restaurant._id
       })
-
-      animate()
     },
-    [addCartItem, addQuantity, animate, clearCart, checkItemCart, navigation, restaurant, setCartRestaurant]
+    [addCartItem, clearCart, navigation, restaurant, setCartRestaurant]
   )
 
   const tagCart = useCallback(
@@ -525,7 +528,6 @@ function Restaurant(props) {
           activeCategoryIndex={activeCategoryIndex}
           onPressCategory={handleCategoryPress}
           displayedDeliveryMinutes={displayedDeliveryMinutes}
-          scrollY={scrollY}
           currentTheme={currentTheme}
           restaurant={restaurant}
           tagCart={tagCart}
@@ -534,12 +536,7 @@ function Restaurant(props) {
         />
       )
     },
-    [aboutObject, activeCategoryIndex, categories, configuration, currentTheme, displayedDeliveryMinutes, handleCategoryPress, renderFoodPress, restaurant, scrollY, tagCart]
-  )
-
-  const renderSearchItem = useCallback(
-    ({ item }) => <FoodRow configuration={configuration} currentTheme={currentTheme} item={item} onPressItem={renderFoodPress} tagCart={tagCart} />,
-    [configuration, currentTheme, renderFoodPress, tagCart]
+    [aboutObject, activeCategoryIndex, categories, configuration, currentTheme, displayedDeliveryMinutes, handleCategoryPress, renderFoodPress, restaurant, tagCart]
   )
 
   if (loading) {
@@ -559,14 +556,7 @@ function Restaurant(props) {
             categories={[]}
             activeCategoryIndex={0}
             onPressCategory={() => {}}
-            searchOpen={false}
-            search=''
-            setSearch={() => {}}
-            searchHandler={() => {}}
-            searchPopupHandler={() => {}}
-            scrollY={scrollY}
             insetTop={insets.top}
-            collapseDistance={HERO_FADE_DISTANCE}
             displayedDeliveryMinutes='...'
             showCategories={false}
           />
@@ -587,111 +577,75 @@ function Restaurant(props) {
   if (error) return <TextError text={JSON.stringify(error)} />
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles(currentTheme).flex}>
+    <SafeAreaView edges={['left', 'right']} style={styles(currentTheme).flex}>
       <View style={styles(currentTheme).flex}>
-        {searchOpen ? (
-          <View style={styles(currentTheme).flex}>
-            <ImageHeader
-              aboutObject={aboutObject}
-              categories={categories}
-              activeCategoryIndex={activeCategoryIndex}
-              onPressCategory={handleCategoryPress}
-              searchOpen={searchOpen}
-              search={search}
-              setSearch={setSearch}
-              searchHandler={openSearch}
-              searchPopupHandler={closeSearch}
-              scrollY={scrollY}
-              insetTop={insets.top}
-              collapseDistance={HERO_FADE_DISTANCE}
-              displayedDeliveryMinutes={displayedDeliveryMinutes}
-              showCategories={false}
-            />
+        <ImageHeader
+          aboutObject={aboutObject}
+          categories={categories}
+          activeCategoryIndex={activeCategoryIndex}
+          onPressCategory={handleCategoryPress}
+          insetTop={insets.top}
+          displayedDeliveryMinutes={displayedDeliveryMinutes}
+          showCategories={false}
+        />
+        <FlatList
+          style={styles(currentTheme).flex}
+          ref={scrollRef}
+          data={flatRows}
+          renderItem={renderListItem}
+          keyExtractor={(item) => item.key}
+          extraData={activeCategoryIndex}
+          stickyHeaderIndices={[1]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps='handled'
+          refreshing={networkStatus === 4}
+          onRefresh={() => networkStatus === 7 && refetch()}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfigRef.current}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+          contentContainerStyle={{ paddingBottom: LIST_BOTTOM_PADDING }}
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          updateCellsBatchingPeriod={16}
+          windowSize={7}
+        />
 
-            <FlatList
-              style={styles(currentTheme).flex}
-              data={searchResults}
-              renderItem={renderSearchItem}
-              keyExtractor={(item, index) => String(item?._id || item?.id || index)}
-              keyboardShouldPersistTaps='handled'
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingTop: scale(8), paddingBottom: LIST_BOTTOM_PADDING }}
-              ListEmptyComponent={
-                <View style={{ paddingTop: scale(24), alignItems: 'center', justifyContent: 'center' }}>
-                  <TextError text={t('noItemsExists')} />
-                </View>
-              }
-            />
-          </View>
-        ) : (
-          <>
-            <ImageHeader
-              aboutObject={aboutObject}
-              categories={categories}
-              activeCategoryIndex={activeCategoryIndex}
-              onPressCategory={handleCategoryPress}
-              searchOpen={false}
-              search={search}
-              setSearch={setSearch}
-              searchHandler={openSearch}
-              searchPopupHandler={closeSearch}
-              scrollY={scrollY}
-              insetTop={insets.top}
-              collapseDistance={HERO_FADE_DISTANCE}
-              displayedDeliveryMinutes={displayedDeliveryMinutes}
-              showCategories={false}
-            />
-            <AnimatedFlatList
-              style={styles(currentTheme).flex}
-              ref={scrollRef}
-              data={flatRows}
-              renderItem={renderListItem}
-              keyExtractor={(item) => item.key}
-              extraData={activeCategoryIndex}
-              stickyHeaderIndices={[1]}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps='handled'
-              refreshing={networkStatus === 4}
-              onRefresh={() => networkStatus === 7 && refetch()}
-              onScroll={scrollHandler}
-              scrollEventThrottle={16}
-              onViewableItemsChanged={onViewableItemsChanged}
-              viewabilityConfig={viewabilityConfigRef.current}
-              onScrollToIndexFailed={handleScrollToIndexFailed}
-              contentContainerStyle={{ paddingBottom: LIST_BOTTOM_PADDING }}
-              initialNumToRender={8}
-              maxToRenderPerBatch={6}
-              updateCellsBatchingPeriod={16}
-              windowSize={7}
-            />
-          </>
-        )}
-
-        {cartCount > 0 && (
-          <View style={styles(currentTheme).buttonContainer}>
-            <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).button} onPress={() => navigation.navigate('Cart')}>
-              <View style={styles().buttontLeft}>
-                <Animated.View
-                  style={[
-                    styles(currentTheme).buttonLeftCircle,
-                    {
-                      width: circleSize,
-                      height: circleSize,
-                      borderRadius: radiusSize
-                    },
-                    scaleStyles
-                  ]}
-                >
-                  <Animated.Text style={styles(currentTheme).buttonTextLeft}>{cartCount}</Animated.Text>
-                </Animated.View>
+        {showCartBar ? (
+          <View style={[styles().buttonContainer, { paddingBottom: Math.max(insets.bottom, scale(10)) }]}>
+            {deliveryGapLabel ? (
+              <View style={styles().cartHintBar}>
+                <Ionicons name='bicycle-outline' size={scale(18)} color='#FFFFFF' />
+                <TextDefault style={styles().cartHintText} numberOfLines={2}>
+                  {deliveryGapLabel}
+                </TextDefault>
               </View>
-              <TextDefault style={styles().buttonText} textColor={currentTheme.buttonTextPink} uppercase center bolder small>
-                {t('viewCart')}
-              </TextDefault>
-              <View style={styles().buttonTextRight} />
-            </TouchableOpacity>
+            ) : null}
+            <View style={[styles().cartBarInner, { paddingBottom: scale(10) }]}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles().cartBarButton}
+                onPress={() => navigation.navigate('Cart')}
+              >
+                <View style={styles().cartBarButtonLeft}>
+                  <View style={styles().cartBasketWrap}>
+                    <Ionicons name='basket-outline' size={scale(22)} color='#FFFFFF' />
+                    <View style={styles().cartBadge}>
+                      <TextDefault bolder style={styles().cartBadgeText}>
+                        {displayCartCount}
+                      </TextDefault>
+                    </View>
+                  </View>
+                  <TextDefault bolder style={styles().cartBarButtonText}>
+                    {t('viewCart')}
+                  </TextDefault>
+                </View>
+                <TextDefault style={styles().cartBarPriceText}>
+                  {cartTotalLabel}
+                </TextDefault>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
+        ) : null}
       </View>
     </SafeAreaView>
   )
@@ -699,7 +653,17 @@ function Restaurant(props) {
 
 const SectionTitleRow = React.memo(function SectionTitleRow({ currentTheme, title }) {
   return (
-    <View style={[styles(currentTheme).sectionHeader, { marginBottom: scale(20) }]}>
+    <View
+      style={[
+        styles(currentTheme).sectionHeader,
+        {
+          marginBottom: 0,
+          marginTop: scale(4),
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: '#2C2C2E'
+        }
+      ]}
+    >
       <TextDefault style={styles(currentTheme).sectionHeaderText} textColor={currentTheme.fontFourthColor} bolder isRTL>
         {title}
       </TextDefault>
@@ -708,10 +672,10 @@ const SectionTitleRow = React.memo(function SectionTitleRow({ currentTheme, titl
 })
 
 const RestaurantRow = React.memo(
-  function RestaurantRow({ row, aboutObject, categories, activeCategoryIndex, onPressCategory, displayedDeliveryMinutes, scrollY, currentTheme, restaurant, tagCart, onFoodPress, configuration }) {
+  function RestaurantRow({ row, aboutObject, categories, activeCategoryIndex, onPressCategory, displayedDeliveryMinutes, currentTheme, restaurant, tagCart, onFoodPress, configuration }) {
     switch (row.type) {
       case 'hero':
-        return <RestaurantHero aboutObject={aboutObject} displayedDeliveryMinutes={displayedDeliveryMinutes} scrollY={scrollY} fadeDistance={HERO_FADE_DISTANCE} />
+        return <RestaurantHero aboutObject={aboutObject} displayedDeliveryMinutes={displayedDeliveryMinutes} />
       case 'category-tabs':
         return <CategoryTabsRow categories={categories} activeCategoryIndex={activeCategoryIndex} onPressCategory={onPressCategory} />
       case 'section-anchor':
@@ -734,7 +698,7 @@ const RestaurantRow = React.memo(
     if (prevProps.onFoodPress !== nextProps.onFoodPress) return false
     if (prevProps.configuration !== nextProps.configuration) return false
     if (prevProps.row.type === 'hero') {
-      return prevProps.aboutObject === nextProps.aboutObject && prevProps.displayedDeliveryMinutes === nextProps.displayedDeliveryMinutes && prevProps.scrollY === nextProps.scrollY
+      return prevProps.aboutObject === nextProps.aboutObject && prevProps.displayedDeliveryMinutes === nextProps.displayedDeliveryMinutes
     }
     if (prevProps.row.type === 'category-tabs') {
       return prevProps.categories === nextProps.categories && prevProps.activeCategoryIndex === nextProps.activeCategoryIndex && prevProps.onPressCategory === nextProps.onPressCategory
@@ -778,18 +742,23 @@ const PopularGridRow = React.memo(function PopularGridRow({ currentTheme, items,
 
 const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item, onPressItem, tagCart }) {
   const imageUrl = item?.image && item?.image.trim() !== '' ? item?.image : IMAGE_LINK
+  const ACCENT = '#00A8FF'
 
   return (
     <Pressable
       android_disableSound
       onPress={() => onPressItem(item)}
       style={({ pressed }) => ({
-        paddingHorizontal: scale(12),
-        paddingVertical: scale(10),
-        marginBottom: scale(10),
+        paddingHorizontal: scale(14),
+        paddingVertical: scale(12),
+        marginHorizontal: 0,
+        marginBottom: 0,
+        borderRadius: 0,
         opacity: item?.isOutOfStock ? 0.5 : 1,
         overflow: 'hidden',
-        backgroundColor: pressed ? currentTheme.main : 'transparent'
+        backgroundColor: pressed ? '#2A2A2C' : '#1C1C1E',
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#2C2C2E'
       })}
     >
       {({ pressed }) => (
@@ -801,42 +770,51 @@ const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item,
               alignItems: 'center'
             }}
           >
-            <View style={[styles(currentTheme).deal, { backgroundColor: 'transparent' }]}>
+            <View
+              style={[
+                styles(currentTheme).deal,
+                {
+                  backgroundColor: 'transparent',
+                  flex: 1,
+                  gap: scale(14)
+                }
+              ]}
+            >
               <ShimmerImage
                 imageUrl={imageUrl}
                 style={{
-                  height: scale(60),
-                  width: scale(60),
-                  borderRadius: 30
+                  height: scale(64),
+                  width: scale(64),
+                  borderRadius: scale(12)
                 }}
                 resizeMode='cover'
                 defaultSource={require('../../assets/images/food_placeholder.png')}
               />
               <View style={[styles(currentTheme).flex, { backgroundColor: 'transparent' }]}>
                 <View style={[styles(currentTheme).dealDescription, { backgroundColor: 'transparent' }]}>
-                  <TextDefault textColor={currentTheme.fontMainColor} style={[styles(currentTheme).headerText, { backgroundColor: 'transparent' }]} numberOfLines={1} bolder isRTL>
+                  <TextDefault textColor='#FFFFFF' style={[styles(currentTheme).headerText, { backgroundColor: 'transparent' }]} numberOfLines={1} bolder isRTL>
                     {item?.title}
                   </TextDefault>
                   {item?.description ? (
-                    <TextDefault style={styles(currentTheme).priceText} small isRTL>
-                      {wrapContentAfterWords(item?.description, 5)}
+                    <TextDefault style={styles(currentTheme).priceText} textColor='#8E8E93' small isRTL numberOfLines={2}>
+                      {wrapContentAfterWords(item?.description, 8)}
                     </TextDefault>
                   ) : null}
                   <View style={styles(currentTheme).dealPrice}>
-                    <TextDefault numberOfLines={1} textColor={currentTheme.fontMainColor} style={styles(currentTheme).priceText} bolder small isRTL>
-                      {configuration.currencySymbol} {parseFloat(item?.variations?.[0]?.price ?? 0).toFixed(2)}
+                    <TextDefault numberOfLines={1} textColor='#FFFFFF' style={styles(currentTheme).priceText} bolder small isRTL>
+                      {formatMoney(parseFloat(item?.variations?.[0]?.price ?? 0), configuration.currencySymbol)}
                     </TextDefault>
                     {item?.variations?.[0]?.discounted > 0 && (
-                      <TextDefault numberOfLines={1} textColor={pressed ? currentTheme.themeBackground : currentTheme.fontSecondColor} style={styles(currentTheme).priceText} small lineOver isRTL>
-                        {configuration.currencySymbol} {(item?.variations?.[0]?.price + item?.variations?.[0]?.discounted).toFixed(2)}
+                      <TextDefault numberOfLines={1} textColor='#8E8E93' style={styles(currentTheme).priceText} small lineOver isRTL>
+                        {formatMoney(item?.variations?.[0]?.price + item?.variations?.[0]?.discounted, configuration.currencySymbol)}
                       </TextDefault>
                     )}
                   </View>
                 </View>
               </View>
             </View>
-            <View style={[styles(currentTheme).addToCart, pressed ? { backgroundColor: currentTheme.newButtonBackground } : null]}>
-              <MaterialIcons name='add' size={scale(20)} color={pressed ? currentTheme.main : currentTheme.themeBackground} />
+            <View style={[styles(currentTheme).addToCart, { backgroundColor: ACCENT }]}>
+              <MaterialIcons name='add' size={scale(20)} color='#FFFFFF' />
             </View>
           </View>
           {tagCart(item?._id)}

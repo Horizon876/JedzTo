@@ -4,7 +4,13 @@ import {
   DrawerContentScrollView,
 } from "@react-navigation/drawer";
 import { useContext } from "react";
-import { Alert, Linking, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // Context
 import { AuthContext } from "@/lib/context/global/auth.context";
@@ -24,9 +30,6 @@ import {
 } from "@/lib/ui/useable-components/svg";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ScrollView } from "react-native-gesture-handler";
-import { useUserContext } from "@/lib/context/global/user.context";
-import SpinnerComponent from "@/lib/ui/useable-components/spinner";
 
 export default function CustomDrawerContent(
   props: DrawerContentComponentProps
@@ -76,14 +79,13 @@ export default function CustomDrawerContent(
     >
       <CustomDrawerHeader />
       {/* Drawer Items with Right Arrow */}
-      <ScrollView
+      <View
         key={currentTheme?.concat("Drawer_Content").concat("Scroll_View")}
         style={{
           backgroundColor: appTheme.themeBackground,
           height: "auto",
           paddingBottom: 20,
         }}
-        scrollEnabled={true}
       >
         {props.state.routes.map((route, index) => {
           const isFocused = props.state.index === index;
@@ -273,7 +275,7 @@ export default function CustomDrawerContent(
             </Text>
           </View>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </DrawerContentScrollView>
   );
 }

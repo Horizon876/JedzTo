@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect } from 'react'
+import React, { useEffect, useLayoutEffect, useRef } from 'react'
 import { View, Image, TouchableOpacity, Dimensions, StatusBar, Platform, KeyboardAvoidingView } from 'react-native'
 import styles from './styles'
 import FdGoogleBtn from '../../ui/FdSocialBtn/FdGoogleBtn/FdGoogleBtn'
@@ -22,6 +22,9 @@ const { height } = Dimensions.get('window')
 
 const CreateAccount = (props) => {
   const { enableApple, loginButton, loginButtonSetter, loading, setLoading, themeContext, currentTheme, mutateLogin, navigateToLogin, navigation, signIn } = useCreateAccount()
+  const preferredProvider = props?.route?.params?.preferredProvider
+  const nextScreen = props?.route?.params?.nextScreen
+  const autoStarted = useRef(false)
 
   const { t } = useTranslation()
 
@@ -34,6 +37,67 @@ const CreateAccount = (props) => {
   useEffect(() => {
     void dismissSessionExpiredModal()
   }, [])
+
+  useEffect(() => {
+    if (autoStarted.current || !preferredProvider) return
+    autoStarted.current = true
+    if (preferredProvider === 'Google') {
+      signIn?.()
+    } else if (preferredProvider === 'Apple') {
+      handleAppleSignIn()
+    }
+  }, [preferredProvider, signIn])
+
+  const handleAppleSignIn = async () => {
+    try {
+      loginButtonSetter('Apple')
+      setLoading(true)
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL]
+      })
+      const idToken = credential?.identityToken
+      if (!idToken) {
+        FlashMessage({
+          message: 'Your social sign-in did not return a valid token. Please try again.'
+        })
+        setLoading(false)
+        loginButtonSetter(null)
+        return
+      }
+      const user_details = decodeJwtToken(idToken)
+
+      if (!user_details) {
+        throw new Error('Apple login token is invalid.')
+      }
+
+      const { givenName, familyName } = credential.fullName || {}
+      const name = givenName || familyName ? `${givenName ?? ''} ${familyName ?? ''}`.trim() : ''
+      const appleId = credential.user ?? user_details?.sub
+      const email = credential?.email ?? user_details?.email
+
+      await mutateLogin({
+        appleId,
+        phone: '',
+        email,
+        idToken,
+        password: '',
+        name,
+        picture: '',
+        type: 'apple'
+      })
+    } catch (e) {
+      if (e.code !== 'ERR_CANCELED') {
+        console.error('Apple Sign In Error:', e)
+        FlashMessage({
+          message: e?.message?.toLowerCase()?.includes('token')
+            ? 'Your social sign-in token is invalid or expired. Please sign in again.'
+            : 'Social login is not configured right now. Please use email and password.'
+        })
+      }
+      setLoading(false)
+      loginButtonSetter(null)
+    }
+  }
 
   const renderAppleAction = () => {
     if (loading && loginButton === 'Apple') {
@@ -57,58 +121,7 @@ const CreateAccount = (props) => {
         buttonStyle={themeContext.ThemeValue === 'Dark' ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
         cornerRadius={scale(20)}
         style={styles().appleBtn}
-        onPress={async () => {
-          try {
-            loginButtonSetter('Apple')
-            setLoading(true)
-            const credential = await AppleAuthentication.signInAsync({
-              requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL]
-            })
-            const idToken = credential?.identityToken
-            if (!idToken) {
-              FlashMessage({
-                message: 'Your social sign-in did not return a valid token. Please try again.'
-              })
-              setLoading(false)
-              loginButtonSetter(null)
-              return
-            }
-            const user_details = decodeJwtToken(idToken)
-
-            if (!user_details) {
-              throw new Error('Apple login token is invalid.')
-            }
-
-            const { givenName, familyName } = credential.fullName || {}
-            const name = givenName || familyName ? `${givenName ?? ''} ${familyName ?? ''}`.trim() : ''
-            const appleId = credential.user ?? user_details?.sub
-            const email = credential?.email ?? user_details?.email
-
-            const user = {
-              appleId,
-              phone: '',
-              email,
-              idToken,
-              password: '',
-              name,
-              picture: '',
-              type: 'apple'
-            }
-
-            await mutateLogin(user)
-          } catch (e) {
-            if (e.code !== 'ERR_CANCELED') {
-              console.error('Apple Sign In Error:', e)
-              FlashMessage({
-                message: e?.message?.toLowerCase()?.includes('token')
-                  ? 'Your social sign-in token is invalid or expired. Please sign in again.'
-                  : 'Social login is not configured right now. Please use email and password.'
-              })
-            }
-            setLoading(false)
-            loginButtonSetter(null)
-          }
-        }}
+        onPress={handleAppleSignIn}
       />
     )
   }
@@ -126,7 +139,12 @@ const CreateAccount = (props) => {
   )
 
   const renderGuestButton = () => (
-    <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).guestButton} onPress={() => navigation.navigate('Discovery')} disabled={props.loadingIcon}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      style={styles(currentTheme).guestButton}
+      onPress={() => navigation.navigate(nextScreen === 'Checkout' ? 'GuestCheckout' : 'Discovery')}
+      disabled={props.loadingIcon}
+    >
       {props.loadingIcon ? (
         <Spinner backColor='rgba(0,0,0,0.1)' spinnerColor={currentTheme.main} />
       ) : (

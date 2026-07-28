@@ -11,7 +11,7 @@ import {
   jedzToLocalRestaurantsEnabled
 } from '../../utils/jedztoLocalRestaurants'
 
-export default function useHomeRestaurants() {
+export default function useHomeRestaurants({ forPickup = false } = {}) {
   const useLocal = jedzToLocalRestaurantsEnabled()
   const localPreviews = useMemo(
     () => (useLocal ? getJedzToLocalRestaurantPreviews() : []),
@@ -20,10 +20,11 @@ export default function useHomeRestaurants() {
 
   const { location } = useContext(LocationContext)
   const { isLoggedIn } = useContext(UserContext)
+  // Null coords → API returns all restaurants (no delivery-area filter) for pickup browsing.
   const locationVariables = useMemo(() => ({
-    latitude: location?.latitude,
-    longitude: location?.longitude
-  }), [location?.latitude, location?.longitude])
+    latitude: forPickup ? null : location?.latitude,
+    longitude: forPickup ? null : location?.longitude
+  }), [forPickup, location?.latitude, location?.longitude])
   const mostOrderedVariables = useMemo(() => ({
     ...locationVariables,
     page: 1,

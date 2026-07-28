@@ -9,6 +9,7 @@ import { useUserContext } from '@/lib/hooks/useUser';
 
 // Constants and Utils
 import { ROUTES } from '@/lib/utils/constants';
+import { DEFAULT_ROUTES } from '@/lib/utils/constants/routes';
 import { getAccessToken } from '@/lib/utils/methods/auth';
 
 const SUPER_ADMIN_GUARD = <T extends object>(
@@ -43,9 +44,14 @@ const SUPER_ADMIN_GUARD = <T extends object>(
         return;
       }
       if (!loading && isSessionVerified && !isAllowed) {
-        router.replace('/forbidden');
+        // Wrong panel for this account — send them to their own dashboard
+        // instead of trapping them on a dead 403 page.
+        const fallback =
+          DEFAULT_ROUTES[user?.userType as keyof typeof DEFAULT_ROUTES] ??
+          '/authentication/login';
+        router.replace(fallback);
       }
-    }, [hasSessionToken, isAllowed, isSessionVerified, loading, router]);
+    }, [hasSessionToken, isAllowed, isSessionVerified, loading, router, user?.userType]);
 
     if (loading) {
       return <CustomLoader />;

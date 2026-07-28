@@ -9,18 +9,11 @@ import { useTranslation } from 'react-i18next'
 import NewRestaurantCard from '../RestaurantCard/NewRestaurantCard'
 import MainLoadingUI from '../LoadingUI/MainLoadingUI'
 import { useNavigation } from '@react-navigation/native'
-import { MaterialIcons } from '@expo/vector-icons'
 import { scale } from '../../../utils/scaling'
 import { isOpen } from '../../../utils/customFunctions'
-import Ripple from 'react-native-material-ripple'
 import HorizontalFlashList from '../../Lists/HorizontalFlashList'
 
-const ICONS = {
-  grocery: 'local-grocery-store',
-  restaurant: 'restaurant',
-  store: 'store',
-  trending: 'local-fire-department'
-}
+const ACCENT = '#00A8FF'
 
 function MainRestaurantCard(props) {
   const { t, i18n } = useTranslation()
@@ -42,56 +35,45 @@ function MainRestaurantCard(props) {
   }, [])
 
   if (props?.loading) return <MainLoadingUI />
-  // A failed/empty section should simply not render — never surface a raw
-  // error string on the discovery page. Hide the whole section instead.
   if (props?.error || orders?.length <= 0) return <></>
+
   return (
     <View style={styles().orderAgainSec}>
-      <View style={{ gap: scale(8) }}>
+      <View style={{ gap: scale(10) }}>
         <View style={styles(currentTheme).header}>
-          <View style={styles(currentTheme).row}>
-            <TextDefault
-              numberOfLines={1}
-              textColor={props?.titleColor || currentTheme.fontFourthColor}
-              bolder
-              H4
-            >
-              {t(props?.title)}
-            </TextDefault>
-            {props?.icon && (
-              <MaterialIcons
-                name={ICONS[props?.icon]}
-                size={24}
-                color={currentTheme.editProfileButton}
-              />
-            )}
-          </View>
-          <Ripple
-            style={styles(currentTheme).seeAllBtn}
+          <TextDefault
+            numberOfLines={1}
+            textColor={props?.titleColor || '#FFFFFF'}
+            bolder
+            H4
+            style={styles(currentTheme).titleText}
+          >
+            {t(props?.title)}
+          </TextDefault>
+          <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
               navigation.navigate('Menu', {
                 selectedType: props?.selectedType ?? 'restaurant',
                 queryType: props?.queryType ?? 'restaurant',
-                shopType: props?.shopType ?? 'restaurant',
+                shopType: props?.shopType ?? 'restaurant'
               })
             }}
-            rippleColor={'#F5F5F5'}
-            rippleDuration={300}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <TextDefault H5 bolder textColor={currentTheme.main}>
+            <TextDefault small bolder textColor={ACCENT}>
               {t('SeeAll')}
             </TextDefault>
-          </Ripple>
+          </TouchableOpacity>
         </View>
         <HorizontalFlashList
           style={styles().offerScroll}
-          estimatedItemSize={280}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: scale(10), ...alignment.PRlarge }}
+          estimatedItemSize={260}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: scale(4), ...alignment.PRlarge }}
           data={orders}
           keyExtractor={(item) => item._id}
           renderItem={renderRestaurantItem}
-          inverted={currentTheme?.isRTL ? true : false}
+          inverted={!!currentTheme?.isRTL}
         />
       </View>
     </View>

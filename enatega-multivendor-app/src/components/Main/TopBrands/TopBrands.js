@@ -24,7 +24,7 @@ import {
 } from '../../../utils/jedztoLocalRestaurants'
 
 const { height } = Dimensions.get('window')
-function TopBrands(props) {
+function TopBrands({ forPickup = false }) {
   const { t, i18n } = useTranslation()
   const { location } = useContext(LocationContext)
   const themeContext = useContext(ThemeContext)
@@ -32,9 +32,9 @@ function TopBrands(props) {
   const navigation = useNavigation()
   const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
   const topBrandsVariables = useMemo(() => ({
-    latitude: location?.latitude,
-    longitude: location?.longitude
-  }), [location?.latitude, location?.longitude])
+    latitude: forPickup ? null : location?.latitude,
+    longitude: forPickup ? null : location?.longitude
+  }), [forPickup, location?.latitude, location?.longitude])
 
   const { loading: remoteLoading, error: remoteError, data: remoteData } = useQuery(topRatedVendorsInfo, {
     variables: topBrandsVariables,

@@ -6,28 +6,30 @@ import { useTranslation } from 'react-i18next'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import styles from './styles'
 
-// Accent used for active delivery label, search icon and filter — JedzTo green
-// instead of the orange from the reference screenshot, so the layout matches
-// Pyszne-style UX while staying on brand.
-const ACCENT = '#00E676'
+const ACCENT = '#00A8FF'
 
-const OrderTypeToggle = ({ isPickup, onToggleOrderType, themedStyles, t }) => (
+const OrderTypeToggle = ({ isPickup, onToggleOrderType, themedStyles, t, pickupOnly = false }) => (
   <View style={themedStyles.toggleContainer}>
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={pickupOnly ? 1 : 0.85}
+      disabled={pickupOnly}
       accessibilityLabel={t('orderTypeDelivery')}
-      style={[themedStyles.toggleSegment, !isPickup && themedStyles.toggleSegmentActive]}
+      style={[
+        themedStyles.toggleSegment,
+        !isPickup && themedStyles.toggleSegmentActive,
+        pickupOnly && { opacity: 0.35 }
+      ]}
       onPress={() => onToggleOrderType?.(false)}
     >
       {!isPickup ? (
         <>
-          <MaterialCommunityIcons name='bicycle' size={18} color={ACCENT} />
+          <MaterialCommunityIcons name='bicycle' size={16} color={ACCENT} />
           <TextDefault bolder small textColor={ACCENT} style={themedStyles.toggleLabel}>
             {t('orderTypeDelivery')}
           </TextDefault>
         </>
       ) : (
-        <MaterialCommunityIcons name='bicycle' size={18} color='#9CA3AF' />
+        <MaterialCommunityIcons name='bicycle' size={16} color='#9CA3AF' />
       )}
     </TouchableOpacity>
     <TouchableOpacity
@@ -38,22 +40,18 @@ const OrderTypeToggle = ({ isPickup, onToggleOrderType, themedStyles, t }) => (
     >
       {isPickup ? (
         <>
-          <Ionicons name='bag-handle' size={17} color={ACCENT} />
+          <Ionicons name='bag-handle' size={15} color={ACCENT} />
           <TextDefault bolder small textColor={ACCENT} style={themedStyles.toggleLabel}>
             {t('orderTypePickup')}
           </TextDefault>
         </>
       ) : (
-        <Ionicons name='bag-handle-outline' size={17} color='#9CA3AF' />
+        <Ionicons name='bag-handle-outline' size={15} color='#9CA3AF' />
       )}
     </TouchableOpacity>
   </View>
 )
 
-// Home top bar matching the reference layout:
-// 1) address (text + chevron) | Delivery/Pickup pill
-// 2) search field + filter icon
-// Dark charcoal surface — category bubbles live further down the page.
 const DiscoveryHero = ({
   currentTheme,
   addressLabel,
@@ -61,7 +59,7 @@ const DiscoveryHero = ({
   isPickup = false,
   onToggleOrderType,
   onSearchPress,
-  onFilterPress
+  pickupOnly = false
 }) => {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
@@ -82,26 +80,16 @@ const DiscoveryHero = ({
           onToggleOrderType={onToggleOrderType}
           themedStyles={themedStyles}
           t={t}
+          pickupOnly={pickupOnly}
         />
       </View>
 
-      <View style={themedStyles.searchRow}>
-        <TouchableOpacity activeOpacity={0.85} style={themedStyles.searchBar} onPress={onSearchPress}>
-          <Ionicons name='search' size={20} color={ACCENT} />
-          <TextDefault numberOfLines={1} textColor='#D1D5DB' style={themedStyles.searchPlaceholder}>
-            {t('lookingForCategory')}
-          </TextDefault>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={themedStyles.filterButton}
-          onPress={onFilterPress}
-          accessibilityLabel={t('filters')}
-        >
-          <Ionicons name='options-outline' size={24} color={ACCENT} />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity activeOpacity={0.85} style={themedStyles.searchBar} onPress={onSearchPress}>
+        <Ionicons name='search' size={20} color={ACCENT} />
+        <TextDefault numberOfLines={1} textColor='#D1D5DB' style={themedStyles.searchPlaceholder}>
+          {t('lookingForCategory')}
+        </TextDefault>
+      </TouchableOpacity>
     </View>
   )
 }

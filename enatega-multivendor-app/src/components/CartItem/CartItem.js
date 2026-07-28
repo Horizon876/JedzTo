@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { TouchableOpacity, View } from 'react-native'
-import { AntDesign, Feather, EvilIcons } from '@expo/vector-icons'
+import { AntDesign, Feather, Ionicons } from '@expo/vector-icons'
 import { scale } from '../../utils/scaling'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import ConfigurationContext from '../../context/Configuration'
@@ -10,38 +10,29 @@ import TextDefault from '../Text/TextDefault/TextDefault'
 import { useNavigation } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import { IMAGE_LINK } from '../../utils/constants'
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring
-} from 'react-native-reanimated'
 import CachedImage from '../CachedImage'
+import { formatMoney } from '../../utils/formatMoney'
+
+const ACCENT = '#00A8FF'
+const MUTED = '#8E8E93'
 
 const CartItem = (props) => {
   const { t, i18n } = useTranslation()
   const configuration = useContext(ConfigurationContext)
   const themeContext = useContext(ThemeContext)
   const navigation = useNavigation()
-  
   const currentTheme = {
     isRTL: i18n.dir() === 'rtl',
     ...theme[themeContext.ThemeValue]
   }
-
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const imageUrl =
-    props?.itemImage && props?.itemImage.trim() !== ''
-      ? props?.itemImage
-      : IMAGE_LINK
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen)
-  }
+  const imageUrl = props?.itemImage && props?.itemImage.trim() !== '' ? props.itemImage : IMAGE_LINK
+  const linePrice = Number(props?.dealPrice || 0)
+  const priceLabel = formatMoney(linePrice, configuration.currencySymbol)
 
   const navigateToItemDetail = () => {
     const restaurant = props?.restaurantData
     if (!restaurant || !props?.food) return
-
     navigation.navigate('ItemDetail', {
       food: {
         ...props.food,
@@ -55,177 +46,88 @@ const CartItem = (props) => {
     })
   }
 
-  const animatedQuantity = useSharedValue(1)
-
-  const animateQuantityChange = () => {
-    animatedQuantity.value = withSpring(1.9, {
-      damping: 2, // Adjust for desired bounciness
-      stiffness: 20 // Adjust for desired spring effect
-    })
-
-    setTimeout(() => {
-      animatedQuantity.value = withSpring(1) // Reset scale to 1
-    }, 200) // Match this duration with the spring duration
-  }
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: animatedQuantity.value }]
-    }
-  })
-
-  useEffect(() => {
-    animateQuantityChange()
-  }, [props?.quantity])
-
   return (
     <View style={styles(currentTheme).itemContainer}>
-      <View
-        style={{
-          flexDirection: currentTheme?.isRTL ? 'row-reverse' : 'row',
-          justifyContent: 'flex-start',
-          alignItems: 'center',
-          gap: scale(7)
-        }}
-      >
-        <View style={styles().suggestItemImgContainer}>
+      <View style={styles(currentTheme).row}>
+        <View style={styles(currentTheme).leftBlock}>
           <CachedImage
             source={{ uri: imageUrl }}
-            style={styles().suggestItemImg}
-            resizeMode='contain'
+            style={styles().itemImage}
+            resizeMode='cover'
           />
-        </View>
-        <View>
-          <TextDefault
-            numberOfLines={1}
-            textColor={currentTheme.fontFourthColor}
-            bolder
-            H5
-            isRTL
-          >
-            {props?.dealName?.length > 20
-              ? props?.dealName.substring(0, 17) + '...'
-              : props?.dealName}
-          </TextDefault>
+          <View style={styles(currentTheme).metaColumn}>
+            <TextDefault numberOfLines={1} textColor='#FFFFFF' bolder style={styles().titleText} isRTL>
+              {props?.dealName}
+            </TextDefault>
 
-          {props?.itemAddons?.length > 0 && (
-            <View style={styles().additionalItem}>
-              <View>
+            {props?.optionsTitle?.length > 0 ? (
+              <View style={styles().additionalItem}>
                 <TouchableOpacity
-                  onPress={toggleDropdown}
-                  activeOpacity={1}
+                  onPress={() => setIsDropdownOpen((open) => !open)}
+                  activeOpacity={0.7}
                   style={{
                     flexDirection: currentTheme?.isRTL ? 'row-reverse' : 'row',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    gap: scale(4)
                   }}
                 >
-                  <TextDefault
-                    style={{ marginRight: scale(5) }}
-                    textColor={currentTheme.secondaryText}
-                    Normal
-                    isRTL
-                  >
-                    {props?.optionsTitle?.length}{' '}
-                    {t('additionalItems')}
+                  <TextDefault textColor={MUTED} small isRTL>
+                    {props.optionsTitle.length} {t('additionalItems')}
                   </TextDefault>
-                  <Feather
-                    name={isDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={currentTheme.iconColorDark}
-                  />
+                  <Feather name={isDropdownOpen ? 'chevron-up' : 'chevron-down'} size={14} color={MUTED} />
                 </TouchableOpacity>
-                {isDropdownOpen && (
+                {isDropdownOpen ? (
                   <View style={styles().itemsDropdown}>
-                    {props?.optionsTitle?.map((item, index) => (
-                      <TextDefault
-                        key={index}
-                        textColor={currentTheme.secondaryText}
-                        Normal
-                        isRTL
-                      >
+                    {props.optionsTitle.map((item, index) => (
+                      <TextDefault key={`${item}-${index}`} textColor={MUTED} small isRTL>
                         {item}
                       </TextDefault>
                     ))}
                   </View>
-                )}
+                ) : null}
               </View>
-            </View>
-          )}
+            ) : null}
 
-          <View
-            style={{
-              flexDirection: currentTheme?.isRTL ? 'row-reverse' : 'row',
-              gap: scale(8),
-              alignItems: 'center',
-              marginTop: scale(4)
-            }}
-          >
-            <TextDefault
-              numberOfLines={1}
-              textColor={currentTheme.fontFourthColor}
-              bolder
-              Normal
-              isRTL
-            >
-              {configuration.currencySymbol}
-              {parseFloat(props?.dealPrice).toFixed(2)}
-            </TextDefault>
-            <View style={styles().divider} />
-            <TouchableOpacity onPress={navigateToItemDetail}>
-              <TextDefault
-                textColor={currentTheme.fontFourthColor}
-                bolder
-                Normal
-                isRTL
-              >
-                {t('edit')}
+            <View style={styles(currentTheme).priceRow}>
+              <TextDefault textColor='#FFFFFF' bolder small isRTL>
+                {priceLabel}
               </TextDefault>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={navigateToItemDetail} activeOpacity={0.7}>
+                <TextDefault textColor={MUTED} bolder small isRTL>
+                  {t('edit')}
+                </TextDefault>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-      <View style={styles(currentTheme).actionContainer}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={[
-            styles(currentTheme).actionContainerBtns,
-            styles(currentTheme).minusBtn
-          ]}
-          onPress={props?.removeQuantity}
-        >
-          {props?.quantity < 2 ? (
-            <EvilIcons
-              name='trash'
-              size={scale(25)}
-              color={currentTheme.color4}
-            />
-          ) : (
-            <AntDesign
-              name='minus'
-              size={scale(18)}
-              color={currentTheme.color4}
-            />
-          )}
-        </TouchableOpacity>
 
-        <Animated.View
-          style={[styles(currentTheme).actionContainerView, animatedStyle]}
-        >
-          <TextDefault H5 bold textColor={currentTheme.black} isRTL>
-            {props?.quantity}
-          </TextDefault>
-        </Animated.View>
+        <View style={styles(currentTheme).actionContainer}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles(currentTheme).actionContainerBtns, styles().minusBtn]}
+            onPress={props?.removeQuantity}
+          >
+            {props?.quantity < 2 ? (
+              <Ionicons name='trash-outline' size={scale(15)} color='#FFFFFF' />
+            ) : (
+              <AntDesign name='minus' size={scale(16)} color='#FFFFFF' />
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={[
-            styles(currentTheme).actionContainerBtns,
-            styles(currentTheme).plusBtn
-          ]}
-          onPress={props?.addQuantity}
-        >
-          <AntDesign name='plus' size={scale(18)} color={currentTheme.white} />
-        </TouchableOpacity>
+          <View style={styles(currentTheme).actionContainerView}>
+            <TextDefault H5 bold textColor='#FFFFFF' isRTL>
+              {props?.quantity}
+            </TextDefault>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles(currentTheme).actionContainerBtns, styles().plusBtn]}
+            onPress={props?.addQuantity}
+          >
+            <AntDesign name='plus' size={scale(16)} color='#FFFFFF' />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   )

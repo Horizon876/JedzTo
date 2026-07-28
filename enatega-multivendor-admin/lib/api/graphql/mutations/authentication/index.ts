@@ -8,6 +8,8 @@ export const OWNER_LOGIN = gql`
       tokenExpiration
       email
       userType
+      shopType
+      restaurantId
       restaurants {
         _id
         orderId

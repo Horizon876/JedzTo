@@ -74,7 +74,7 @@ async function fetchMetricsToken(serverUrl?: string): Promise<string | null> {
       }
       return null;
     } catch (error) {
-      console.error('Failed to fetch metrics token:', error);
+      console.warn('Failed to fetch metrics token (ignored for local):', (error as Error)?.message ?? error);
       return null;
     } finally {
       isRefreshing = false;
@@ -215,7 +215,9 @@ export const useSetupApollo = (): ApolloClient<NormalizedCacheObject> => {
       httpLink
     ),
     cache,
-    connectToDevTools: process.env.NODE_ENV !== "production",
+    devtools: {
+      enabled: process.env.NODE_ENV !== "production",
+    },
   });
 
   clientRef.current = client;

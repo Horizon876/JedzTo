@@ -12,7 +12,7 @@ import * as Notifications from 'expo-notifications'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import analytics from '../../utils/analytics'
 import AuthContext from '../../context/Auth'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 
 const LOGIN = gql`
@@ -27,6 +27,8 @@ export const useLogin = () => {
   const Analytics = analytics()
 
   const navigation = useNavigation()
+  const route = useRoute()
+  const nextScreen = route?.params?.nextScreen
   const [email, setEmail] = useState('')
   const emailRef = useRef('')
   const [password, setPassword] = useState('')
@@ -129,10 +131,14 @@ export const useLogin = () => {
           email: data.login.email
         })
         setTokenAsync(data.login.token)
-        navigation.navigate({
-          name: 'Main',
-          merge: true
-        })
+        if (nextScreen) {
+          navigation.navigate(nextScreen)
+        } else {
+          navigation.navigate({
+            name: 'Main',
+            merge: true
+          })
+        }
       } catch (e) {
         console.log(e)
       }

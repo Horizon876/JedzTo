@@ -4,15 +4,12 @@ import { Modalize } from 'react-native-modalize'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import TextDefault from '../Text/TextDefault/TextDefault'
+import { scale } from '../../utils/scaling'
 import styles from './checkoutGateSheetStyles'
 
-// Krok 4 — shown when a not-logged-in user taps "checkout" on the Cart
-// screen. Offers the two required paths: log in / register, or continue as
-// a guest (collects only name, phone, email on the next screen — the
-// delivery address is already set from the address step).
 const CheckoutGateSheet = ({ modalRef, currentTheme, onLoginPress, onGuestPress }) => {
   const { t } = useTranslation()
-  const themedStyles = styles(currentTheme)
+  const themedStyles = styles()
 
   return (
     <Modalize
@@ -24,23 +21,23 @@ const CheckoutGateSheet = ({ modalRef, currentTheme, onLoginPress, onGuestPress 
       handlePosition='inside'
     >
       <View style={themedStyles.container}>
-        <TextDefault H4 bolder textColor={currentTheme.fontMainColor} center>
+        <TextDefault bolder textColor='#FFFFFF' center style={themedStyles.title}>
           {t('checkoutGateTitle')}
         </TextDefault>
-        <TextDefault textColor={currentTheme.fontSecondColor} center style={themedStyles.subtitle}>
+        <TextDefault textColor='#8E8E93' center style={themedStyles.subtitle}>
           {t('checkoutGateSubtitle')}
         </TextDefault>
 
-        <TouchableOpacity activeOpacity={0.8} style={themedStyles.loginButton} onPress={onLoginPress}>
-          <Ionicons name='log-in-outline' size={20} color={currentTheme.white} />
-          <TextDefault bolder textColor={currentTheme.white} style={themedStyles.buttonText}>
+        <TouchableOpacity activeOpacity={0.85} style={themedStyles.loginButton} onPress={onLoginPress}>
+          <Ionicons name='log-in-outline' size={scale(24)} color='#FFFFFF' />
+          <TextDefault bolder textColor='#FFFFFF' style={themedStyles.buttonText}>
             {t('loginOrSignUp')}
           </TextDefault>
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.8} style={themedStyles.guestButton} onPress={onGuestPress}>
-          <Ionicons name='person-outline' size={20} color={currentTheme.main} />
-          <TextDefault bolder textColor={currentTheme.main} style={themedStyles.buttonText}>
+        <TouchableOpacity activeOpacity={0.85} style={themedStyles.guestButton} onPress={onGuestPress}>
+          <Ionicons name='person-outline' size={scale(24)} color='#00A8FF' />
+          <TextDefault bolder textColor='#00A8FF' style={themedStyles.buttonText}>
             {t('continueAsGuest')}
           </TextDefault>
         </TouchableOpacity>

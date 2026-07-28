@@ -51,6 +51,9 @@ export const OrdersProvider = ({ children, onOrderDelivered }) => {
     variables: { page: 1, limit: PAGE_LIMIT, offset: 0 },
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
+    // Keep lists fresh even if the websocket blips; subscription still drives
+    // instant updates when the restaurant changes status.
+    pollInterval: profile ? 4000 : 0,
     skip: !profile,
     onError
   })
@@ -71,12 +74,24 @@ export const OrdersProvider = ({ children, onOrderDelivered }) => {
   })
 
   const activeOrders = useMemo(
-    () => dedupeById(dataActive?.getUsersActiveOrders ?? []),
+    () =>
+      dedupeById(dataActive?.getUsersActiveOrders ?? []).filter((order) =>
+        ['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'].includes(order?.orderStatus)
+      ),
     [dataActive]
   )
   const pastOrders = useMemo(
-    () => dedupeById(dataPast?.getUsersPastOrders ?? []),
-    [dataPast]
+    () =>
+      dedupeById([
+        ...(dataPast?.getUsersPastOrders ?? []),
+        // Safety: if a delivered order briefly remains in the active payload, show it in past.
+        ...(dataActive?.getUsersActiveOrders ?? []).filter((order) =>
+          ['DELIVERED', 'COMPLETED', 'CANCELLED', 'CANCELLEDBYREST', 'REJECTED'].includes(order?.orderStatus)
+        )
+      ]).filter((order) =>
+        !['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'].includes(order?.orderStatus)
+      ),
+    [dataActive, dataPast]
   )
   // Combined list kept for backward compatibility: screens that filter by
   // orderStatus (MyOrders, Profile, OrderDetail) keep working unchanged.

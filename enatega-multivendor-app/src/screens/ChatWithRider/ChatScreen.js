@@ -20,6 +20,7 @@ import { alignment } from '../../utils/alignment'
 import { scale } from '../../utils/scaling'
 import ConfigurationContext from '../../context/Configuration'
 import CachedImage from '../../components/CachedImage'
+import { formatMoney } from '../../utils/formatMoney'
 
 const renderInputToolbar = (props) => {
   return (
@@ -227,8 +228,7 @@ const ChatScreen = ({ navigation, route }) => {
           </View>
         </View>
         <TextDefault textColor={currentTheme.fontFourthColor} normal bold>
-          {configuration.currencySymbol}
-          {total}
+          {formatMoney(total, configuration.currencySymbol)}
         </TextDefault>
       </View>
 

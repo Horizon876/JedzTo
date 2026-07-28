@@ -57,7 +57,19 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'assets.enatega.com',
-      }
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8001',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '8001',
+        pathname: '/uploads/**',
+      },
     ], // Add placehold.co as an allowed domain
   },
 };

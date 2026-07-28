@@ -8,7 +8,7 @@
     "yarn": "Please use npm instead."
   },
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS='--inspect' next dev --webpack",
+    "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
@@ -55,12 +55,12 @@
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
     "@commitlint/config-conventional": "^19.2.2",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.7.0",
     "@types/autosuggest-highlight": "^3.2.3",
     "@types/lodash": "^4.17.7",
     "@types/node": "^20.14.12",
     "@types/prop-types": "^15.7.14",
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.7.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-geocode": "^0.2.4",

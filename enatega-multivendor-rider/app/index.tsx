@@ -109,7 +109,7 @@ function App() {
     return <Redirect href={ROUTES.login as Href} />;
   }
 
-  return <Redirect href={ROUTES.home as Href} />;
+  return <Redirect href={ROUTES.roleSelect as Href} />;
 }
 
 export default App;

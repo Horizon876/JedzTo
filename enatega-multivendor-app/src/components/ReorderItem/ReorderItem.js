@@ -11,6 +11,7 @@ import { IMAGE_LINK } from '../../utils/constants'
 import CheckboxBtn from '../../ui/FdCheckbox/CheckboxBtn'
 import { useTranslation } from 'react-i18next'
 import CachedImage from '../CachedImage'
+import { formatMoney } from '../../utils/formatMoney'
 
 const ReorderItem = props => {
   const { t, i18n } = useTranslation()
@@ -106,8 +107,7 @@ const ReorderItem = props => {
               bolder
               Normal
             isRTL>
-              {configuration.currencySymbol}
-              {parseFloat(props.dealPrice).toFixed(2)}
+              {formatMoney(props.dealPrice, configuration.currencySymbol)}
             </TextDefault>
           </View>
         </View>

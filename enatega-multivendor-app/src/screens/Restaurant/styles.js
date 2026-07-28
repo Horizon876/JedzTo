@@ -30,7 +30,8 @@ const buildStyles = (props = null) =>
       textTransform: 'capitalize',
       fontSize: scale(18),
       fontWeight: '600',
-      ...alignment.PTlarge,
+      paddingTop: scale(8),
+      paddingBottom: scale(8),
       paddingHorizontal: scale(15)
     },
     restaurantItems: {
@@ -108,18 +109,82 @@ const buildStyles = (props = null) =>
 
     buttonContainer: {
       width: '100%',
-      height: '10%',
-      backgroundColor: props !== null ? props.themeBackground : 'black',
-      justifyContent: 'center',
+      backgroundColor: '#1C1C1E',
+      borderTopLeftRadius: scale(18),
+      borderTopRightRadius: scale(18),
+      overflow: 'hidden',
+      paddingBottom: 0
+    },
+    cartHintBar: {
+      width: '100%',
+      backgroundColor: '#2C2C2E',
+      flexDirection: 'row',
       alignItems: 'center',
-      elevation: 12,
-      shadowColor: props !== null ? props.shadowColor : 'black',
-      shadowOffset: {
-        width: 0,
-        height: -verticalScale(3)
-      },
-      shadowOpacity: 0.5,
-      shadowRadius: verticalScale(2)
+      gap: scale(8),
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(10)
+    },
+    cartHintText: {
+      flex: 1,
+      fontSize: scale(13),
+      lineHeight: scale(18),
+      color: '#FFFFFF'
+    },
+    cartBarInner: {
+      width: '100%',
+      paddingHorizontal: scale(12),
+      paddingTop: scale(12),
+      paddingBottom: 0
+    },
+    cartBarButton: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#00A8FF',
+      borderRadius: scale(999),
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(14),
+      minHeight: scale(52)
+    },
+    cartBarButtonLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(10),
+      flexShrink: 1
+    },
+    cartBasketWrap: {
+      width: scale(28),
+      height: scale(28),
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    cartBadge: {
+      position: 'absolute',
+      top: -scale(4),
+      right: -scale(6),
+      minWidth: scale(16),
+      height: scale(16),
+      borderRadius: scale(8),
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: scale(3)
+    },
+    cartBadgeText: {
+      fontSize: scale(10),
+      lineHeight: scale(12),
+      color: '#121212'
+    },
+    cartBarButtonText: {
+      fontSize: scale(16),
+      lineHeight: scale(20),
+      color: '#FFFFFF'
+    },
+    cartBarPriceText: {
+      fontSize: scale(15),
+      lineHeight: scale(20),
+      color: '#FFFFFF'
     },
     button: {
       justifyContent: 'space-between',

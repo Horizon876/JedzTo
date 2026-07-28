@@ -1,115 +1,132 @@
-// Expo
-import { Tabs } from "expo-router";
+import { useWorkMode } from '@/lib/context/global/work-mode.context'
+import { useApptheme } from '@/lib/context/global/theme.context'
+import { Tabs, router, usePathname } from 'expo-router'
+import { Pressable, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
+import { useMemo } from 'react'
 
-// Core
-import { Platform, Pressable, Text, View } from "react-native";
+function OrdersTopBar() {
+  const { t } = useTranslation()
+  const { appTheme } = useApptheme()
+  const { workMode } = useWorkMode()
+  const insets = useSafeAreaInsets()
+  const pathname = usePathname()
+  const isDelivery = workMode === 'delivery'
 
-// Hooks
-import { useApptheme } from "@/lib/context/global/theme.context";
-import { useTranslation } from "react-i18next";
+  const tabs = useMemo(() => {
+    if (isDelivery) {
+      return [
+        { key: 'index', href: '/(tabs)/home/orders', label: t('For delivery') },
+        {
+          key: 'delivered',
+          href: '/(tabs)/home/orders/delivered',
+          label: t('Delivered'),
+        },
+      ]
+    }
+    return [
+      { key: 'index', href: '/(tabs)/home/orders', label: t('In progress') },
+      {
+        key: 'processing',
+        href: '/(tabs)/home/orders/processing',
+        label: t('Out for delivery'),
+      },
+    ]
+  }, [isDelivery, t])
 
-export default function Layout() {
-  // Hooks
-  const { t } = useTranslation();
-  const { appTheme } = useApptheme();
+  const isActive = (key: string) => {
+    if (key === 'index') {
+      return (
+        pathname === '/home/orders' ||
+        pathname === '/(tabs)/home/orders' ||
+        pathname.endsWith('/orders') ||
+        pathname.endsWith('/orders/')
+      )
+    }
+    return pathname.includes(`/orders/${key}`)
+  }
+
   return (
-    <Tabs
-      // initialRouteName="processing"
-      screenOptions={{
-        tabBarIcon: () => null,
-        tabBarActiveTintColor: appTheme.primary,
-
-        headerShown: false,
-        tabBarIconStyle: {
-          display: "none",
-        },
-        tabBarLabel: ({ children, focused }) => (
-          <View
-            className="w-full"
-            style={{
-              alignItems: "center",
-              borderBottomWidth: focused ? 2 : 0, // Bottom border when selected
-              borderBottomColor: focused ? appTheme.primary : "transparent", // Black border for active tab
-              paddingBottom: 8, // Space between text and border
-
-              backgroundColor: appTheme.themeBackground,
-            }}
-          >
-            <Text
-              style={{
-                color: focused ? appTheme.fontMainColor : "#6B7280",
-                fontWeight: 500,
-                fontSize: 14,
-                fontFamily: "Inter",
-              }}
-            >
-              {children}
-            </Text>
-          </View>
-        ),
-
-        tabBarButton: (props) => {
-          return (
-            <Pressable
-              {...props}
-              android_ripple={{ color: "transparent" }} // Remove ripple on Android
-              style={({ pressed }) => [
-                props.style,
-                { opacity: pressed ? 1 : 1 }, // Remove opacity change on iOS
-              ]}
-            />
-          );
-        },
-        tabBarPosition: "bottom",
-        tabBarItemStyle: {
-          height: 40,
-          // backgroundColor: "transparent",
-          backgroundColor: appTheme.themeBackground,
-        },
-
-        tabBarStyle: Platform.select({
-          ios: {
-            position: "absolute",
-            top: 0,
-            height: 30,
-            shadowColor: "white",
-            shadowOpacity: 0,
-            backgroundColor: appTheme.themeBackground,
-            paddingTop: 20,
-            color: appTheme.fontMainColor,
-          },
-          android: {
-            position: "absolute",
-            top: 0,
-            height: 50,
-            shadowColor: "white",
-            shadowOpacity: 0,
-            paddingTop: 20,
-            backgroundColor: appTheme.themeBackground,
-            elevation: 0,
-            color: appTheme.fontMainColor,
-          },
-        }),
+    <View
+      style={{
+        paddingTop: insets.top,
+        backgroundColor: appTheme.themeBackground,
+        borderBottomWidth: 1,
+        borderBottomColor: appTheme.borderLineColor || '#e5e7eb',
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("New Orders"),
+      <Text
+        style={{
+          color: appTheme.fontMainColor,
+          fontSize: 20,
+          fontWeight: '800',
+          paddingHorizontal: 16,
+          paddingTop: 8,
+          paddingBottom: 10,
         }}
-      />
-      <Tabs.Screen
-        name="processing"
-        options={{
-          title: t("Processing"),
+      >
+        {isDelivery ? t('Delivery') : t('Kitchen')}
+      </Text>
+      <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
+        {tabs.map((tab) => {
+          const active = isActive(tab.key)
+          return (
+            <Pressable
+              key={tab.key}
+              onPress={() => router.replace(tab.href as never)}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                paddingVertical: 12,
+                borderBottomWidth: 2,
+                borderBottomColor: active
+                  ? appTheme.primary || '#16a34a'
+                  : 'transparent',
+              }}
+            >
+              <Text
+                style={{
+                  color: active ? appTheme.fontMainColor : '#6B7280',
+                  fontWeight: active ? '700' : '500',
+                  fontSize: 14,
+                }}
+                numberOfLines={1}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </View>
+    </View>
+  )
+}
+
+export default function OrdersLayout() {
+  const { workMode } = useWorkMode()
+  const { appTheme } = useApptheme()
+  const isDelivery = workMode === 'delivery'
+
+  return (
+    <View style={{ flex: 1, backgroundColor: appTheme.themeBackground }}>
+      <OrdersTopBar />
+      <Tabs
+        tabBar={() => null}
+        screenOptions={{
+          headerShown: false,
         }}
-      />
-      <Tabs.Screen
-        name="delivered"
-        options={{
-          title: t("Delivered"),
-        }}
-      />
-    </Tabs>
-  );
+      >
+        <Tabs.Screen name="index" />
+        <Tabs.Screen
+          name="processing"
+          options={{ href: isDelivery ? null : undefined }}
+        />
+        <Tabs.Screen
+          name="delivered"
+          options={{ href: isDelivery ? undefined : null }}
+        />
+      </Tabs>
+    </View>
+  )
 }

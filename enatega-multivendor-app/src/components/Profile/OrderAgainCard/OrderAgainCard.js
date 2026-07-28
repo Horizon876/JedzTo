@@ -11,6 +11,7 @@ import {
 } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import CachedImage from '../../CachedImage'
+import { formatMoney } from '../../../utils/formatMoney'
 
 function OrderAgainCard(props) {
   const { t } = useTranslation()
@@ -71,7 +72,7 @@ function OrderAgainCard(props) {
                 numberOfLines={1}
                 bold
                 Normal>
-                {configuration.currencySymbol}{configuration?.deliveryRate}
+                {formatMoney(configuration?.deliveryRate, configuration.currencySymbol)}
               </TextDefault>
             </View>
 

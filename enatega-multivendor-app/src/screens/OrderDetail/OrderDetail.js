@@ -1,9 +1,9 @@
-import { View, ScrollView, Dimensions } from 'react-native'
+import { View, ScrollView, Dimensions, TouchableOpacity, StatusBar, Platform } from 'react-native'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import { scale } from '../../utils/scaling'
 import { alignment } from '../../utils/alignment'
 import styles from './styles'
-import React, { useContext, useEffect, useState, useRef, useCallback } from 'react'
+import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react'
 import Spinner from '../../components/Spinner/Spinner'
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import ConfigurationContext from '../../context/Configuration'
@@ -17,10 +17,10 @@ import TrackingRider from '../../components/OrderDetail/TrackingRider/TrackingRi
 import OrdersContext from '../../context/Orders'
 import { mapStyle } from '../../utils/mapStyle'
 import { useTranslation } from 'react-i18next'
-import { HelpButton } from '../../components/Header/HeaderIcons/HeaderIcons'
-
-import { ProgressBar, checkStatus } from '../../components/Main/ActiveOrders/ProgressBar'
+import { Ionicons } from '@expo/vector-icons'
+import { textStyles } from '../../utils/textStyles'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
+import navigationService from '../../routes/navigationService'
 import { PriceRow } from '../../components/OrderDetail/PriceRow'
 import { ORDER_STATUS_ENUM } from '../../utils/enums'
 import { CancelModal } from '../../components/OrderDetail/CancelModal'
@@ -30,14 +30,13 @@ import { cancelOrder as cancelOrderMutation } from '../../apollo/mutations'
 import { subscriptionOrder, subscriptionNewMessage } from '../../apollo/subscriptions'
 import { useUserContext } from '../../context/User'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
-import { calulateRemainingTime } from '../../utils/customFunctions'
 import { Instructions } from '../../components/Checkout/Instructions'
 
 import MapViewDirections from 'react-native-maps-directions'
 import useEnvVars from '../../../environment'
 import LottieView from 'lottie-react-native'
-import { clearLogEntriesAsync } from 'expo-updates'
 import Taxes from './Taxes'
+import { getOrderStatusHintKey, getOrderStatusLabelKey } from '../../utils/orderStatusLabel'
 const { height: HEIGHT, width: WIDTH } = Dimensions.get('screen')
 
 import useNetworkStatus from '../../utils/useNetworkStatus'
@@ -192,35 +191,54 @@ function OrderDetail(props) {
 
   order = mergeOrderState(order, screenOrder)
 
-  useEffect(() => {
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS === 'android') {
+        StatusBar.setBackgroundColor('#121212')
+      }
+      StatusBar.setBarStyle('light-content')
+    }, [])
+  )
+
+  useLayoutEffect(() => {
     props?.navigation.setOptions({
-      headerRight: () => HelpButton({ iconBackground: currentTheme.main, navigation, t }),
-      headerTitle: `${order ? order?.deliveryAddress?.deliveryAddress?.substr(0, 15) : ''}...`,
-      headerTitleStyle: { color: currentTheme.newFontcolor },
-      headerStyle: { backgroundColor: currentTheme.newheaderBG }
+      title: order?.orderStatus
+        ? t(getOrderStatusLabelKey(order.orderStatus))
+        : t('titleOrders'),
+      headerRight: null,
+      headerBackVisible: false,
+      headerTitleAlign: 'center',
+      headerTitleStyle: {
+        color: '#FFFFFF',
+        ...textStyles.H4,
+        ...textStyles.Bolder
+      },
+      headerTitleContainerStyle: {
+        paddingLeft: scale(25),
+        paddingRight: scale(25)
+      },
+      headerStyle: {
+        backgroundColor: '#121212'
+      },
+      headerShadowVisible: false,
+      headerTintColor: '#FFFFFF',
+      headerLeft: () => (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigationService.goBack()}
+          style={{
+            ...alignment.PLsmall,
+            width: scale(40),
+            height: scale(40),
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <Ionicons name='arrow-back' size={scale(22)} color='#FFFFFF' />
+        </TouchableOpacity>
+      )
     })
-  }, [orders])
-
-  const [remainingTimeState, setRemainingTimeState] = useState(0)
-
-  useEffect(() => {
-    if (order && ![ORDER_STATUS_ENUM.DELIVERED, ORDER_STATUS_ENUM.CANCELLED, ORDER_STATUS_ENUM.CANCELLEDBYREST].includes(order.orderStatus)) {
-      const initialTime = calulateRemainingTime(order)
-      setRemainingTimeState(initialTime)
-
-
-      const intervalId = setInterval(() => {
-        const updatedTime = calulateRemainingTime(order)
-        setRemainingTimeState(updatedTime)
-
-        if (updatedTime <= 0 || [ORDER_STATUS_ENUM.DELIVERED, ORDER_STATUS_ENUM.CANCELLED, ORDER_STATUS_ENUM.CANCELLEDBYREST].includes(order.orderStatus)) {
-          clearInterval(intervalId)
-        }
-      }, 5000)
-
-      return () => clearInterval(intervalId)
-    }
-  }, [order])
+  }, [order?.orderStatus, props?.navigation, t])
 
   // Only show the full-screen spinner on the initial load, before we have any
   // order to display. On a status-change refetch (loadingOrders flips true
@@ -228,7 +246,7 @@ function OrderDetail(props) {
   // already have `order` from the list/route param/lastKnownOrderRef, so keep
   // the screen mounted and let it update in place instead of a circular reload.
   if (loadingOrders && !order) {
-    return <Spinner backColor={currentTheme.themeBackground} spinnerColor={currentTheme.main} />
+    return <Spinner backColor='#121212' spinnerColor='#00A8FF' />
   }
   if (errorOrders) {
     return (
@@ -242,7 +260,7 @@ function OrderDetail(props) {
   // Order still resolving (e.g. mid-refetch after status change) — show the
   // spinner instead of crashing on the destructuring below.
   if (!order) {
-    return <Spinner backColor={currentTheme.themeBackground} spinnerColor={currentTheme.main} />
+    return <Spinner backColor='#121212' spinnerColor='#00A8FF' />
   }
 
   const { _id, id: orderId, restaurant, deliveryAddress, items, tipping: tip, taxationAmount: tax, orderAmount: total, deliveryCharges, discountAmount } = order
@@ -255,13 +273,9 @@ function OrderDetail(props) {
   if (!connect) return <ErrorView refetchFunctions={[]} />
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles().screen}>
       <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          backgroundColor: currentTheme.themeBackground,
-          paddingBottom: scale(150)
-        }}
+        contentContainerStyle={styles().scrollContent}
         showsVerticalScrollIndicator={false}
         overScrollMode='never'
       >
@@ -309,12 +323,9 @@ function OrderDetail(props) {
               }}
               apikey={GOOGLE_MAPS_KEY}
               strokeWidth={6}
-              strokeColor={currentTheme.main}
+              strokeColor='#00A8FF'
               optimizeWaypoints={true}
               onReady={(result) => {
-                //result.distance} km
-                //Duration: ${result.duration} min.
-
                 mapView?.current?.fitToCoordinates(result.coordinates, {
                   edgePadding: {
                     right: WIDTH / 20,
@@ -331,73 +342,90 @@ function OrderDetail(props) {
             {order?.rider && <TrackingRider id={order?.rider?._id} />}
           </MapView>
         )}
-        <View
-          style={{
-            justifyContent: 'center',
-            alignItems: 'center',
-            ...alignment.Pmedium
-          }}
-        >
+
+        <View style={styles().statusSection}>
           <OrderStatusImage status={order?.orderStatus} />
-          {order?.orderStatus !== ORDER_STATUS_ENUM.DELIVERED && (
-            <View
-              style={{
-                ...alignment.MTxSmall,
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              {![ORDER_STATUS_ENUM.PENDING, ORDER_STATUS_ENUM.CANCELLED, ORDER_STATUS_ENUM.CANCELLEDBYREST].includes(order?.orderStatus) && (
-                <>
-                  <TextDefault style={{ ...alignment.MTxSmall }} textColor={currentTheme.gray500} H5>
-                    {t('estimatedDeliveryTime')}
-                  </TextDefault>
-                  <TextDefault style={{ ...alignment.MTxSmall }} Regular textColor={currentTheme.gray900} H1 bolder>
-                    {remainingTimeState}-{remainingTimeState + 5} {t('mins')}
-                  </TextDefault>
-                  <ProgressBar configuration={configuration} currentTheme={currentTheme} item={order} navigation={navigation} isPicked={order?.isPickedUp} />
-                </>
-              )}
-              <TextDefault H5 style={{ ...alignment.Mmedium }} textColor={currentTheme.gray600} bold center>
-                {' '}
-                {t(checkStatus(order?.orderStatus)?.statusText)}
-              </TextDefault>
-            </View>
+          <TextDefault H3 bolder style={styles().statusTitle} isRTL>
+            {t(getOrderStatusLabelKey(order?.orderStatus))}
+          </TextDefault>
+          {!!getOrderStatusHintKey(order?.orderStatus) && (
+            <TextDefault style={styles().statusSubtitle} isRTL>
+              {t(getOrderStatusHintKey(order?.orderStatus))}
+            </TextDefault>
           )}
         </View>
+
         <Instructions title={'Instructions'} theme={currentTheme} message={order?.instructions} />
-        <Detail navigation={props?.navigation} currencySymbol={configuration.currencySymbol} items={items} from={restaurant?.name} orderNo={order?.orderId} deliveryAddress={deliveryAddress?.deliveryAddress} subTotal={subTotal} tip={tip} tax={tax} deliveryCharges={deliveryCharges} total={total} theme={currentTheme} id={id} rider={order?.rider} orderStatus={order?.orderStatus} hasUnread={hasUnreadMessage} onChatOpen={() => setHasUnreadMessage(false)} />
-        <Taxes tax={tax} deliveryCharges={deliveryCharges} currency={configuration.currencySymbol} tip={tip} discountAmount={discountAmount} />
+        <Detail
+          navigation={props?.navigation}
+          currencySymbol={configuration.currencySymbol}
+          items={items}
+          from={restaurant?.name}
+          orderNo={order?.orderId}
+          deliveryAddress={deliveryAddress?.deliveryAddress}
+          subTotal={subTotal}
+          tip={tip}
+          tax={tax}
+          deliveryCharges={deliveryCharges}
+          total={total}
+          theme={currentTheme}
+          id={id}
+          rider={order?.rider}
+          orderStatus={order?.orderStatus}
+          hasUnread={hasUnreadMessage}
+          onChatOpen={() => setHasUnreadMessage(false)}
+        />
+        <Taxes
+          tax={tax}
+          deliveryCharges={deliveryCharges}
+          currency={configuration.currencySymbol}
+          tip={tip}
+          discountAmount={discountAmount}
+        />
       </ScrollView>
-      <View style={styles().bottomContainer(currentTheme)}>
-        {/* Tip is not showing on the tracking page
-        {tip > 0 && (
-  <PriceRow 
-    theme={currentTheme} 
-    title={t('tip')}   // uses translation
-    currency={configuration.currencySymbol} 
-    price={tip.toFixed(2)} 
-  />
-)} */}
 
-        <PriceRow theme={currentTheme} title={t('total')} currency={configuration.currencySymbol} price={total.toFixed(2)} />
-
-        <View style={{ margin: scale(20) }}>
-          <Button disabled={isOrderCancelable ? false : true} text={t('cancelOrder')} buttonProps={{ onPress: cancelModalToggle }} buttonStyles={styles().cancelButtonContainer(currentTheme)} textProps={{ textColor: currentTheme.red600 }} textStyles={{ ...alignment.Pmedium }} />
-        </View>
-
+      <View style={[styles().bottomContainer(), { paddingBottom: scale(20) }]}>
+        <PriceRow
+          theme={currentTheme}
+          title={t('total')}
+          currency={configuration.currencySymbol}
+          price={total.toFixed(2)}
+        />
+        <Button
+          disabled={!isOrderCancelable}
+          text={t('cancelOrder')}
+          buttonProps={{ onPress: cancelModalToggle }}
+          buttonStyles={[
+            styles().cancelButtonContainer(),
+            !isOrderCancelable && styles().cancelButtonDisabled
+          ]}
+          textProps={{ textColor: '#FF453A' }}
+          textStyles={{ ...alignment.Pmedium }}
+        />
       </View>
-      <CancelModal theme={currentTheme} modalVisible={cancelModalVisible} setModalVisible={cancelModalToggle} cancelOrder={cancelOrder} loading={loadingCancel} orderStatus={order?.orderStatus} />
+      <CancelModal
+        theme={currentTheme}
+        modalVisible={cancelModalVisible}
+        setModalVisible={cancelModalToggle}
+        cancelOrder={cancelOrder}
+        loading={loadingCancel}
+        orderStatus={order?.orderStatus}
+      />
     </View>
   )
 }
 
 export const OrderStatusImage = ({ status }) => {
+  if (status === ORDER_STATUS_ENUM.PENDING) {
+    return (
+      <View style={styles().checkIconWrap}>
+        <Ionicons name='checkmark-circle' size={scale(88)} color='#34C759' />
+      </View>
+    )
+  }
+
   let imagePath = null
   switch (status) {
-    case ORDER_STATUS_ENUM.PENDING:
-      imagePath = require('../../assets/SVG/order-placed.json')
-      break
     case ORDER_STATUS_ENUM.ACCEPTED:
       imagePath = require('../../assets/SVG/order-tracking-preparing.json')
       break
@@ -416,10 +444,7 @@ export const OrderStatusImage = ({ status }) => {
 
   return (
     <LottieView
-      style={{
-        width: 250,
-        height: 250
-      }}
+      style={styles().lottie}
       source={imagePath}
       autoPlay
       loop

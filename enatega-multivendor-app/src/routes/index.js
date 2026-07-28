@@ -12,6 +12,7 @@ import ForgotPassword from '../screens/ForgotPassword/ForgotPassword'
 import SetYourPassword from '../screens/ForgotPassword/SetYourPassword'
 import CreateAccount from '../screens/CreateAccount/CreateAccount'
 import GuestCheckout from '../screens/GuestCheckout/GuestCheckout'
+import CheckoutAuth from '../screens/CheckoutAuth/CheckoutAuth'
 import ItemDetail from '../screens/ItemDetail/ItemDetail'
 import MyOrders from '../screens/MyOrders/MyOrders'
 import Cart from '../screens/Cart/Cart'
@@ -35,6 +36,7 @@ import About from '../screens/About'
 import SelectLocation from '../screens/SelectLocation'
 import AddNewAddress from '../screens/SelectLocation/AddNewAddress'
 import CurrentLocation from '../screens/CurrentLocation'
+import ChangeAddress from '../screens/ChangeAddress'
 import ThemeContext from '../ui/ThemeContext/ThemeContext'
 import { theme } from '../utils/themeColors'
 import screenOptions from './screenOptions'
@@ -61,7 +63,7 @@ import EditName from '../components/Account/EditName/EditName'
 import UserContext from '../context/User'
 import { Easing, Platform } from 'react-native'
 // import HypCheckout from '../screens/Hyp/HypCheckout'
-import { SLIDE_RIGHT_WITH_CURVE_ANIM, SLIDE_UP_RIGHT_ANIMATION, AIMATE_FROM_CENTER, SLIDE_UP_RIGHT_ANIMATION_FIXED_HEADER } from '../utils/constants'
+import { SLIDE_RIGHT_WITH_CURVE_ANIM, SLIDE_UP_RIGHT_ANIMATION, AIMATE_FROM_CENTER } from '../utils/constants'
 
 const NavigationStack = createStackNavigator()
 const Location = createStackNavigator()
@@ -132,6 +134,7 @@ function MainNavigator() {
       <NavigationStack.Screen
         name='SearchScreen'
         getComponent={() => require('../screens/Search/SearchScreen').default}
+        options={{ headerShown: false }}
       />
     </>
   ) : null
@@ -186,11 +189,21 @@ function MainNavigator() {
         component={Restaurant}
         options={{
           header: () => null,
-          ...AIMATE_FROM_CENTER
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS
         }}
       />
       <NavigationStack.Screen name='ItemDetail' component={ItemDetail} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen name='Cart' component={Cart} options={SLIDE_UP_RIGHT_ANIMATION_FIXED_HEADER} />
+      <NavigationStack.Screen
+        name='Cart'
+        component={Cart}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS
+        }}
+      />
       <NavigationStack.Screen name='Checkout' component={Checkout} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
       <NavigationStack.Screen name='Help' component={Help} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
       <NavigationStack.Screen name='Collection' component={Collection} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
@@ -209,6 +222,7 @@ function MainNavigator() {
 
       {/* Authentication Login */}
       <NavigationStack.Screen name='CreateAccount' component={CreateAccount} />
+      <NavigationStack.Screen name='CheckoutAuth' component={CheckoutAuth} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
       <NavigationStack.Screen name='GuestCheckout' component={GuestCheckout} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
       <NavigationStack.Screen name='Login' component={Login} />
       <NavigationStack.Screen name='Register' component={Register} />
@@ -218,6 +232,16 @@ function MainNavigator() {
       <NavigationStack.Screen name='EmailOtp' component={EmailOtp} />
       <NavigationStack.Screen name='PhoneOtp' component={PhoneOtp} />
       <NavigationStack.Screen name='ForgotPasswordOtp' component={ForgotPasswordOtp} />
+      <NavigationStack.Screen
+        name='CurrentLocation'
+        component={CurrentLocation}
+        options={{ header: () => null }}
+      />
+      <NavigationStack.Screen
+        name='ChangeAddress'
+        component={ChangeAddress}
+        options={{ header: () => null, ...SLIDE_RIGHT_WITH_CURVE_ANIM }}
+      />
       <NavigationStack.Screen name='SelectLocation' component={SelectLocation} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
       {protectedScreens}
       {/* <NavigationStack.Screen name='HypCheckout' component={HypCheckout} /> */}
@@ -262,10 +286,12 @@ function BottomTabNavigator() {
           paddingBottom: Platform.OS === 'ios' ? 25 : 15,
           height: Platform.OS === 'ios' ? 90 : 70,
           backgroundColor: '#1A1A1A',
-          borderTopColor: '#2A2A2A'
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0
         },
-        tabBarActiveTintColor: currentTheme.main,
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: '#00A8FF',
+        tabBarInactiveTintColor: '#5B8FB8',
         tabBarLabelStyle: { fontSize: 12 },
         headerRight: () => <RightButton icon='cart' iconColor={currentTheme.iconColor} menuHeader={false} t={t} />
       })}
@@ -288,7 +314,8 @@ function BottomTabNavigator() {
         name='Search'
         getComponent={() => require('../screens/Search/SearchScreen').default}
         options={{
-          tabBarLabel: t('tabExplore')
+          tabBarLabel: t('tabExplore'),
+          headerShown: false
         }}
       />
       {/* Named "Orders" (not "MyOrders") so it doesn't collide with the
@@ -306,7 +333,8 @@ function BottomTabNavigator() {
         name='Profile'
         component={isLoggedIn ? Profile : CreateAccount}
         options={{
-          tabBarLabel: t('titleProfile')
+          tabBarLabel: t('titleProfile'),
+          headerShown: false
         }}
       />
     </Tab.Navigator>
@@ -321,10 +349,11 @@ function AppContainer() {
   const { isLoggedIn } = useContext(UserContext)
   const { isAuthReady } = useContext(AuthContext)
   const lastNotificationResponse = Notifications.useLastNotificationResponse()
-  // Guests must pick a delivery address on every cold start (even if an old
-  // address is still sitting in AsyncStorage). Logged-in users keep the
-  // saved-address → Home shortcut. Wait for auth hydration so we don't
-  // accidentally wipe a returning user's location while token is still null.
+  // Every cold start must pick a delivery address first (even if an old
+  // address is still sitting in AsyncStorage / the user is logged in) — the
+  // app should always open on the location picker, not jump straight to the
+  // Home/menu screen. Wait for auth hydration so this only runs once, after
+  // the persisted location has actually been loaded.
   const [isLaunchGateReady, setIsLaunchGateReady] = React.useState(false)
 
   // React Navigation's DefaultTheme paints the scene background white. During a
@@ -343,11 +372,9 @@ function AppContainer() {
 
   useEffect(() => {
     if (!isAuthReady || !isLocationLoaded || isLaunchGateReady) return
-    if (!isLoggedIn) {
-      setLocation(null)
-    }
+    setLocation(null)
     setIsLaunchGateReady(true)
-  }, [isAuthReady, isLocationLoaded, isLoggedIn, isLaunchGateReady, setLocation])
+  }, [isAuthReady, isLocationLoaded, isLaunchGateReady, setLocation])
 
   const handleNotification = useCallback(
     async (response) => {

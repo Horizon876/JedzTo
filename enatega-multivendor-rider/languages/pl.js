@@ -325,4 +325,49 @@ export const pl = {
     "Przedział czasowy nakłada się na inny istniejący przedział",
   "Account holder name": "Nazwa posiadacza konta",
   Tips: "Napiwki",
+
+  Kitchen: "Kuchnia",
+  Delivery: "Dostawca",
+  Settings: "Ustawienia",
+  "Choose role": "Wybierz rolę",
+  "Select kitchen or delivery for this device":
+    "Wybierz tryb kuchni albo dostawcy na tym urządzeniu",
+  "Accept orders and send them for delivery":
+    "Przyjmuj zamówienia i przekazuj je do doręczenia",
+  "Pick up ready orders and mark them delivered":
+    "Zabieraj gotowe zamówienia i oznaczaj jako dostarczone",
+  "Current role": "Aktualna rola",
+  "Switch role": "Zmień rolę",
+  "Kitchen login": "Logowanie kuchni",
+  "Use the same email and password as the owner panel":
+    "Użyj tego samego e-maila i hasła co w panelu właściciela",
+  "Test account": "Konto testowe",
+  "In progress": "W realizacji",
+  "Out for delivery": "Do doręczenia",
+  "For delivery": "Do doręczenia",
+  Delivered: "Dostarczone",
+  Sent: "Wysłane",
+  Received: "Odebrane",
+  "New order": "Nowe zamówienie",
+  Accept: "Akceptuj",
+  Reject: "Odrzuć",
+  "Send for delivery": "Wydaj do doręczenia",
+  "Mark as delivered": "Dostarczono",
+  "Mark as sent": "Oznacz jako wysłane",
+  "Mark as received": "Oznacz jako odebrane",
+  "No orders yet": "Brak zamówień",
+  "Ordered items": "Zamówione pozycje",
+  "Delivery address": "Adres dostawy",
+  Instructions: "Uwagi",
+  Customer: "Klient",
+  Pickup: "Odbiór osobisty",
+  "No address": "Brak adresu",
+  "More waiting": "Kolejne oczekujące",
+  "Only restaurant accounts can use the kitchen app":
+    "Do aplikacji kuchni mogą logować się tylko konta restauracji",
+  "No restaurant linked to this account":
+    "Do tego konta nie jest przypisana restauracja",
+  "Invalid username or password": "Nieprawidłowy e-mail lub hasło",
+  "Unable to connect. Please try again.":
+    "Brak połączenia. Spróbuj ponownie.",
 };

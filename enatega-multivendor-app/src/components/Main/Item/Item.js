@@ -18,6 +18,7 @@ import { useMutation } from '@apollo/client'
 import Spinner from '../../Spinner/Spinner'
 import { FlashMessage } from '../../../ui/FlashMessage/FlashMessage'
 import { useTranslation } from 'react-i18next'
+import { formatMoney } from '../../../utils/formatMoney'
 import CachedImage from '../../CachedImage'
 
 const ADD_FAVOURITE = gql`
@@ -87,12 +88,10 @@ function Item(props) {
                 }>
                 {loadingMutation ? (
                   <Spinner size={'small'} backColor={'transparent'} spinnerColor={currentTheme.iconColorDark} />
+                ) : heart ? (
+                  <AntDesign name="heart" size={scale(15)} color="black" />
                 ) : (
-                  <AntDesign
-                    name={heart ? 'heart' : 'hearto'}
-                    size={scale(15)}
-                    color="black"
-                  />
+                  <Feather name="heart" size={scale(15)} color="black" />
                 )}
               </TouchableOpacity>
               {(!isAvailable || !isOpen()) && (
@@ -182,7 +181,7 @@ function Item(props) {
                   justifyContent: 'center',
                   marginRight: 18
                 }}>
-                <AntDesign name="clockcircleo" size={16}
+                <AntDesign name="clock-circle" size={16}
                 color={currentTheme.fontNewColor} />
                 <TextDefault
                   textColor={currentTheme.fontNewColor}
@@ -209,7 +208,7 @@ function Item(props) {
                 numberOfLines={1}
                 bold
                 Normal>
-                  {configuration.currencySymbol + '' + item.minimumOrder}{' '}
+                  {formatMoney(item.minimumOrder, configuration.currencySymbol, { decimals: 0 })}{' '}
                 </TextDefault>
               </View>
             </View>

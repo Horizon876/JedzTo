@@ -13,7 +13,8 @@ import {
   getMainDefinition,
   offsetLimitPagination
 } from '@apollo/client/utilities'
-import { WebSocketLink } from '@apollo/client/link/ws'
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions'
+import { createClient } from 'graphql-ws'
 import { calculateDistance } from '../utils/customFunctions'
 import { getValidPublicToken, fetchPublicAccessToken } from '../services/publicAcccessService'
 import { getOrCreateNonce } from '../utils/publicAccessToken'
@@ -79,6 +80,25 @@ const setupApollo = ({ GRAPHQL_URL, WS_GRAPHQL_URL }) => {
           }
         }
       },
+      Order: {
+        fields: {
+          deliveryAddress: {
+            merge(_existing, incoming) {
+              return incoming
+            }
+          }
+        }
+      },
+      DeliveryAddress: {
+        keyFields: ['id'],
+        fields: {
+          location: {
+            merge(_existing, incoming) {
+              return incoming
+            }
+          }
+        }
+      },
       RestaurantDetail: {
         fields: {
           image: {
@@ -111,11 +131,14 @@ const setupApollo = ({ GRAPHQL_URL, WS_GRAPHQL_URL }) => {
     uri: GRAPHQL_URL
   })
 
-  const wsLink = new WebSocketLink({
-    uri: WS_GRAPHQL_URL,
-    options: {
-      reconnect: true,
+  // Local API uses graphql-ws; the old subscriptions-transport-ws client never
+  // received orderStatusChanged / subscriptionOrder events.
+  const wsLink = new GraphQLWsLink(
+    createClient({
+      url: WS_GRAPHQL_URL,
       lazy: true,
+      retryAttempts: Infinity,
+      shouldRetry: () => true,
       connectionParams: async () => {
         const token = await AsyncStorage.getItem('token')
         const hasExpiredUserToken = token && isJwtTokenExpired(token)
@@ -128,8 +151,8 @@ const setupApollo = ({ GRAPHQL_URL, WS_GRAPHQL_URL }) => {
           authorization: token && !hasExpiredUserToken ? `Bearer ${token}` : ''
         }
       }
-    }
-  })
+    })
+  )
 
   const request = async operation => {
     const publicToken = await getValidPublicToken(GRAPHQL_URL)

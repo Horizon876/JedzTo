@@ -1,10 +1,24 @@
-import * as FileSystem from 'expo-file-system'
+﻿import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
 import { useEffect, useMemo, useState } from 'react'
 import { isSignedUrlExpired, stripQueryAndHash } from './signedMediaUrl'
+import { rewriteLocalUploadUrl } from './resolveImageUrl'
+
+const { getEnvironmentConfig } = require('../../environment.config')
 
 const CACHE_DIR = `${FileSystem.cacheDirectory}signed-media-cache-v2/`
 const pendingDownloads = new Map()
+
+const getServerBaseUrl = () => {
+  try {
+    return getEnvironmentConfig('development')?.SERVER_URL || ''
+  } catch {
+    return ''
+  }
+}
+
+const toReachableUrl = (remoteUrl) =>
+  rewriteLocalUploadUrl(remoteUrl, getServerBaseUrl())
 
 function getFileExtension(url = '', fallback = 'bin') {
   const clean = stripQueryAndHash(url)
@@ -24,8 +38,9 @@ async function ensureCacheDir() {
 export async function getCachedMediaUri(remoteUrl, type = 'file') {
   if (!remoteUrl || remoteUrl.startsWith('file://')) return remoteUrl
 
-  const normalized = stripQueryAndHash(remoteUrl)
-  const ext = getFileExtension(remoteUrl, type === 'image' ? 'jpg' : 'mp4')
+  const reachableUrl = toReachableUrl(remoteUrl)
+  const normalized = stripQueryAndHash(reachableUrl)
+  const ext = getFileExtension(reachableUrl, type === 'image' ? 'jpg' : 'mp4')
   const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, normalized)
   const localUri = `${CACHE_DIR}${hash}.${ext}`
 
@@ -36,64 +51,65 @@ export async function getCachedMediaUri(remoteUrl, type = 'file') {
     return localUri
   }
 
-  if (isSignedUrlExpired(remoteUrl)) {
-    return remoteUrl
+  if (isSignedUrlExpired(reachableUrl)) {
+    return reachableUrl
   }
 
   const pending = pendingDownloads.get(normalized)
   if (pending) {
     const uri = await pending.promise
-    if (uri.startsWith('file://') || pending.remoteUrl === remoteUrl) return uri
-
-    // A newer signature arrived while an expired download was finishing.
-    return getCachedMediaUri(remoteUrl, type)
+    if (uri.startsWith('file://') || pending.remoteUrl === reachableUrl) return uri
+    return getCachedMediaUri(reachableUrl, type)
   }
 
   const downloadPromise = (async () => {
     try {
-      const result = await FileSystem.downloadAsync(remoteUrl, localUri)
+      const result = await FileSystem.downloadAsync(reachableUrl, localUri)
       if (result.status === 200) return result.uri
       await FileSystem.deleteAsync(localUri, { idempotent: true })
-      return remoteUrl
+      return reachableUrl
     } catch (_e) {
       await FileSystem.deleteAsync(localUri, { idempotent: true })
-      return remoteUrl
+      return reachableUrl
     } finally {
       pendingDownloads.delete(normalized)
     }
   })()
 
-  pendingDownloads.set(normalized, { remoteUrl, promise: downloadPromise })
+  pendingDownloads.set(normalized, { remoteUrl: reachableUrl, promise: downloadPromise })
   return downloadPromise
 }
 
 export function useCachedMediaUri(remoteUrl, type = 'image') {
-  const key = useMemo(() => stripQueryAndHash(remoteUrl || ''), [remoteUrl])
-  const [source, setSource] = useState({ key, uri: remoteUrl })
+  const reachableUrl = useMemo(
+    () => toReachableUrl(remoteUrl),
+    [remoteUrl]
+  )
+  const key = useMemo(() => stripQueryAndHash(reachableUrl || ''), [reachableUrl])
+  const [source, setSource] = useState({ key, uri: reachableUrl })
 
   useEffect(() => {
     let isMounted = true
 
-    if (!remoteUrl) {
-      setSource({ key, uri: remoteUrl })
+    if (!reachableUrl) {
+      setSource({ key, uri: reachableUrl })
       return
     }
 
     setSource((current) => {
-      if (current.key !== key) return { key, uri: remoteUrl }
-      return current.uri?.startsWith('file://') ? current : { key, uri: remoteUrl }
+      if (current.key !== key) return { key, uri: reachableUrl }
+      return current.uri?.startsWith('file://') ? current : { key, uri: reachableUrl }
     })
 
-    getCachedMediaUri(remoteUrl, type).then((uri) => {
+    getCachedMediaUri(reachableUrl, type).then((uri) => {
       if (!isMounted) return
-
       setSource({ key, uri })
     })
 
     return () => {
       isMounted = false
     }
-  }, [remoteUrl, type, key])
+  }, [reachableUrl, type, key])
 
   return source.uri
 }

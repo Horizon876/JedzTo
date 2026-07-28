@@ -273,9 +273,9 @@ export default function App() {
               value={{ ThemeValue: theme, dispatch: themeSetter }}
             >
               <StatusBar translucent backgroundColor='transparent' barStyle={theme === 'Dark' ? 'light-content' : 'dark-content'} />
-              <LocationProvider>
-                <ConfigurationProvider>
-                  <AuthProvider>
+              <AuthProvider>
+                <LocationProvider>
+                  <ConfigurationProvider>
                     <UserProvider>
                       <OrdersProvider
                         onOrderDelivered={(order) => {
@@ -291,9 +291,9 @@ export default function App() {
                         />
                       </OrdersProvider>
                     </UserProvider>
-                  </AuthProvider>
-                </ConfigurationProvider>
-              </LocationProvider>
+                  </ConfigurationProvider>
+                </LocationProvider>
+              </AuthProvider>
               <FlashMessage MessageComponent={MessageComponent} />
             </ThemeContext.Provider>
           </ApolloProvider>

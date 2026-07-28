@@ -1,194 +1,192 @@
-import { QueryResult, useQuery } from "@apollo/client";
-import { createContext, useContext, useEffect, useState } from "react";
-// Interface
+import { NetworkStatus, useMutation, useQuery, useSubscription } from '@apollo/client'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  IRiderProfileResponse,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+import { AppState, type AppStateStatus } from 'react-native'
+
+import {
+  KITCHEN_ORDERS,
+  UPDATE_ORDER_STATUS,
+} from '@/lib/apollo/queries/kitchen.query'
+import { orderStatusChanged } from '@/lib/apollo/subscriptions'
+import { asyncStorageEmitter } from '@/lib/services/async-storage'
+import {
   IUserContextProps,
   IUserProviderProps,
-} from "@/lib/utils/interfaces";
-// API
-import { RIDER_ORDERS, RIDER_PROFILE } from "@/lib/apollo/queries";
-import {
-  SUBSCRIPTION_ASSIGNED_RIDER,
-  SUBSCRIPTION_ZONE_ORDERS,
-} from "@/lib/apollo/subscriptions";
-import { asyncStorageEmitter } from "@/lib/services/async-storage";
-import { IOrder } from "@/lib/utils/interfaces/order.interface";
+} from '@/lib/utils/interfaces'
+import { IOrder } from '@/lib/utils/interfaces/order.interface'
 import {
   IRiderEarnings,
   IRiderEarningsArray,
-} from "@/lib/utils/interfaces/rider-earnings.interface";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+} from '@/lib/utils/interfaces/rider-earnings.interface'
 
-const UserContext = createContext<IUserContextProps>({} as IUserContextProps);
+const UserContext = createContext<IUserContextProps>({} as IUserContextProps)
+
+export const KITCHEN_STATUS = {
+  NEW: 'PENDING',
+  IN_PROGRESS: 'ACCEPTED',
+  SENT: 'ASSIGNED',
+  RECEIVED: 'DELIVERED',
+  REJECTED: 'CANCELLED',
+} as const
+
+function mergeOrderIntoList(list: IOrder[], incoming: IOrder): IOrder[] {
+  const idx = list.findIndex((o) => o._id === incoming._id)
+  if (idx === -1) {
+    return [incoming, ...list]
+  }
+  const next = [...list]
+  next[idx] = { ...next[idx], ...incoming }
+  return next
+}
 
 export const UserProvider = ({ children }: IUserProviderProps) => {
-  // States
   const [modalVisible, setModalVisible] = useState<
     IRiderEarnings & { bool: boolean }
   >({
     bool: false,
-    _id: "",
-    date: "",
+    _id: '',
+    date: '',
     earningsArray: [] as IRiderEarningsArray[],
     totalEarningsSum: 0,
     totalTipsSum: 0,
     totalDeliveries: 0,
-  });
+  })
   const [riderOrderEarnings, setRiderOrderEarnings] = useState<
     IRiderEarningsArray[]
-  >([] as IRiderEarningsArray[]);
-  const [userId, setUserId] = useState("");
-  const [zoneId, setZoneId] = useState("");
-
-  const {
-    loading: loadingProfile,
-    error: errorProfile,
-    data: dataProfile,
-    refetch: refetchProfile,
-  } = useQuery(RIDER_PROFILE, {
-    fetchPolicy: "cache-and-network",
-    nextFetchPolicy: "cache-first",
-    skip: !userId,
-    variables: {
-      id: userId,
-    },
-  }) as QueryResult<IRiderProfileResponse | undefined, { id: string }>;
+  >([] as IRiderEarningsArray[])
+  const [userId, setUserId] = useState('')
+  const [restaurantId, setRestaurantId] = useState('')
+  // Local mirror so kitchen + delivery tabs update instantly on WS events
+  // (before the network refetch finishes).
+  const [liveOrders, setLiveOrders] = useState<IOrder[]>([])
 
   const {
     loading: loadingAssigned,
     error: errorAssigned,
-    data: dataAssigned,
+    data,
     networkStatus: networkStatusAssigned,
-    subscribeToMore,
     refetch: refetchAssigned,
-  } = useQuery(RIDER_ORDERS, {
-    // Orders change constantly (status updates, new assignments), so every
-    // fetch/refetch/poll must hit the network rather than falling back to
-    // cache-first, which could serve stale order lists.
-    fetchPolicy: "cache-and-network",
+  } = useQuery(KITCHEN_ORDERS, {
+    fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
-    pollInterval: 30000,
-    skip: !userId,
-    variables: {
-      userId,
-    },
-  });
-  const isRiderAvailable = Boolean(dataProfile?.rider?.available);
+    pollInterval: 2000,
+    skip: !restaurantId,
+    variables: { restaurantId },
+  })
 
-  async function getUserId() {
-    const id = await AsyncStorage.getItem("rider-id");
-
-    if (id) {
-      setUserId(id);
+  useEffect(() => {
+    if (data?.restaurantOrders) {
+      setLiveOrders(data.restaurantOrders as IOrder[])
     }
-  }
+  }, [data])
 
-  // UseEffects
-
-  // Persist the zone id once the profile loads so the subscription can still
-  // resubscribe if dataProfile is momentarily undefined. Done in its own effect
-  // (not inside the subscription cleanup) to avoid a resubscribe loop.
-  useEffect(() => {
-    const z = dataProfile?.rider?.zone?._id;
-    if (z && z !== zoneId) setZoneId(z);
-  }, [dataProfile, zoneId]);
-
-  useEffect(() => {
-    const riderId = dataProfile?.rider?._id ?? userId;
-    const zoneIdValue = dataProfile?.rider?.zone?._id ?? zoneId;
-
-    if (!riderId || !zoneIdValue) return;
-
-    // Add the order if it's not in the list yet, otherwise replace it in place.
-    // Used for "update" events (e.g. status change / assignment coming through
-    // as an update) so the list reflects them live instead of waiting on the
-    // 30s poll — and self-heals if the original "new" event was missed.
-    const upsertOrder = (orders: IOrder[] = [], order: IOrder): IOrder[] => {
-      const index = orders.findIndex((o: IOrder) => o?._id === order?._id);
-      if (index < 0) return [order, ...orders];
-      const next = [...orders];
-      next[index] = order;
-      return next;
-    };
-
-    const unsubAssignOrder = subscribeToMore({
-      document: SUBSCRIPTION_ASSIGNED_RIDER,
-      variables: { riderId },
-      updateQuery: (prev, { subscriptionData }) => {
-        if (!subscriptionData.data) return prev;
-        const { origin, order } = subscriptionData.data.subscriptionAssignRider;
-        if (origin === "new" || origin === "update") {
-          return { riderOrders: upsertOrder(prev.riderOrders, order) };
-        } else if (origin === "remove") {
-          return {
-            riderOrders: (prev.riderOrders ?? []).filter(
-              (o: IOrder) => o._id !== order._id
-            ),
-          };
+  const [updateStatus, { loading: updatingStatus }] = useMutation(
+    UPDATE_ORDER_STATUS,
+    {
+      onCompleted: (result) => {
+        const updated = result?.updateStatus as IOrder | undefined
+        if (updated?._id) {
+          setLiveOrders((prev) => mergeOrderIntoList(prev, updated))
         }
-        return prev;
+        if (restaurantId) {
+          void refetchAssigned({ restaurantId })
+        }
       },
-    });
+    }
+  )
 
-    const unsubZoneOrder = isRiderAvailable
-      ? subscribeToMore({
-          document: SUBSCRIPTION_ZONE_ORDERS,
-          variables: { zoneId: zoneIdValue },
-          updateQuery: (prev, { subscriptionData }) => {
-            if (!subscriptionData.data) return prev;
-            const { origin, order } = subscriptionData.data.subscriptionZoneOrders;
-            if (origin === "new" || origin === "update") {
-              return { riderOrders: upsertOrder(prev.riderOrders, order) };
-            }
-            return prev;
-          },
+  useSubscription(orderStatusChanged, {
+    variables: { userId },
+    skip: !userId,
+    onData: ({ data: subResult }) => {
+      const order = subResult.data?.orderStatusChanged?.order as
+        | IOrder
+        | undefined
+      if (order?._id) {
+        setLiveOrders((prev) => mergeOrderIntoList(prev, order))
+      }
+      if (restaurantId) {
+        void refetchAssigned({ restaurantId })
+      }
+    },
+  })
+
+  const assignedOrders: IOrder[] = liveOrders
+
+  const pendingOrders = useMemo(
+    () => assignedOrders.filter((o) => o.orderStatus === KITCHEN_STATUS.NEW),
+    [assignedOrders]
+  )
+
+  const setOrderStatus = useCallback(
+    async (orderId: string, orderStatus: string) => {
+      let previousStatus: string | undefined
+      // Optimistic move between tabs (In progress ↔ Out for delivery ↔ Delivered).
+      setLiveOrders((prev) =>
+        prev.map((o) => {
+          if (o._id !== orderId) return o
+          previousStatus = o.orderStatus
+          return { ...o, orderStatus }
         })
-      : null;
-
-    return () => {
+      )
       try {
-        unsubZoneOrder?.();
-      } catch (err) {
-        console.log("err in unsubZoneOrder", err);
+        await updateStatus({ variables: { id: orderId, orderStatus } })
+      } catch {
+        if (previousStatus != null) {
+          setLiveOrders((prev) =>
+            prev.map((o) =>
+              o._id === orderId ? { ...o, orderStatus: previousStatus! } : o
+            )
+          )
+        }
       }
-      try {
-        unsubAssignOrder();
-      } catch (err) {
-        console.log("err in unsubAssignOrder", err);
-      }
-    };
-  }, [dataProfile, isRiderAvailable, subscribeToMore, userId, zoneId]);
-
-  const filteredAssignedOrders = (dataAssigned?.riderOrders ?? []).filter(
-    (order: IOrder) =>
-      isRiderAvailable ||
-      order?.orderStatus !== "ACCEPTED" ||
-      Boolean(order?.rider) ||
-      Boolean(order?.isPickedUp)
-  );
+    },
+    [updateStatus]
+  )
 
   useEffect(() => {
-    if (!userId) return;
+    const loadIds = async () => {
+      const [uid, rid] = await Promise.all([
+        AsyncStorage.getItem('rider-id'),
+        AsyncStorage.getItem('restaurant-id'),
+      ])
+      if (uid) setUserId(uid)
+      if (rid) setRestaurantId(rid)
+    }
 
-    refetchProfile({ id: userId });
-    refetchAssigned({ userId });
-  }, [refetchProfile, refetchAssigned, userId]);
+    const onRiderId = (payload: { value?: string | null }) => {
+      setUserId(payload?.value ?? '')
+    }
+    const onRestaurantId = (payload: { value?: string | null }) => {
+      setRestaurantId(payload?.value ?? '')
+    }
+
+    asyncStorageEmitter.on('rider-id', onRiderId)
+    asyncStorageEmitter.on('restaurant-id', onRestaurantId)
+    void loadIds()
+
+    return () => {
+      asyncStorageEmitter.off('rider-id', onRiderId)
+      asyncStorageEmitter.off('restaurant-id', onRestaurantId)
+    }
+  }, [])
 
   useEffect(() => {
-    const listener = asyncStorageEmitter.addListener("rider-id", (data) => {
-      setUserId(data?.value ?? "");
-    });
-
-    getUserId();
-    return () => {
-      if (listener) {
-        listener.removeListener("rider-id", () => {
-          console.log("Rider Id listerener removed");
-        });
+    const onAppState = (state: AppStateStatus) => {
+      if (state === 'active' && restaurantId) {
+        void refetchAssigned({ restaurantId })
       }
-    };
-  }, []);
+    }
+    const sub = AppState.addEventListener('change', onAppState)
+    return () => sub.remove()
+  }, [restaurantId, refetchAssigned])
 
   return (
     <UserContext.Provider
@@ -198,22 +196,32 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
         setModalVisible,
         setRiderOrderEarnings,
         userId,
-        loadingProfile,
-        errorProfile,
-        dataProfile: dataProfile?.rider ?? null,
+        restaurantId,
+        loadingProfile: false,
+        errorProfile: undefined,
+        dataProfile: restaurantId
+          ? ({
+              _id: restaurantId,
+              available: true,
+              name: 'Kitchen',
+            } as never)
+          : null,
         loadingAssigned,
         errorAssigned,
-        assignedOrders:
-          loadingAssigned || errorAssigned ? [] : filteredAssignedOrders,
-        refetchAssigned,
-        refetchProfile,
-        networkStatusAssigned,
+        assignedOrders,
+        pendingOrders,
+        setOrderStatus,
+        updatingStatus,
+        refetchAssigned: () => refetchAssigned({ restaurantId }),
+        refetchProfile: async () => undefined,
+        networkStatusAssigned: networkStatusAssigned ?? NetworkStatus.ready,
       }}
     >
       {children}
     </UserContext.Provider>
-  );
-};
-export const UserConsumer = UserContext.Consumer;
-export const useUserContext = () => useContext(UserContext);
-export default UserContext;
+  )
+}
+
+export const UserConsumer = UserContext.Consumer
+export const useUserContext = () => useContext(UserContext)
+export default UserContext

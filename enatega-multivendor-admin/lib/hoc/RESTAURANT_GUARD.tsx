@@ -8,6 +8,7 @@ import CustomLoader from '@/lib/ui/useable-components/custom-progress-indicator'
 import { useUserContext } from '@/lib/hooks/useUser';
 
 // Constants and Utils
+import { DEFAULT_ROUTES } from '@/lib/utils/constants/routes';
 import { getAccessToken } from '@/lib/utils/methods/auth';
 
 const RESTAURANT_GUARD = <T extends object>(
@@ -21,11 +22,13 @@ const RESTAURANT_GUARD = <T extends object>(
     const isAllowed =
       isSessionVerified &&
       !!user &&
-      (user.userType !== 'STAFF' ||
-        !!(
-          user.permissions?.includes('Restaurants') ||
-          user.permissions?.includes('Stores')
-        ));
+      (user.userType === 'ADMIN' ||
+        user.userType === 'RESTAURANT' ||
+        (user.userType === 'STAFF' &&
+          !!(
+            user.permissions?.includes('Restaurants') ||
+            user.permissions?.includes('Stores')
+          )));
 
     useEffect(() => {
       if (!loading && !hasSessionToken) {
@@ -36,10 +39,13 @@ const RESTAURANT_GUARD = <T extends object>(
         router.replace('/authentication/login');
         return;
       }
-      if (!loading && !isAllowed) {
-        router.replace('/forbidden');
+      if (!loading && isSessionVerified && !isAllowed) {
+        const fallback =
+          DEFAULT_ROUTES[user?.userType as keyof typeof DEFAULT_ROUTES] ??
+          '/authentication/login';
+        router.replace(fallback);
       }
-    }, [hasSessionToken, isAllowed, isSessionVerified, loading, router]);
+    }, [hasSessionToken, isAllowed, isSessionVerified, loading, router, user?.userType]);
 
     if (loading) {
       return <CustomLoader />;

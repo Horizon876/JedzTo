@@ -11,6 +11,7 @@ import styles from './styles'
 import { Ionicons } from '@expo/vector-icons'
 import {useTranslation} from 'react-i18next'
 import CachedImage from '../../CachedImage'
+import { formatMoney } from '../../../utils/formatMoney'
 
 function RestaurantCard(props) {
 
@@ -91,7 +92,7 @@ function RestaurantCard(props) {
             style={styles().restaurantPriceContainer}
             bold
             small>
-            {configuration.currencySymbol} {props?.minimumOrder}
+            {formatMoney(props?.minimumOrder, configuration.currencySymbol, { decimals: 0 })}
             <TextDefault textColor={currentTheme.fontSecondColor} small>
               {' '}
               {t('min')}

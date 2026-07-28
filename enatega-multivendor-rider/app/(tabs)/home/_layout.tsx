@@ -1,13 +1,9 @@
-import { useApptheme } from "@/lib/context/global/theme.context";
-import { DrawerLayout } from "@/lib/ui/layouts/home-drawer";
+import { Stack } from 'expo-router'
 
 export default function HomeLayout() {
-  const { currentTheme, appTheme } = useApptheme();
   return (
-    <DrawerLayout
-      key={currentTheme?.concat("_DRAWER")}
-      currentTheme={currentTheme}
-      appTheme={appTheme}
-    />
-  );
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="orders" />
+    </Stack>
+  )
 }

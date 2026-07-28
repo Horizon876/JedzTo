@@ -1,52 +1,44 @@
 import { useContext, useState } from 'react'
-import { useMutation } from '@apollo/client'
+import { useApolloClient, useMutation } from '@apollo/client'
 import gql from 'graphql-tag'
-import { v4 as uuidv4 } from 'uuid'
 import { useNavigation } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import AuthContext from '../../context/Auth'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
-import { emailRegex, nameRegex } from '../../utils/regex'
+import { nameRegex } from '../../utils/regex'
 import { isValidPhoneNumber, getPhoneExample, toE164 } from '../../utils/phone'
 import { useCountryFromIP } from '../../utils/useCountryFromIP'
-import { createUser, phoneExist, emailExist } from '../../apollo/mutations'
+import { guestCheckout } from '../../apollo/mutations'
+import { profile as PROFILE_QUERY } from '../../apollo/queries'
 import analytics from '../../utils/analytics'
 
-const CREATE_USER = gql`
-  ${createUser}
+const GUEST_CHECKOUT = gql`
+  ${guestCheckout}
 `
-const PHONE_EXIST = gql`
-  ${phoneExist}
-`
-const EMAIL_EXIST = gql`
-  ${emailExist}
+const PROFILE = gql`
+  ${PROFILE_QUERY}
 `
 
-// Krok 4 — Zamówienie jako Gość.
-// Collects only the delivery basics (name, phone, email) requested by the
-// product spec. The backend `placeOrder` mutation resolves the customer from
-// an authenticated user's JWT, so there is no server-side "anonymous order"
-// concept to hook into — instead we transparently create a lightweight
-// account (random password the guest never sees/types) using exactly the
-// info they typed, log them in, and continue through the *same* phone
-// verification step every user already goes through before checkout. From
-// the guest's perspective this reads as "type 3 fields, confirm a code,
-// done" — no signup form, no password.
+// Simplified guest checkout: first name + last name + phone → token → Checkout.
 const useGuestCheckout = () => {
   const Analytics = analytics()
   const navigation = useNavigation()
+  const client = useApolloClient()
   const { t, i18n } = useTranslation()
   const { setTokenAsync } = useContext(AuthContext)
   const themeContext = useContext(ThemeContext)
-  const currentTheme = { isRTL: i18n.dir() === 'rtl', ...theme[themeContext.ThemeValue] }
+  const currentTheme = {
+    isRTL: i18n.dir() === 'rtl',
+    ...theme[themeContext.ThemeValue]
+  }
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
-  const [nameError, setNameError] = useState(null)
-  const [emailError, setEmailError] = useState(null)
+  const [firstNameError, setFirstNameError] = useState(null)
+  const [lastNameError, setLastNameError] = useState(null)
   const [phoneError, setPhoneError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -63,29 +55,27 @@ const useGuestCheckout = () => {
     setCountry(selectedCountry)
   }
 
-  const [checkEmailExist] = useMutation(EMAIL_EXIST)
-  const [checkPhoneExist] = useMutation(PHONE_EXIST)
-  const [mutateCreateUser] = useMutation(CREATE_USER)
+  const [mutateGuestCheckout] = useMutation(GUEST_CHECKOUT)
 
   function validate() {
     let result = true
-    setNameError(null)
-    setEmailError(null)
+    setFirstNameError(null)
+    setLastNameError(null)
     setPhoneError(null)
 
-    if (!name.trim()) {
-      setNameError(t('firstnameErr1'))
+    if (!firstName.trim()) {
+      setFirstNameError(t('firstnameErr1'))
       result = false
-    } else if (!nameRegex.test(name.trim())) {
-      setNameError(t('firstnameErr2'))
+    } else if (!nameRegex.test(firstName.trim())) {
+      setFirstNameError(t('firstnameErr2'))
       result = false
     }
 
-    if (!email.trim()) {
-      setEmailError(t('emailErr1'))
+    if (!lastName.trim()) {
+      setLastNameError(t('lastnameErr1'))
       result = false
-    } else if (!emailRegex.test(email.trim())) {
-      setEmailError(t('emailErr2'))
+    } else if (!nameRegex.test(lastName.trim())) {
+      setLastNameError(t('lastnameErr2'))
       result = false
     }
 
@@ -106,42 +96,29 @@ const useGuestCheckout = () => {
     if (!validate()) return
 
     setSubmitting(true)
-    const normalizedEmail = email.trim().toLowerCase()
-    const normalizedName = name.trim()
+    const fullName = `${firstName.trim()} ${lastName.trim()}`
     const e164Phone = toE164(phone, country?.cca2)
 
     try {
-      const [{ data: emailData }, { data: phoneData }] = await Promise.all([
-        checkEmailExist({ variables: { email: normalizedEmail } }),
-        checkPhoneExist({ variables: { phone: e164Phone } })
-      ])
-
-      if (emailData?.emailExist || phoneData?.phoneExist) {
-        setSubmitting(false)
-        FlashMessage({ message: t('AlreadyExsistsAlert') })
-        navigation.navigate('CreateAccount')
-        return
-      }
-
-      const { data } = await mutateCreateUser({
+      const { data } = await mutateGuestCheckout({
         variables: {
-          name: normalizedName,
-          email: normalizedEmail,
-          phone: e164Phone,
-          // The guest never sees or types this — it just satisfies the
-          // account record the backend requires to resolve an order's user.
-          password: uuidv4(),
-          emailIsVerified: false,
-          isPhoneExists: false
+          name: fullName,
+          phone: e164Phone
         }
       })
 
-      const created = data?.createUser
+      const created = data?.guestCheckout
       if (!created?.token) {
         throw new Error(t('somethingWentWrong'))
       }
 
       await setTokenAsync(created.token)
+      await client
+        .query({
+          query: PROFILE,
+          fetchPolicy: 'network-only'
+        })
+        .catch(() => null)
 
       Analytics.identify({ userId: created.userId }, created.userId)
       Analytics.track(Analytics.events.USER_CREATED_ACCOUNT, {
@@ -152,29 +129,22 @@ const useGuestCheckout = () => {
       })
 
       setSubmitting(false)
-
-      // Same phone-verification step every user (guest or not) goes through
-      // before Checkout — see Checkout.validateOrder(). Passing
-      // screen: 'Checkout' makes PhoneOtp land back on Checkout on success.
-      navigation.navigate('PhoneOtp', {
-        name: created.name,
-        phone: e164Phone,
-        screen: 'Checkout'
-      })
+      navigation.replace('Checkout')
     } catch (error) {
       setSubmitting(false)
-      const message = error?.graphQLErrors?.[0]?.message || error?.message || t('somethingWentWrong')
+      const message =
+        error?.graphQLErrors?.[0]?.message || error?.message || t('somethingWentWrong')
       FlashMessage({ message })
     }
   }
 
   return {
-    name,
-    setName,
-    nameError,
-    email,
-    setEmail,
-    emailError,
+    firstName,
+    setFirstName,
+    firstNameError,
+    lastName,
+    setLastName,
+    lastNameError,
     phone,
     setPhone,
     phoneError,

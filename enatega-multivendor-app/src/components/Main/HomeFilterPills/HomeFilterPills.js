@@ -5,8 +5,6 @@ import { useTranslation } from 'react-i18next'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import styles from './styles'
 
-// Dark-theme filter chips under "Znajdź swój smak" — outlined pills on charcoal,
-// matching the Pyszne-style home from the reference screenshot.
 const HomeFilterPills = ({ onPromoPress, onFreeDeliveryPress }) => {
   const { t } = useTranslation()
   const themedStyles = styles()
@@ -19,14 +17,14 @@ const HomeFilterPills = ({ onPromoPress, onFreeDeliveryPress }) => {
         contentContainerStyle={themedStyles.container}
       >
         <TouchableOpacity activeOpacity={0.8} style={themedStyles.pill} onPress={onPromoPress}>
-          <Ionicons name='pricetag' size={14} color='#F5C518' />
-          <TextDefault bolder small textColor='#FFFFFF'>
+          <Ionicons name='pricetag' size={13} color='#F5C518' />
+          <TextDefault bolder smaller textColor='#FFFFFF'>
             {t('homePromoPill')}
           </TextDefault>
         </TouchableOpacity>
 
         <TouchableOpacity activeOpacity={0.8} style={themedStyles.pill} onPress={onFreeDeliveryPress}>
-          <TextDefault bolder small textColor='#FFFFFF'>
+          <TextDefault bolder smaller textColor='#FFFFFF'>
             {t('homeFreeDeliveryPill')}
           </TextDefault>
         </TouchableOpacity>

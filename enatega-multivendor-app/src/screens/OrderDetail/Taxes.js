@@ -1,10 +1,14 @@
 import React, { useContext } from 'react'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
-import { FlatList, View } from 'react-native'
+import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
-import { alignment } from '../../utils/alignment'
+import { formatMoney } from '../../utils/formatMoney'
+import { scale } from '../../utils/scaling'
+import { StyleSheet } from 'react-native'
+
+const MUTED = '#8E8E93'
 
 const Taxes = ({ tax, deliveryCharges, currency, tip, discountAmount }) => {
   const themeContext = useContext(ThemeContext)
@@ -14,41 +18,59 @@ const Taxes = ({ tax, deliveryCharges, currency, tip, discountAmount }) => {
     ...theme[themeContext.ThemeValue]
   }
 
-  const data = [
-    { amount: tax, title: 'taxFee' },
-    { amount: deliveryCharges, title: 'delvieryCharges' },
-    { amount: tip, title: 'tip' },
-    { amount: discountAmount, title: 'voucherDiscount' }
-  ]
+  const rows = [
+    { amount: Number(deliveryCharges) || 0, title: 'delvieryCharges' },
+    { amount: Number(tip) || 0, title: 'tip' },
+    { amount: Number(discountAmount) || 0, title: 'voucherDiscount', negative: true }
+  ].filter((row) => row.amount > 0)
 
-  const renderItem = (item) => {
-    return (
-      <View
-        style={{
-          flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}
-      >
-        <TextDefault H5 style={{ ...alignment.Mmedium, textAlign: 'center' }} textColor={currentTheme.gray900} bolder isRTL>
-          {' '}
-          {t(item?.title)}
-        </TextDefault>
-        <TextDefault H5 bolder style={{ ...alignment.Mmedium }}>
-          {' '}
-          {item?.title === 'voucherDiscount' && '-'}
-          {currency}
-          {item?.amount}{' '}
-        </TextDefault>
-      </View>
-    )
-  }
+  if (!rows.length) return null
 
   return (
-    <View>
-      <FlatList data={data} renderItem={({ item }) => renderItem(item)} />
+    <View style={localStyles.wrap}>
+      {rows.map((item) => (
+        <View
+          key={item.title}
+          style={[
+            localStyles.row,
+            currentTheme.isRTL && { flexDirection: 'row-reverse' }
+          ]}
+        >
+          <TextDefault style={localStyles.label} isRTL>
+            {t(item.title)}
+          </TextDefault>
+          <TextDefault style={localStyles.value} bolder isRTL>
+            {item.negative ? '-' : ''}
+            {formatMoney(item.amount, currency)}
+          </TextDefault>
+        </View>
+      ))}
     </View>
   )
 }
+
+const localStyles = StyleSheet.create({
+  wrap: {
+    backgroundColor: '#1C1C1E',
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(6),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#2C2C2E'
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: scale(6)
+  },
+  label: {
+    color: MUTED,
+    fontSize: scale(13)
+  },
+  value: {
+    color: '#FFFFFF',
+    fontSize: scale(13)
+  }
+})
 
 export default Taxes

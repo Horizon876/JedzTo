@@ -1,83 +1,127 @@
-import { verticalScale, scale } from '../../utils/scaling'
 import { StyleSheet } from 'react-native'
-import { alignment } from '../../utils/alignment'
-import { theme } from '../../utils/themeColors'
+import { scale } from '../../utils/scaling'
 
-const styles = (props = null) =>
+const ACCENT = '#00A8FF'
+const BG = '#1C1C1E'
+const SURFACE = '#2C2C2E'
+const MUTED = '#8E8E93'
+
+const styles = () =>
   StyleSheet.create({
-    flex: {
+    fullScreen: {
       flex: 1,
-      backgroundColor: props !== null ? props?.themeBackground : '#FFF',
-      paddingTop: scale(10),
+      backgroundColor: BG
     },
-    tagView: {
-      display: 'flex',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      flexWrap: 'wrap',
-      rowGap: scale(10),
-      columnGap: scale(10),
-      ...alignment.MTmedium,
-      ...alignment.PLmedium,
-      ...alignment.PRmedium
+    content: {
+      flex: 1,
+      backgroundColor: BG
     },
-    tagItem: {
-      backgroundColor: props !== null ? props?.main : '#00E676',
-      minHeight: scale(40),
-      maxWidth: scale(220),
-      justifyContent: 'center',
-      paddingVertical: scale(10),
+    topSurface: {
+      backgroundColor: BG,
       paddingHorizontal: scale(16),
-      borderRadius: scale(20)
+      paddingBottom: scale(4)
     },
-    emptyViewContainer:{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center'
-    },
-    emptyViewBox: {
-      backgroundColor: props != null ? props?.newBackground : '#f0f0f0',
-      borderRadius: scale(10),
-      width: '85%',
-      height: verticalScale(130),
-      justifyContent: 'center',
+    topBar: {
+      flexDirection: 'row',
       alignItems: 'center',
-      padding: scale(15),
-      marginTop: scale(30),
-      borderColor: props !== null ? props?.gray200 : '#E5E7EB',
-      borderWidth:scale(1),
-      borderRadius:scale(10)
+      gap: scale(12),
+      marginBottom: scale(8)
     },
-    searchList: {
-      marginBottom: 70,
-      ...alignment.MTsmall,
-      ...alignment.Pmedium
-    },
-    flexRow: {
-      display: 'flex',
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      justifyContent: 'space-between',
-      ...alignment.Msmall
-    },
-    recentSearchContainer: {
-      ...alignment.Psmall
-    },
-    line: {
+    searchPill: {
       flex: 1,
-      height: 1,
-      backgroundColor: props !== null ? props?.color6 : '#9B9A9A',
-      paddingTop: scale(1)
-    },
-    recentListBtn: {
-      display: 'flex',
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       alignItems: 'center',
-      ...alignment.Psmall,
+      height: scale(48),
+      borderRadius: scale(24),
+      backgroundColor: SURFACE,
+      paddingHorizontal: scale(14),
       gap: scale(10)
     },
-    searchbar: {
-      ...alignment.Pmedium
+    searchInput: {
+      flex: 1,
+      height: '100%',
+      paddingVertical: 0,
+      textAlignVertical: 'center',
+      fontSize: scale(15),
+      color: '#FFFFFF'
+    },
+    cancelButton: {
+      paddingVertical: scale(8),
+      paddingHorizontal: scale(2)
+    },
+    cancelText: {
+      color: ACCENT,
+      fontSize: scale(16)
+    },
+    listArea: {
+      flex: 1,
+      paddingHorizontal: scale(16),
+      paddingTop: scale(0),
+      backgroundColor: BG
+    },
+    sectionTitle: {
+      marginBottom: scale(4),
+      paddingHorizontal: scale(2)
+    },
+    list: {
+      flex: 1
+    },
+    historyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      paddingVertical: scale(14),
+      paddingHorizontal: scale(2),
+      gap: scale(12),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#2C2C2E'
+    },
+    historyIcon: {
+      width: scale(28),
+      height: scale(28),
+      borderRadius: scale(14),
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    historyText: {
+      flex: 1
+    },
+    removeButton: {
+      padding: scale(4)
+    },
+    resultRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      paddingVertical: scale(14),
+      paddingHorizontal: scale(2),
+      gap: scale(12),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#2C2C2E'
+    },
+    resultMeta: {
+      flex: 1,
+      gap: scale(2)
+    },
+    emptyHistory: {
+      width: '100%',
+      paddingTop: scale(8),
+      paddingHorizontal: scale(2),
+      flexDirection: 'row',
+      alignItems: 'center'
+    },
+    emptyHistoryText: {
+      flex: 1,
+      marginLeft: scale(12),
+      fontSize: scale(14),
+      lineHeight: scale(18),
+      color: MUTED
+    },
+    emptyState: {
+      paddingVertical: scale(28),
+      alignItems: 'center'
     }
   })
+
 export default styles
+export { ACCENT, MUTED, BG }

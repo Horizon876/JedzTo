@@ -80,8 +80,7 @@ const styles = (props = null) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-end',
-      gap: scale(8),
-      minWidth: scale(84)
+      width: scale(40)
     },
     fixedIcons: {
       flexDirection: 'row',
@@ -197,14 +196,23 @@ const styles = (props = null) =>
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: scale(12),
-      paddingVertical: scale(6)
+      paddingHorizontal: scale(14),
+      paddingVertical: scale(10)
     },
     activeHeader: {
-      backgroundColor: props != null ? props.newButtonBackground : '#F3FFEE',
-      borderRadius: scale(999),
-      paddingHorizontal: scale(2),
-      paddingVertical: scale(1),
+      backgroundColor: 'transparent'
+    },
+    inactiveHeader: {
+      backgroundColor: 'transparent'
+    },
+    categoryTabText: {
+      fontSize: scale(15),
+      lineHeight: scale(20)
+    },
+    categoryTabTextActive: {
+      fontSize: scale(15),
+      lineHeight: scale(20),
+      fontWeight: '700'
     },
     heading: {
       fontWeight: 'bold'
@@ -219,15 +227,16 @@ const styles = (props = null) =>
       position: 'relative',
       left: 0,
       right: 0,
-      height: scale(56),
+      zIndex: 10,
+      height: scale(48),
       justifyContent: 'center',
-      backgroundColor: props != null ? props.themeBackground : 'white',
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: props != null ? props.newBorderColor : '#E5E7EB'
+      backgroundColor: '#222222',
+      borderBottomWidth: 1,
+      borderBottomColor: '#3A3A3A'
     },
     categoriesContent: {
-      paddingHorizontal: scale(12),
-      paddingVertical: scale(8),
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(4),
       alignItems: 'center'
     },
     headerTitle: {

@@ -8,6 +8,7 @@ import styles from './styles'
 import ShimmerImage from '../../ShimmerImage/ShimmerImage'
 import { useTranslation } from 'react-i18next'
 import { isOpen } from '../../../utils/customFunctions'
+import { formatMoney } from '../../../utils/formatMoney'
 
 const CARD_SPACING = scale(10)
 
@@ -309,7 +310,7 @@ const RestaurantSections = ({
         <ShimmerImage imageUrl={item.image} style={styles(currentTheme).popularItemImage} resizeMode='cover' />
         <View style={styles(currentTheme).popularItemInfo}>
           <TextDefault style={styles(currentTheme).priceText}>
-            {configuration.currencySymbol} {displayPrice}
+            {formatMoney(displayPrice, configuration.currencySymbol)}
           </TextDefault>
           <TextDefault numberOfLines={1} style={styles(currentTheme).itemTitle}>
             {item.title}

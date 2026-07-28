@@ -26,6 +26,7 @@ import OrdersContext from '../../context/Orders'
 import { HeaderBackButton } from '@react-navigation/elements'
 import { useTranslation } from 'react-i18next'
 import CachedImage from '../../components/CachedImage'
+import { formatMoney } from '../../utils/formatMoney'
 
 const orderStatusActive = ['PENDING', 'PICKED', 'ACCEPTED', 'ASSIGNED']
 const orderStatusInactive = ['DELIVERED', 'COMPLETED']
@@ -264,8 +265,7 @@ function MyOrders(props) {
                   right
                   bolder>
                   {' '}
-                  {configuration.currencySymbol}
-                  {parseFloat(item.orderAmount).toFixed(2)}
+                  {formatMoney(item.orderAmount, configuration.currencySymbol)}
                 </TextDefault>
               </View>
             </View>

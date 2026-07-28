@@ -13,6 +13,20 @@ const openingTimesSchema = new mongoose.Schema(
   { _id: false }
 )
 
+// A delivery area is a named circle (town / district) with its own fee, e.g.
+// "Myślenice 0 zł", "Jawornik 4 zł". An address that falls outside every area
+// of a restaurant means that restaurant simply does not deliver there and is
+// hidden from the customer's listing.
+const deliveryAreaSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  fee: { type: Number, default: 0, min: 0 },
+  minOrder: { type: Number, default: 0, min: 0 },
+  latitude: { type: Number, required: true },
+  longitude: { type: Number, required: true },
+  radiusKm: { type: Number, default: 3, min: 0.1 },
+  isActive: { type: Boolean, default: true }
+})
+
 const restaurantSchema = new mongoose.Schema(
   {
     ownerId: {
@@ -45,6 +59,15 @@ const restaurantSchema = new mongoose.Schema(
     restaurantUrl: { type: String, default: '' },
     stripeDetailsSubmitted: { type: Boolean, default: false },
     openingTimes: { type: [openingTimesSchema], default: [] },
+    bussinessDetails: {
+      bankName: { type: String, default: '' },
+      accountName: { type: String, default: '' },
+      accountCode: { type: String, default: '' },
+      accountNumber: { type: String, default: '' },
+      bussinessRegNo: { type: String, default: '' },
+      companyRegNo: { type: String, default: '' },
+      taxRate: { type: Number, default: null }
+    },
     options: { type: Array, default: [] },
     addons: { type: Array, default: [] },
     zone: {
@@ -52,7 +75,14 @@ const restaurantSchema = new mongoose.Schema(
       title: { type: String, default: 'Myślenice' },
       tax: { type: Number, default: 8 }
     },
-    rating: { type: Number, default: 4.5 }
+    rating: { type: Number, default: 4.5 },
+    deliveryAreas: { type: [deliveryAreaSchema], default: [] },
+    // Snapshot of the menu the customer app is served. The owner edits the live
+    // Category/Food collections freely and only pushes them here by hitting
+    // "publish", so half-finished edits never reach customers.
+    publishedMenu: { type: mongoose.Schema.Types.Mixed, default: null },
+    menuPublishedAt: { type: Date, default: null },
+    hasUnpublishedMenuChanges: { type: Boolean, default: false }
   },
   { timestamps: true }
 )

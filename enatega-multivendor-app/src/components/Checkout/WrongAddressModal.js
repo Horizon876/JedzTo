@@ -16,43 +16,37 @@ export const WrongAddressModal = ({
   const styles = useStyles(theme)
 
   return (
-    <Modal animationType="slide" visible={modalVisible} transparent={true}>
-      {/* <View style={styles.layout}> */}
+    <Modal animationType='fade' visible={modalVisible} transparent>
       <Pressable style={styles.backdrop} onPress={setModalVisible}>
-          <View style={styles.modalContainer}>
-            <View style={{ ...alignment.MBsmall }}>
-              <TextDefault H4 bolder textColor={theme.gray900}>
-                {t("Can't deliver to this address")}
-              </TextDefault>
-            </View>
-            <View>
-              <TextDefault H5 textColor={theme.gray500}>
-                {t('This restaurant doesn’t deliver to your location. Please explore restaurants available in your delivery area')}{'.'}
-              </TextDefault>
-            </View>
-
-              <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ ...alignment.MTlarge }}>
-              <Button
-                    text={t('Select another one')}
-                    buttonProps={{ onPress: handleNavigation }}
-                    buttonStyles={styles.navigateButtonContainer}
-                    textStyles={{ ...alignment.Pmedium, color: theme.newIconColor }}
-                  />
-                </View>
-                <View style={{ ...alignment.MTsmall }}>
-                  <Button
-                    text={t('close')}
-                    buttonProps={{ onPress: setModalVisible }}
-                    buttonStyles={styles.dismissButtonContainer}
-                    textStyles={{ ...alignment.Pmedium, color: theme.newIconColor }}
-                  />
-                </View>
-              </View>
-
+        <Pressable style={styles.modalContainer} onPress={(e) => e.stopPropagation()}>
+          <View style={{ ...alignment.MBsmall }}>
+            <TextDefault H4 bolder textColor='#FFFFFF'>
+              {t("Can't deliver to this address")}
+            </TextDefault>
           </View>
+          <View style={{ ...alignment.MBmedium }}>
+            <TextDefault H5 textColor='#8E8E93'>
+              {t('This restaurant doesn’t deliver to your location. Please explore restaurants available in your delivery area')}
+              .
+            </TextDefault>
+          </View>
+
+          <View style={{ alignItems: 'stretch', gap: 10 }}>
+            <Button
+              text={t('Select another one')}
+              buttonProps={{ onPress: handleNavigation }}
+              buttonStyles={styles.navigateButtonContainer}
+              textStyles={{ ...alignment.Pmedium, color: '#FFFFFF' }}
+            />
+            <Button
+              text={t('close')}
+              buttonProps={{ onPress: setModalVisible }}
+              buttonStyles={styles.dismissButtonContainer}
+              textStyles={{ ...alignment.Pmedium, color: '#FFFFFF' }}
+            />
+          </View>
+        </Pressable>
       </Pressable>
-      {/* </View> */}
     </Modal>
   )
 }

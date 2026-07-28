@@ -1,77 +1,124 @@
 import { StyleSheet } from 'react-native'
 import { scale } from '../../utils/scaling'
 
+export const ACCENT = '#00A8FF'
+export const SURFACE = '#1C1C1E'
+export const HAIRLINE = '#2C2C2E'
+export const MUTED = '#8E8E93'
+export const PAGE = '#121212'
+
 export const useStyles = (theme) =>
   StyleSheet.create({
-    container: {
-      height: scale(40),
-      flex: 1
-    },
     ovalContainer: {
-      backgroundColor: theme?.gray200,
-      flex: 1,
-      borderRadius: scale(40),
-      marginHorizontal: scale(10),
-      marginVertical: scale(3),
-      flexDirection: theme?.isRTL ? 'row-reverse' : 'row'
+      backgroundColor: HAIRLINE,
+      height: scale(44),
+      borderRadius: scale(999),
+      flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
+      padding: scale(3)
     },
     ovalButton: {
       flex: 1,
-      borderRadius: scale(40),
-      marginHorizontal: scale(2),
-      marginVertical: scale(2),
+      borderRadius: scale(999),
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      paddingVertical: scale(8)
     },
-    instructionContainer: {
-      padding: scale(10),
+    paymentOption: {
       flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
-      margin: scale(10),
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: scale(10),
-      borderColor: theme.gray500
+      alignItems: 'center',
+      paddingHorizontal: scale(14),
+      paddingVertical: scale(14),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: HAIRLINE,
+      gap: scale(12),
+      backgroundColor: SURFACE,
+      borderRadius: 0
     },
-    leftContainer: {
-      flex: 1,
+    paymentOptionLast: {
+      borderBottomWidth: StyleSheet.hairlineWidth
+    },
+    paymentIconWrap: {
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(8),
+      backgroundColor: PAGE,
       alignItems: 'center',
       justifyContent: 'center'
     },
-    middleContainer: { flex: 6, justifyContent: 'space-evenly' },
-
+    paymentTitle: {
+      flex: 1,
+      color: '#FFFFFF'
+    },
+    radioOuter: {
+      width: scale(22),
+      height: scale(22),
+      borderRadius: scale(11),
+      borderWidth: scale(2),
+      borderColor: MUTED,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    radioOuterSelected: {
+      borderColor: ACCENT
+    },
+    radioInner: {
+      width: scale(12),
+      height: scale(12),
+      borderRadius: scale(6),
+      backgroundColor: ACCENT
+    },
     navigateButtonContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.main,
-      borderColor: theme.main,
-      borderWidth: 1,
-      borderRadius: scale(25),
-      width: scale(200)
+      backgroundColor: ACCENT,
+      borderRadius: scale(999),
+      width: '100%',
+      height: scale(48)
     },
     dismissButtonContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderRadius: scale(25),
-      width: scale(200),
-      borderColor: theme.newIconColor
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: scale(999),
+      width: '100%',
+      height: scale(48),
+      borderColor: HAIRLINE,
+      backgroundColor: 'transparent'
     },
     modalContainer: {
-      backgroundColor: theme?.themeBackground,
-      borderWidth: 1,
-      borderColor: theme.newIconColor,
+      backgroundColor: SURFACE,
       borderRadius: scale(20),
-      padding: scale(20),
-      width: '90%', // Adjust width as needed
-      alignSelf: 'center', // Horizontal centering
-      justifyContent: 'center', // Vertical centering
-      alignItems: 'center', // Ensure content is centered
-      height: 'auto', // Auto height
+      padding: scale(22),
+      width: '90%',
+      alignSelf: 'center',
+      justifyContent: 'center',
+      alignItems: 'stretch'
     },
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
-      justifyContent: 'center', // Vertical centering of modal
-      alignItems: 'center', // Horizontal centering of modal
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center'
+    },
+    instructionContainer: {
+      paddingHorizontal: scale(14),
+      paddingVertical: scale(14),
+      flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
+      marginTop: scale(8),
+      backgroundColor: SURFACE,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: HAIRLINE,
+      gap: scale(10),
+      width: '100%'
+    },
+    leftContainer: {
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    middleContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      gap: scale(2)
     }
   })

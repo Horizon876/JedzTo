@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useApolloClient, useQuery } from '@apollo/client'
 import gql from 'graphql-tag'
@@ -13,10 +13,13 @@ import { useTranslation } from 'react-i18next'
 import navigationService from '../routes/navigationService'
 import { dismissSessionExpiredModal, isLogoutInProgress, setLogoutInProgress, subscribeToSessionInvalidation } from '../utils/session'
 import { clearPublicToken } from '../utils/publicAccessToken'
+import { findMatchingCartIndex, mergeCartLines } from '../utils/populateCart'
 
 const v1options = {
   random: [0x10, 0x91, 0x56, 0xbe, 0xc4, 0xfb, 0xc1, 0xea, 0x71, 0xb4, 0xef, 0xe1, 0x67, 0x1c, 0x58, 0x36]
 }
+
+const CART_STORAGE_KEYS = ['cartItems', 'restaurant', 'coupon']
 
 const PROFILE = gql`
   ${profile}
@@ -24,12 +27,16 @@ const PROFILE = gql`
 
 const UserContext = React.createContext({})
 
+async function clearPersistedCartData() {
+  await AsyncStorage.multiRemove(CART_STORAGE_KEYS)
+}
+
 export const UserProvider = (props) => {
   const Analytics = analytics()
 
   const { t } = useTranslation()
 
-  const { token, setToken } = useContext(AuthContext)
+  const { token, setToken, isAuthReady } = useContext(AuthContext)
   const client = useApolloClient()
   const { location, setLocation } = useContext(LocationContext)
   const [cart, setCart] = useState([])
@@ -37,6 +44,24 @@ export const UserProvider = (props) => {
   const [isPickup, setIsPickup] = useState(false)
   const [instructions, setInstructions] = useState('')
   const [coupon, setCoupon] = useState(null)
+  const cartRef = useRef(cart)
+  const restaurantRef = useRef(restaurant)
+  const couponRef = useRef(coupon)
+  const hasHydratedCartRef = useRef(false)
+
+  cartRef.current = cart
+  restaurantRef.current = restaurant
+  couponRef.current = coupon
+
+  const isLoggedIn = !!token
+
+  const persistCartItems = useCallback(async (nextCart) => {
+    if (!token) {
+      await AsyncStorage.removeItem('cartItems')
+      return
+    }
+    await AsyncStorage.setItem('cartItems', JSON.stringify(nextCart))
+  }, [token])
 
   const onError = useCallback((error) => {
     console.log('error context user', error.message)
@@ -77,117 +102,208 @@ export const UserProvider = (props) => {
     skip: !token
   })
 
+  // Guests: never restore cart from disk. Logged-in: restore once on cold start.
+  // Guest → login: keep in-memory cart and persist it.
   useEffect(() => {
+    if (!isAuthReady) return undefined
+
     let isSubscribed = true
     ;(async () => {
-      const restaurant = await AsyncStorage.getItem('restaurant')
+      if (!token) {
+        await clearPersistedCartData()
+        if (!hasHydratedCartRef.current) {
+          if (!isSubscribed) return
+          setRestaurant(null)
+          setCart([])
+          setCoupon(null)
+          setInstructions('')
+          setIsPickup(false)
+          hasHydratedCartRef.current = true
+        }
+        return
+      }
 
-      const cart = await AsyncStorage.getItem('cartItems')
-      const savedCoupon = await AsyncStorage.getItem('coupon')
-      isSubscribed && setRestaurant(restaurant || null)
-      isSubscribed && setCart(cart ? JSON.parse(cart) : [])
-      isSubscribed && setCoupon(savedCoupon ? JSON.parse(savedCoupon) : null)
+      if (!hasHydratedCartRef.current) {
+        const [storedRestaurant, storedCart, savedCoupon] = await Promise.all([
+          AsyncStorage.getItem('restaurant'),
+          AsyncStorage.getItem('cartItems'),
+          AsyncStorage.getItem('coupon')
+        ])
+        if (!isSubscribed) return
+        setRestaurant(storedRestaurant || null)
+        setCart(storedCart ? mergeCartLines(JSON.parse(storedCart)) : [])
+        setCoupon(savedCoupon ? JSON.parse(savedCoupon) : null)
+        hasHydratedCartRef.current = true
+        return
+      }
+
+      // Logged in after browsing as guest — keep current cart and save it.
+      const nextCart = cartRef.current || []
+      const nextRestaurant = restaurantRef.current
+      const nextCoupon = couponRef.current
+      await AsyncStorage.setItem('cartItems', JSON.stringify(nextCart))
+      if (nextRestaurant) {
+        await AsyncStorage.setItem('restaurant', nextRestaurant)
+      } else {
+        await AsyncStorage.removeItem('restaurant')
+      }
+      if (nextCoupon) {
+        await AsyncStorage.setItem('coupon', JSON.stringify(nextCoupon))
+      } else {
+        await AsyncStorage.removeItem('coupon')
+      }
     })()
+
     return () => {
       isSubscribed = false
     }
-  }, [])
+  }, [isAuthReady, token])
 
   const saveCoupon = useCallback(async (couponData) => {
     setCoupon(couponData)
+    if (!token) {
+      await AsyncStorage.removeItem('coupon')
+      return
+    }
     if (couponData) {
       await AsyncStorage.setItem('coupon', JSON.stringify(couponData))
     } else {
       await AsyncStorage.removeItem('coupon')
     }
-  }, [])
+  }, [token])
 
   const clearCart = useCallback(async () => {
     setCart([])
     setRestaurant(null)
     setInstructions('')
+    setIsPickup(false)
     await saveCoupon(null)
-    await AsyncStorage.removeItem('cartItems')
-    await AsyncStorage.removeItem('restaurant')
+    await clearPersistedCartData()
   }, [saveCoupon])
 
   const addQuantity = useCallback(async (key, quantity = 1) => {
-    const cartIndex = cart.findIndex((c) => c.key === key)
-    cart[cartIndex].quantity += quantity
-    setCart([...cart])
-    await AsyncStorage.setItem('cartItems', JSON.stringify([...cart]))
-  }, [cart])
+    setCart((prev) => {
+      const index = prev.findIndex((c) => c.key === key)
+      if (index < 0) return prev
+      const nextCart = mergeCartLines(
+        prev.map((item, i) =>
+          i === index ? { ...item, quantity: Number(item.quantity || 0) + quantity } : item
+        )
+      )
+      persistCartItems(nextCart).catch(() => {})
+      return nextCart
+    })
+  }, [persistCartItems])
 
   const deleteItem = useCallback(async (key) => {
-    const cartIndex = cart.findIndex((c) => c.key === key)
-    if (cartIndex > -1) {
-      cart.splice(cartIndex, 1)
-      const items = [...cart.filter((c) => c.quantity > 0)]
-      setCart(items)
-      if (items.length === 0) setRestaurant(null)
-      await AsyncStorage.setItem('cartItems', JSON.stringify(items))
-    }
-  }, [cart])
+    setCart((prev) => {
+      const nextCart = mergeCartLines(prev.filter((c) => c.key !== key))
+      if (nextCart.length === 0) {
+        setRestaurant(null)
+        if (token) AsyncStorage.removeItem('restaurant').catch(() => {})
+      }
+      persistCartItems(nextCart).catch(() => {})
+      return nextCart
+    })
+  }, [persistCartItems, token])
 
   const removeQuantity = useCallback(async (key) => {
-    const cartIndex = cart.findIndex((c) => c.key === key)
-    cart[cartIndex].quantity -= 1
-    const items = [...cart.filter((c) => c.quantity > 0)]
-    setCart(items)
-    if (items.length === 0) setRestaurant(null)
-    await AsyncStorage.setItem('cartItems', JSON.stringify(items))
-  }, [cart])
+    setCart((prev) => {
+      const index = prev.findIndex((c) => c.key === key)
+      if (index < 0) return prev
+      const currentQty = Number(prev[index].quantity || 0)
+      const nextCart = mergeCartLines(
+        currentQty <= 1
+          ? prev.filter((c) => c.key !== key)
+          : prev.map((item, i) => (i === index ? { ...item, quantity: currentQty - 1 } : item))
+      )
+      if (nextCart.length === 0) {
+        setRestaurant(null)
+        if (token) AsyncStorage.removeItem('restaurant').catch(() => {})
+      }
+      persistCartItems(nextCart).catch(() => {})
+      return nextCart
+    })
+  }, [persistCartItems, token])
 
-  const checkItemCart = useCallback((itemId) => {
-    const cartIndex = cart.findIndex((c) => c._id === itemId)
-    if (cartIndex < 0) {
+  const checkItemCart = useCallback((itemId, variationId = null) => {
+    const normalized = mergeCartLines(cart)
+    const matches = normalized.filter((c) => {
+      if (c._id !== itemId) return false
+      if (variationId == null) return true
+      const emptyAddons = !c.addons || c.addons.length === 0
+      return c.variation?._id === variationId && emptyAddons
+    })
+    if (matches.length === 0) {
       return {
         exist: false,
         quantity: 0
       }
     }
 
+    const quantity = matches.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
     return {
       exist: true,
-      quantity: cart[cartIndex].quantity,
-      key: cart[cartIndex].key
+      quantity,
+      key: matches[0].key
     }
   }, [cart])
 
   const numberOfCartItems = useMemo(() => {
-    return cart
-      .map((c) => c.quantity)
-      .reduce(function (a, b) {
-        return a + b
-      }, 0)
+    return mergeCartLines(cart).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
   }, [cart])
 
   const addCartItem = useCallback(async (_id, variation, quantity = 1, addons = [], clearFlag, specialInstructions = '') => {
-    const cartItems = clearFlag ? [] : cart
-    cartItems.push({
-      key: uuidv1(v1options),
-      _id,
-      quantity: quantity,
-      variation: {
-        _id: variation
-      },
-      addons,
-      specialInstructions
-    })
+    const qty = Number(quantity) || 1
+    const safeAddons = addons || []
 
-    await AsyncStorage.setItem('cartItems', JSON.stringify([...cartItems]))
-    setCart([...cartItems])
-  }, [cart])
+    setCart((prev) => {
+      const base = clearFlag ? [] : mergeCartLines(prev)
+      const existingIndex = findMatchingCartIndex(base, {
+        _id,
+        variationId: variation,
+        addons: safeAddons
+      })
+
+      let nextCart
+      if (existingIndex >= 0) {
+        nextCart = base.map((item, index) =>
+          index === existingIndex
+            ? { ...item, quantity: Number(item.quantity || 0) + qty }
+            : item
+        )
+      } else {
+        nextCart = [
+          ...base,
+          {
+            key: uuidv1(v1options),
+            _id,
+            quantity: qty,
+            variation: { _id: variation },
+            addons: safeAddons,
+            specialInstructions: specialInstructions || ''
+          }
+        ]
+      }
+
+      persistCartItems(nextCart).catch(() => {})
+      return nextCart
+    })
+  }, [persistCartItems])
 
   const updateCart = useCallback(async (nextCart) => {
     setCart(nextCart)
-    await AsyncStorage.setItem('cartItems', JSON.stringify(nextCart))
-  }, [])
+    await persistCartItems(nextCart)
+  }, [persistCartItems])
 
   const setCartRestaurant = useCallback(async (id) => {
     setRestaurant(id)
+    if (!token) {
+      await AsyncStorage.removeItem('restaurant')
+      return
+    }
     await AsyncStorage.setItem('restaurant', id)
-  }, [])
+  }, [token])
 
   const logout = useCallback(async (options = {}) => {
     const {
@@ -210,6 +326,7 @@ export const UserProvider = (props) => {
       setCart([])
       setRestaurant(null)
       setInstructions('')
+      setIsPickup(false)
       if (location?._id) {
         setLocation({
           label: t('selectedLocation'),
@@ -250,7 +367,7 @@ export const UserProvider = (props) => {
   }, [logout])
 
   const userContextValue = useMemo(() => ({
-    isLoggedIn: !!token,
+    isLoggedIn,
     loadingProfile: loadingProfile && calledProfile,
     errorProfile,
     profile: dataProfile && dataProfile?.profile ? dataProfile?.profile : null,
@@ -286,6 +403,7 @@ export const UserProvider = (props) => {
     deleteItem,
     errorProfile,
     instructions,
+    isLoggedIn,
     isPickup,
     logout,
     networkStatus,
@@ -298,8 +416,7 @@ export const UserProvider = (props) => {
     setInstructions,
     setIsPickup,
     updateCart,
-    loadingProfile,
-    token
+    loadingProfile
   ])
 
   return (

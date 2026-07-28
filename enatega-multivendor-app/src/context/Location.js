@@ -1,11 +1,11 @@
-import React, { createContext, useState, useEffect, useMemo } from 'react'
+import React, { createContext, useState, useEffect, useMemo, useContext, useRef } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import gql from 'graphql-tag'
 import { useQuery } from '@apollo/client'
 import { getZones } from '../apollo/queries'
 import NetInfo from '@react-native-community/netinfo'
 import { DEMO_DEFAULT_LOCATION, ENABLE_DEMO_DEFAULT_LOCATION } from '../utils/demoDefaultLocation'
-// import * as Network from 'expo-network';
+import AuthContext from './Auth'
 
 const GET_ZONES = gql`
   ${getZones}
@@ -13,12 +13,17 @@ const GET_ZONES = gql`
 export const LocationContext = createContext()
 
 export const LocationProvider = ({ children }) => {
+  const { token, isAuthReady } = useContext(AuthContext)
   const [location, setLocation] = useState(ENABLE_DEMO_DEFAULT_LOCATION ? DEMO_DEFAULT_LOCATION : null)
   const [isLocationLoaded, setIsLocationLoaded] = useState(ENABLE_DEMO_DEFAULT_LOCATION)
   const [cities, setCities] = useState([])
   const [permissionState, setPermissionState] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
+  const hasHydratedLocationRef = useRef(false)
+  const locationRef = useRef(location)
   const { loading, error, data, refetch } = useQuery(GET_ZONES)
+
+  locationRef.current = location
 
   const sanitizeLocationForStorage = (value) => {
     if (!value) return value
@@ -34,55 +39,84 @@ export const LocationProvider = ({ children }) => {
   }
 
   useEffect(() => {
-    if (location) {
-      const saveLocation = async () => {
-        await AsyncStorage.setItem('location', JSON.stringify(sanitizeLocationForStorage(location)))
-      }
+    if (!isLocationLoaded) return
 
-      saveLocation()
+    if (!token) {
+      AsyncStorage.removeItem('location').catch(() => {})
+      return
     }
-  }, [location])
+
+    if (location) {
+      AsyncStorage.setItem('location', JSON.stringify(sanitizeLocationForStorage(location))).catch(() => {})
+    } else {
+      AsyncStorage.removeItem('location').catch(() => {})
+    }
+  }, [location, isLocationLoaded, token])
 
   useEffect(() => {
-    const getActiveLocation = async () => {
+    if (!isAuthReady) return undefined
+
+    let cancelled = false
+    ;(async () => {
       try {
         if (ENABLE_DEMO_DEFAULT_LOCATION) {
-          setLocation(DEMO_DEFAULT_LOCATION)
+          if (!cancelled) setLocation(DEMO_DEFAULT_LOCATION)
           return
         }
 
-        const locationStr = await AsyncStorage.getItem('location')
-        if (locationStr) {
-          setLocation(JSON.parse(locationStr))
+        if (!token) {
+          await AsyncStorage.removeItem('location')
+          if (!hasHydratedLocationRef.current) {
+            if (!cancelled) setLocation(null)
+            hasHydratedLocationRef.current = true
+          }
+          return
+        }
+
+        if (!hasHydratedLocationRef.current) {
+          const locationStr = await AsyncStorage.getItem('location')
+          if (!cancelled && locationStr) {
+            setLocation(JSON.parse(locationStr))
+          }
+          hasHydratedLocationRef.current = true
+          return
+        }
+
+        // Guest logged in with a location already chosen — persist it.
+        const current = locationRef.current
+        if (current) {
+          await AsyncStorage.setItem('location', JSON.stringify(sanitizeLocationForStorage(current)))
         }
       } catch (err) {
         console.log(err)
       } finally {
-        setIsLocationLoaded(true)
+        if (!cancelled) setIsLocationLoaded(true)
       }
+    })()
+
+    return () => {
+      cancelled = true
     }
+  }, [isAuthReady, token])
 
-    getActiveLocation()
-
+  useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsConnected(state.isConnected) // Update connectivity status
+      setIsConnected(state.isConnected)
     })
 
-    return () => unsubscribe() // Clean up the listener
+    return () => unsubscribe()
   }, [])
 
-  // show zones as cities
   useEffect(() => {
     if (!loading && !error && data) {
       const fetchedZones = data.zones || []
 
-      // Function to calculate centroid of a polygon
       const calculateCentroid = (coordinates) => {
         let x = 0,
           y = 0,
           area = 0
 
-        const points = coordinates[0] // Assuming the first array contains the coordinates
+        const points = coordinates[0]
 
         for (let i = 0; i < points?.length - 1; i++) {
           const x0 = points[i][0]
@@ -102,7 +136,6 @@ export const LocationProvider = ({ children }) => {
         return { latitude: y, longitude: x }
       }
 
-      // Calculate centroids for each zone
       const centroids = fetchedZones.map((zone) => {
         const centroid = calculateCentroid(zone.location.coordinates)
         return {
@@ -113,13 +146,13 @@ export const LocationProvider = ({ children }) => {
         }
       })
 
-      // Set this as the cities or the midpoint
       setCities(centroids)
     }
   }, [loading, error, data])
+
   useEffect(() => {
     if (isConnected) {
-      refetch() // Refetch the data when the internet is back
+      refetch()
     }
   }, [isConnected, refetch])
 

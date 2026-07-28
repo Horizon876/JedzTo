@@ -4,9 +4,9 @@ import { scale } from '../../../utils/scaling'
 const styles = () =>
   StyleSheet.create({
     section: {
-      backgroundColor: '#121212',
-      paddingTop: scale(2),
-      paddingBottom: scale(6),
+      backgroundColor: '#222222',
+      paddingTop: scale(6),
+      paddingBottom: scale(14),
       gap: scale(10)
     },
     headerRow: {
@@ -15,34 +15,30 @@ const styles = () =>
       justifyContent: 'space-between',
       paddingHorizontal: scale(16)
     },
-    seeAll: {
-      textDecorationLine: 'underline'
-    },
     scrollContent: {
       paddingHorizontal: scale(16),
-      gap: scale(12),
-      paddingBottom: scale(4)
+      gap: scale(10),
+      paddingBottom: scale(2)
     },
     item: {
-      width: scale(88),
+      width: scale(72),
       alignItems: 'center',
-      gap: scale(8)
+      gap: scale(6)
     },
-    squircle: {
-      width: scale(84),
-      height: scale(84),
-      borderRadius: scale(22),
+    tile: {
+      width: scale(68),
+      height: scale(68),
+      borderRadius: scale(34),
       overflow: 'hidden',
       justifyContent: 'center',
       alignItems: 'center'
     },
     image: {
-      width: '92%',
-      height: '92%'
+      width: '100%',
+      height: '100%'
     },
     label: {
-      width: scale(88),
-      minHeight: scale(32)
+      width: scale(72)
     }
   })
 

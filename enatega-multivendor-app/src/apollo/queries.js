@@ -372,6 +372,8 @@ export const restaurantCarouselPreviewFragment = gql`
     tags
     reviewCount
     reviewAverage
+    deliveryFee
+    deliveryAreaName
     location {
       coordinates
     }
@@ -806,6 +808,9 @@ export const restaurantListPreview = `query Restaurants($latitude:Float,$longitu
       distanceWithCurrentLocation @client
       freeDelivery
       acceptVouchers
+      deliveryFee
+      deliveryAreaName
+      address
       location{coordinates}
       openingTimes{
         day
@@ -921,6 +926,10 @@ export const restaurant = `query Restaurant($id:String){
     cuisines
     stripeDetailsSubmitted
     shopType
+    bussinessDetails {
+      bussinessRegNo
+      companyRegNo
+    }
   }
 }`
 
@@ -1250,6 +1259,18 @@ export const getZones = `query Zones{
   description
   location{coordinates}
   isActive
+  }
+}`
+
+// Whether a restaurant delivers to the customer's address, and for how much.
+// The fee comes from the delivery area the vendor configured, not from a
+// distance calculation.
+export const deliveryQuote = `query DeliveryQuote($restaurantId:ID!,$latitude:Float!,$longitude:Float!){
+  deliveryQuote(restaurantId:$restaurantId,latitude:$latitude,longitude:$longitude){
+    available
+    fee
+    minOrder
+    areaName
   }
 }`
 

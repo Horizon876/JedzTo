@@ -1,5 +1,6 @@
 import * as Yup from 'yup';
 import { IDropdownSelectItem } from '../interfaces';
+import { imageUrlSchema } from './image-url';
 
 export const FoodSchema = Yup.object().shape({
   title: Yup.string()
@@ -14,5 +15,5 @@ export const FoodSchema = Yup.object().shape({
     .nullable(),
   category: Yup.mixed<IDropdownSelectItem>().required('Required'),
   subCategory: Yup.mixed<IDropdownSelectItem>().nullable().optional(),
-  image: Yup.string().url('Invalid image URL').required('Required'),
+  image: imageUrlSchema(),
 });

@@ -1,136 +1,115 @@
 import { scale } from '../../../utils/scaling'
 import { Dimensions, Platform, StyleSheet } from 'react-native'
-import { alignment } from '../../../utils/alignment'
-import { subtleCardShadow } from '../../../utils/cardShadows'
+
 const { height } = Dimensions.get('window')
+const FREE_GREEN_BG = '#1A3D2A'
 
 const buildStyles = (props = null) => {
-  const isDarkMode = props?.cardBackground === '#181818' || props?.themeBackground === '#000'
-  const chipBackground = isDarkMode ? 'rgba(17, 24, 39, 0.82)' : 'rgba(255, 255, 255, 0.92)'
-  const chipBorder = isDarkMode ? 'rgba(255, 255, 255, 0.14)' : '#E5E7EB'
-
   return StyleSheet.create({
     offerContainer: {
-      borderRadius: 26,
-      width: scale(270),
-      height: height * (Platform.OS === 'ios' ? 0.395 : 0.376),
-      ...alignment.MRsmall,
-      backgroundColor: props != null ? props?.cardBackground : '#181818',
-      ...subtleCardShadow
+      borderRadius: 18,
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      width: scale(250),
+      height: height * (Platform.OS === 'ios' ? 0.33 : 0.31),
+      marginRight: scale(12),
+      backgroundColor: '#1C1C1E',
+      overflow: 'hidden'
+    },
+    offerContainerFull: {
+      width: '100%',
+      marginRight: 0,
+      height: 'auto',
+      minHeight: scale(260),
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderTopRightRadius: 18,
+      borderBottomRightRadius: 18
     },
     cardSurface: {
       flex: 1,
-      borderRadius: 26,
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderTopRightRadius: 18,
+      borderBottomRightRadius: 18,
       overflow: 'hidden',
-      backgroundColor: props != null ? props?.cardBackground : '#181818',
-      borderWidth: 1,
-      borderColor: props != null ? (isDarkMode ? props?.lightHorizontalLine : props?.newBorderColor) : '#232323'
+      backgroundColor: '#1C1C1E'
     },
     cardBody: {
       flex: 1,
-      backgroundColor: props != null ? props?.cardBackground : '#181818'
-    },
-    overlayContainer: {
-      position: 'absolute',
-      top: 0,
-      height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0)',
-      width: scale(270),
-      pointerEvents: 'box-none'
+      backgroundColor: '#1C1C1E'
     },
     favouriteOverlay: {
-      position: 'absolute',
-      top: 10,
-      ...props?.isRTL ? { left: 10 } : { right: 10 },
-      width: scale(38),
-      height: scale(28),
+      width: scale(32),
+      height: scale(32),
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 1,
-      borderRadius: scale(14),
-      backgroundColor: chipBackground,
-      borderWidth: 1,
-      borderColor: chipBorder
+      borderRadius: scale(16),
+      backgroundColor: 'rgba(0, 0, 0, 0.45)'
     },
     descriptionContainer: {
-      paddingHorizontal: scale(12),
+      paddingHorizontal: scale(14),
       paddingTop: scale(12),
-      paddingBottom: Platform.OS === 'ios' ? scale(16) : scale(12),
+      paddingBottom: scale(14),
       width: '100%',
-      height: Platform.OS === 'ios' ? '36%' : '35%',
-      justifyContent: 'space-between',
-      alignItems: 'stretch',
-      gap: scale(8)
-    },
-    titleRow: {
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      justifyContent: 'flex-start',
-      alignItems: 'center',
       gap: scale(8)
     },
     titleText: {
-      flex: 1,
       textAlign: props?.isRTL ? 'right' : 'left'
-    },
-    offerCategoty: {
-      width: '100%',
-      textAlign: props?.isRTL ? 'right' : 'left'
-    },
-    mainContainer: {
-      paddingTop: scale(15),
-      marginBottom: scale(15),
-      borderTopLeftRadius: scale(20),
-      borderTopRightRadius: scale(20),
-      borderTopColor: '#ebebeb',
-      borderTopWidth: scale(3)
     },
     restaurantImage: {
       width: '100%',
-      height: '100%',
-      borderTopLeftRadius: scale(20),
-      borderTopRightRadius: scale(20)
+      height: '100%'
     },
     imageContainer: {
       position: 'relative',
       alignItems: 'center',
-      height: '62%'
+      height: '68%',
+      overflow: 'hidden'
     },
-    restaurantTotalRating: {
-      paddingLeft: scale(5)
+    imageContainerFull: {
+      height: scale(150)
     },
-    restaurantPriceContainer: {
-      marginTop: scale(3),
-      fontSize: 15
-    },
-    deliveryInfo: {
+    topMetaRow: {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: scale(18)
+      gap: scale(8)
+    },
+    ratingGroup: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(4)
+    },
+    topMetaText: {
+      fontSize: scale(14),
+      lineHeight: scale(18),
+      includeFontPadding: false,
+      textAlignVertical: 'center'
+    },
+    bottomBlock: {
+      gap: scale(8),
+      marginTop: scale(2)
+    },
+    freeDeliveryBadge: {
+      alignSelf: props?.isRTL ? 'flex-end' : 'flex-start',
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(6),
+      backgroundColor: FREE_GREEN_BG,
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(6),
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderTopRightRadius: scale(14),
+      borderBottomRightRadius: scale(14)
     },
     metaRow: {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: scale(8),
-      flexWrap: 'wrap'
+      gap: scale(6)
     },
-    metaPill: {
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: scale(4),
-      paddingVertical: scale(6),
-      paddingHorizontal: scale(9),
-      borderRadius: scale(999),
-      backgroundColor: chipBackground,
-      borderWidth: 1,
-      borderColor: chipBorder
-    }, 
-    border: {
-      width: '100%',
-      height: 1,
-      borderWidth: 1,
-      borderColor: props != null ? (isDarkMode ? props?.lightHorizontalLine : props?.iconBackground) : '#E5E7EB',
-      borderStyle: 'solid',
-      opacity: 0.8
+    metaText: {
+      flex: 1
     },
     closedOverlay: {
       position: 'absolute',
@@ -138,42 +117,13 @@ const buildStyles = (props = null) => {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(150, 150, 150, 0.7)',
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
       justifyContent: 'center',
-      alignItems: 'center',
-    },
-    badgeRow: {
-      position: 'absolute',
-      top: scale(10),
-      ...(props?.isRTL ? { right: scale(10), left: scale(58) } : { left: scale(10), right: scale(58) }),
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center'
-    },
-    typeBadge: {
-      paddingVertical: scale(5),
-      paddingHorizontal: scale(10),
-      borderRadius: scale(999),
-      backgroundColor: chipBackground,
-      borderWidth: 1,
-      borderColor: chipBorder
-    },
-    ratingBadge: {
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: scale(4),
-      paddingVertical: scale(5),
-      paddingHorizontal: scale(9),
-      borderRadius: scale(999),
-      backgroundColor: chipBackground,
-      borderWidth: 1,
-      borderColor: chipBorder
     }
   })
 }
 
-// NewRestaurantCard renders once per restaurant in every horizontal row on the
-// Discovery page and calls styles(currentTheme) many times per render. Cache the
-// built stylesheet per theme so it isn't rebuilt each time.
 const NULL_KEY = { __nullTheme: true }
 const stylesCache = new WeakMap()
 

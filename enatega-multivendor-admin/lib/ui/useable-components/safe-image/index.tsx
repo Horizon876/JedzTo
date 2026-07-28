@@ -5,9 +5,11 @@ const DIRECT_IMAGE_HOSTS = new Set(['assets.enatega.com']);
 function shouldBypassOptimization(src: ImageProps['src']) {
   if (typeof src !== 'string') return false;
   if (src.startsWith('blob:') || src.startsWith('data:')) return true;
+  if (src.includes('/uploads/')) return true;
 
   try {
     const { hostname, protocol } = new URL(src);
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
     return protocol === 'https:' && DIRECT_IMAGE_HOSTS.has(hostname);
   } catch {
     return false;

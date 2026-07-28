@@ -20,3 +20,5 @@ export * from './food';
 export * from './app-versions';
 export * from './shop-type';
 export * from './upload';
+export * from './delivery-areas';
+export * from './menu-publishing';

@@ -23,6 +23,7 @@ const useEnvVars = (env = Updates.channel) => {
     ANDROID_CLIENT_ID_GOOGLE: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     AMPLITUDE_API_KEY: configuration?.appAmplitudeApiKey,
     GOOGLE_MAPS_KEY: googleMapsKey,
+    MAPBOX_ACCESS_TOKEN: process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN,
     EXPO_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     SENTRY_DSN: configuration?.customerAppSentryUrl ?? 'https://4213c02977911e1b75898c93cc5517fb@o1103026.ingest.us.sentry.io/4508662470803456',
     TERMS_AND_CONDITIONS: configuration?.termsAndConditions,

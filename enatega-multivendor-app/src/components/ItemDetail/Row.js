@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import { IMAGE_LINK } from '../../utils/constants'
 import CachedImage from '../CachedImage'
+import { formatMoney } from '../../utils/formatMoney'
 
 const FOOD = gql`${food}`
 
@@ -47,7 +48,7 @@ export default function Row({ id, restaurant }) {
 
       <View mainContainer style={{ flex: 3, alignSelf: 'center', alignContent: 'center', paddingHorizontal: scale(10) }}>
         <TextDefault bolder small textColor={currentTheme.newFontcolor} style={{ marginBottom: scale(10), }} isRTL>{food?.title}</TextDefault>
-        <TextDefault bolder small textColor={currentTheme.newFontcolor} isRTL>{`${configuration.currencySymbol}${food?.variations[0].price}`}</TextDefault>
+        <TextDefault bolder small textColor={currentTheme.newFontcolor} isRTL>{formatMoney(food?.variations[0].price, configuration.currencySymbol)}</TextDefault>
       </View>
       <View rightContainer style={{ flex: 1, justifyContent: 'center', alignItems: currentTheme?.isRTL ? 'flex-start' : 'flex-end' }}>
         <View

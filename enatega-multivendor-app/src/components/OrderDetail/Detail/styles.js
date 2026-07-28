@@ -1,60 +1,107 @@
 import { StyleSheet, Dimensions } from 'react-native'
-import { fontStyles } from '../../../utils/fontStyles'
-import { scale, verticalScale } from '../../../utils/scaling'
-const { width: WIDTH } = Dimensions.get('window')
-export default StyleSheet.create({
-  container: theme => ({
-    marginHorizontal: scale(10),
-  }),
-  line: theme => ({
-    height: 1,
-    width: '90%',
-    backgroundColor: theme.secondaryText
-  }),
-  chatButton: theme => ({
-    paddingVertical: scale(25),
-    // paddingHorizontal: scale(100),
-    backgroundColor: theme.themeBackground,
-    borderRadius: scale(20),
-    flexDirection: theme?.isRTL ? 'row-reverse' : 'row'
-  }),
+import { scale } from '../../../utils/scaling'
 
-  orderDetailsContainer: theme => ({
-    backgroundColor: theme.themeBackground
+const SURFACE = '#1C1C1E'
+const HAIRLINE = '#2C2C2E'
+const MUTED = '#8E8E93'
+const ACCENT = '#00A8FF'
+const { width: WIDTH } = Dimensions.get('window')
+
+export default StyleSheet.create({
+  container: () => ({
+    width: '100%',
+    marginTop: scale(8)
   }),
-  addressContainer: {
-    width: WIDTH - 20
+  header: {
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(12),
+    backgroundColor: SURFACE,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIRLINE
   },
-  row: {
-    paddingTop: scale(25),
-    flexDirection: 'row'
+  restaurantName: {
+    color: MUTED,
+    fontSize: scale(13),
+    marginBottom: scale(4)
   },
-  itemsContainer: {
-    width: WIDTH - 20,
+  orderNoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6)
   },
-  line2: theme => ({
-    marginVertical: scale(10),
-    backgroundColor: theme.secondaryText,
-    height: scale(1),
+  orderLabel: {
+    color: '#FFFFFF'
+  },
+  orderNo: {
+    color: ACCENT
+  },
+  addressText: {
+    color: MUTED,
+    fontSize: scale(13),
+    marginTop: scale(8),
+    lineHeight: scale(18)
+  },
+  chatButton: (theme) => ({
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(14),
+    backgroundColor: SURFACE,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIRLINE,
+    flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
     width: '100%'
   }),
-  itemRow: theme=>({
+  itemsContainer: {
+    width: '100%'
+  },
+  itemRow: (theme) => ({
+    width: '100%',
     flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
-    alignItems: 'center', 
-    marginVertical: scale(5),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.gray100,
-    borderRadius: scale(10)
+    alignItems: 'center',
+    gap: scale(12),
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(12),
+    backgroundColor: SURFACE,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIRLINE
   }),
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: scale(10)
+  itemImage: {
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(12),
+    backgroundColor: HAIRLINE
   },
-  chatIcon: theme => ({
+  itemMeta: {
     flex: 1,
-    alignItems: theme?.isRTL ? 'flex-start' : 'flex-end',
+    minWidth: 0,
+    gap: scale(3)
+  },
+  itemTitle: {
+    color: '#FFFFFF',
+    fontSize: scale(15)
+  },
+  itemSub: {
+    color: MUTED,
+    fontSize: scale(12)
+  },
+  itemPrice: {
+    color: '#FFFFFF'
+  },
+  qtyBadge: {
+    minWidth: scale(30),
+    height: scale(30),
+    borderRadius: scale(15),
+    backgroundColor: '#2C2C2E',
+    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: scale(8)
+  },
+  chatIcon: (theme) => ({
+    flex: 0,
+    alignItems: theme?.isRTL ? 'flex-start' : 'flex-end',
+    justifyContent: 'center'
   })
 })
+
+export { SURFACE, HAIRLINE, MUTED, ACCENT, WIDTH }

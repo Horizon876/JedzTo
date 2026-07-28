@@ -13,7 +13,7 @@ const getEnvVars = (env = Updates.channel) => {
     loadDevMessages();
     loadErrorMessages();
   }
-  const localHost = process.env.EXPO_PUBLIC_JEDZTO_API_HOST || "10.18.254.25";
+  const localHost = process.env.EXPO_PUBLIC_JEDZTO_API_HOST || "192.168.55.107";
 
   if (!__DEV__) {
     return {

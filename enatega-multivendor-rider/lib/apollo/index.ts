@@ -9,17 +9,17 @@ import {
   split,
 } from "@apollo/client";
 import { onError } from "@apollo/client/link/error";
-import { WebSocketLink } from "@apollo/client/link/ws";
+import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import {
   getMainDefinition,
   offsetLimitPagination,
 } from "@apollo/client/utilities";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createClient } from "graphql-ws";
 import { router } from "expo-router";
 import { Platform } from "react-native";
 import { DefinitionNode, FragmentDefinitionNode } from "graphql";
 import { Subscription } from "zen-observable-ts";
-import { SubscriptionClient } from "subscriptions-transport-ws";
 import useEnvVars from "../../environment";
 import { RIDER_ID, RIDER_TOKEN } from "../utils/constants";
 import { getSecureItem, removeSecureItem } from "../services/secure-storage";
@@ -100,6 +100,25 @@ const setupApollo = () => {
           },
         },
       },
+      Order: {
+        fields: {
+          deliveryAddress: {
+            merge(_existing, incoming) {
+              return incoming;
+            },
+          },
+        },
+      },
+      DeliveryAddress: {
+        keyFields: ["id"],
+        fields: {
+          location: {
+            merge(_existing, incoming) {
+              return incoming;
+            },
+          },
+        },
+      },
       RestaurantPreview: {
         fields: {
           distanceWithCurrentLocation: {
@@ -129,11 +148,14 @@ const setupApollo = () => {
     uri: GRAPHQL_URL,
   });
 
-  const wsClient = new SubscriptionClient(
-    WS_GRAPHQL_URL,
-    {
-      reconnect: true,
+  // Match jedzto-local-api's graphql-ws server (subscriptions-transport-ws
+  // never connected, so kitchen/customer never got live order pushes).
+  const wsLink = new GraphQLWsLink(
+    createClient({
+      url: WS_GRAPHQL_URL,
       lazy: true,
+      retryAttempts: Infinity,
+      shouldRetry: () => true,
       connectionParams: async () => {
         const token = await getSecureItem(RIDER_TOKEN);
         const nonce = PublicAccessTokenService.getNonce();
@@ -151,16 +173,15 @@ const setupApollo = () => {
           nonce: nonce || "",
         };
       },
-      connectionCallback: (error) => {
-        if (error && __DEV__) {
-          console.warn("WebSocket connection error");
-        }
+      on: {
+        error: () => {
+          if (__DEV__) {
+            console.warn("WebSocket connection error");
+          }
+        },
       },
-    },
-    WebSocket
+    })
   );
-
-  const wsLink = new WebSocketLink(wsClient);
 
   const request = async (operation: Operation) => {
     const skipPublicAuth =

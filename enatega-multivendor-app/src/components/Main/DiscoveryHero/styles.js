@@ -4,7 +4,7 @@ import { scale } from '../../../utils/scaling'
 const styles = (props = null) =>
   StyleSheet.create({
     hero: {
-      backgroundColor: '#121212',
+      backgroundColor: '#222222',
       paddingBottom: scale(10),
       paddingHorizontal: scale(16),
       gap: scale(10)
@@ -12,7 +12,7 @@ const styles = (props = null) =>
     topRow: {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: scale(10)
+      gap: scale(12)
     },
     addressRow: {
       flex: 1,
@@ -27,17 +27,17 @@ const styles = (props = null) =>
     toggleContainer: {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      backgroundColor: '#2A2A2A',
-      borderRadius: scale(22),
-      padding: scale(3),
+      backgroundColor: '#333333',
+      borderRadius: scale(16),
+      padding: scale(2),
       borderWidth: 1,
-      borderColor: '#3A3A3A'
+      borderColor: '#404040'
     },
     toggleSegment: {
-      minWidth: scale(36),
-      height: scale(34),
-      borderRadius: scale(18),
-      paddingHorizontal: scale(10),
+      minWidth: scale(52),
+      height: scale(28),
+      borderRadius: scale(14),
+      paddingHorizontal: scale(14),
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
@@ -49,29 +49,18 @@ const styles = (props = null) =>
     toggleLabel: {
       marginTop: 1
     },
-    searchRow: {
-      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: scale(12)
-    },
     searchBar: {
-      flex: 1,
+      width: '100%',
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: scale(10),
-      backgroundColor: '#2E2E2E',
+      backgroundColor: '#333333',
       borderRadius: scale(24),
       paddingHorizontal: scale(14),
       height: scale(46)
     },
     searchPlaceholder: {
       flex: 1
-    },
-    filterButton: {
-      width: scale(40),
-      height: scale(40),
-      justifyContent: 'center',
-      alignItems: 'center'
     }
   })
 

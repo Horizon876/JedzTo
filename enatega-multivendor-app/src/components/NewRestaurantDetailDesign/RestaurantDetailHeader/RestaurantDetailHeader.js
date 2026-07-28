@@ -20,6 +20,7 @@ import Bicycle from '../../../assets/SVG/Bicycle'
 import { scale } from '../../../utils/scaling'
 import styles from './styles'
 import CachedImage from '../../CachedImage'
+import { formatMoney } from '../../../utils/formatMoney'
 
 function RestaurantDetailHeader({
   restaurant,
@@ -126,7 +127,7 @@ function RestaurantDetailHeader({
               textColor={currentTheme.fontMainColor}
               bold
             >
-              {configuration.currencySymbol}{configuration?.deliveryRate}
+              {formatMoney(configuration?.deliveryRate, configuration.currencySymbol)}
             </TextDefault>
           </View>
 
@@ -150,7 +151,7 @@ function RestaurantDetailHeader({
               textColor={currentTheme.fontMainColor}
               bold
             >
-              {configuration.currencySymbol}{restaurant?.minimumOrder}
+              {formatMoney(restaurant?.minimumOrder, configuration.currencySymbol, { decimals: 0 })}
             </TextDefault>
           </View>
         </View>

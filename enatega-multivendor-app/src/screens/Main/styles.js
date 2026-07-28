@@ -9,8 +9,7 @@ const MODAL_HEIGHT = Math.floor(SCREEN_HEIGHT / 4)
 const styles = (props = null, hasActiveOrders = false) =>
   StyleSheet.create({
     flex: {
-      // flex: 1
-      // ...alignment.PBlarge
+      flex: 1
     },
     mainItemsContainer: {
       flexDirection: 'row',

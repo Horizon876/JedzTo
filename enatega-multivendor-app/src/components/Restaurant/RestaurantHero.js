@@ -1,26 +1,40 @@
 import React, { memo, useContext, useMemo } from 'react'
-import { StyleSheet, TouchableOpacity, View } from 'react-native'
-import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons'
-import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated'
-import { useNavigation } from '@react-navigation/native'
+import { StyleSheet, View } from 'react-native'
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
+import UserContext from '../../context/User'
 import { theme } from '../../utils/themeColors'
 import { scale } from '../../utils/scaling'
-import { alignment } from '../../utils/alignment'
 import TextDefault from '../Text/TextDefault/TextDefault'
 import FavoriteButton from '../FavButton/FavouriteButton'
-import Bicycle from '../../assets/SVG/Bicycle'
 import ShimmerImage from '../ShimmerImage/ShimmerImage'
-import { resolveLogoImage, resolveRestaurantImage } from '../../utils/resolveImageUrl'
+import { resolveRestaurantImage } from '../../utils/resolveImageUrl'
+import ConfigurationContext from '../../context/Configuration'
+import { formatMoney } from '../../utils/formatMoney'
 
-const HERO_IMAGE_HEIGHT = scale(250)
-const HERO_CARD_OFFSET = scale(34)
-const HERO_TRANSLATE_DISTANCE = scale(18)
+const HERO_IMAGE_HEIGHT = scale(180)
+const META_ICON_SIZE = 16
+const META_ICON_SLOT = scale(20)
+const CONTENT_PAD_X = scale(14)
+const BADGE_PAD_X = scale(10)
+const ACCENT = '#00A8FF'
+const MUTED = '#8E8E93'
+const FREE_GREEN = '#1DB954'
+const FREE_GREEN_BG = '#1A3D2A'
 
-function RestaurantHero({ aboutObject, displayedDeliveryMinutes, scrollY, fadeDistance }) {
-  const navigation = useNavigation()
+function formatRating(value) {
+  if (value == null || value === '' || value === '...') return null
+  const num = Number(value)
+  if (Number.isNaN(num)) return String(value)
+  return num.toFixed(1).replace('.', ',')
+}
+
+function RestaurantHero({ aboutObject, displayedDeliveryMinutes }) {
   const themeContext = useContext(ThemeContext)
+  const configuration = useContext(ConfigurationContext)
+  const userContext = useContext(UserContext)
+  const isPickup = !!userContext?.isPickup
   const { t, i18n } = useTranslation()
   const currentTheme = useMemo(
     () => ({
@@ -30,201 +44,247 @@ function RestaurantHero({ aboutObject, displayedDeliveryMinutes, scrollY, fadeDi
     [i18n, themeContext.ThemeValue]
   )
 
-  const currentDayShort = useMemo(() => new Date().toLocaleString('en-US', { weekday: 'short' }).toUpperCase(), [])
-  const todayOpeningTimes = aboutObject?.openingTimes?.find((opening) => opening.day === currentDayShort)
   const heroImageUrl = useMemo(() => resolveRestaurantImage(aboutObject) || null, [aboutObject])
-  const logoImageUrl = useMemo(() => resolveLogoImage(aboutObject) || heroImageUrl, [aboutObject, heroImageUrl])
+  const categoryLabel = aboutObject?.restaurantCuisines?.[0] || null
+  const ratingLabel = formatRating(aboutObject?.average)
+  const reviewCount =
+    aboutObject?.reviewsCount != null && aboutObject.reviewsCount !== '...'
+      ? Number(aboutObject.reviewsCount)
+      : aboutObject?.total != null && aboutObject.total !== '...'
+        ? Number(aboutObject.total)
+        : null
 
-  const heroAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, fadeDistance * 0.6, fadeDistance], [1, 0.45, 0], Extrapolation.CLAMP),
-    transform: [
-      {
-        translateY: interpolate(scrollY.value, [0, fadeDistance], [0, -HERO_TRANSLATE_DISTANCE], Extrapolation.CLAMP)
-      }
-    ]
-  }))
+  const minimumOrder = aboutObject?.minimumOrder ?? aboutObject?.restaurantMinOrder
+  const hasMinimumOrder = minimumOrder != null && minimumOrder !== '' && !Number.isNaN(Number(minimumOrder))
+
+  const isFreeDelivery = aboutObject?.freeDelivery || aboutObject?.deliveryFee === 0
+  const paidDeliveryLabel =
+    aboutObject?.deliveryFee != null
+      ? formatMoney(aboutObject.deliveryFee, configuration?.currencySymbol)
+      : formatMoney(configuration?.deliveryRate ?? 0, configuration?.currencySymbol)
+
+  const openUntilLabel = useMemo(() => {
+    try {
+      const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+      const todaysTimings = aboutObject?.openingTimes?.find((o) => o.day === days[new Date().getDay()])
+      if (!todaysTimings?.times?.length) return t('Closed')
+
+      const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
+      const activeSlot =
+        todaysTimings.times.find((slot) => {
+          if (!Array.isArray(slot?.startTime) || !Array.isArray(slot?.endTime)) return false
+          const start = Number(slot.startTime[0]) * 60 + Number(slot.startTime[1])
+          const end = Number(slot.endTime[0]) * 60 + Number(slot.endTime[1])
+          return nowMinutes >= start && nowMinutes <= end
+        }) || todaysTimings.times[todaysTimings.times.length - 1]
+
+      if (!Array.isArray(activeSlot?.endTime)) return t('Closed')
+      if (!aboutObject?.IsOpen) return t('Closed')
+
+      const endHour = String(activeSlot.endTime[0]).padStart(2, '0')
+      const endMinute = String(activeSlot.endTime[1]).padStart(2, '0')
+      return `${t('openUntil')} ${endHour}:${endMinute}`
+    } catch {
+      return t('Closed')
+    }
+  }, [aboutObject?.openingTimes, aboutObject?.IsOpen, t])
+
+  const badgeLabel = isPickup
+    ? openUntilLabel
+    : isFreeDelivery
+      ? t('freeDelivery')
+      : `${t('deliveryFee')}: ${paidDeliveryLabel}`
 
   return (
-    <Animated.View style={[styles(currentTheme).container, heroAnimatedStyle]}>
-      <ShimmerImage
-        imageUrl={heroImageUrl}
-        style={styles(currentTheme).heroImage}
-        resizeMode='cover'
-        defaultSource={require('../../assets/images/food_placeholder.png')}
-      />
-
-      <View style={styles(currentTheme).card}>
-        <View style={styles(currentTheme).titleRow}>
-          <View style={styles(currentTheme).titleContainer}>
-            <ShimmerImage
-              resizeMode='cover'
-              style={styles(currentTheme).logo}
-              imageUrl={logoImageUrl}
-              defaultSource={require('../../assets/images/defaultLogo.png')}
-            />
-            <TextDefault numberOfLines={2} H3 bolder textColor={currentTheme.fontThirdColor} style={styles(currentTheme).titleText}>
-              {aboutObject?.restaurantName}
-            </TextDefault>
+    <View style={styles(currentTheme).container}>
+      <View style={styles(currentTheme).cardSurface}>
+        <View style={styles(currentTheme).imageContainer}>
+          <ShimmerImage
+            imageUrl={heroImageUrl}
+            style={styles().heroImage}
+            resizeMode='cover'
+            defaultSource={require('../../assets/images/food_placeholder.png')}
+          />
+          <View style={styles(currentTheme).favouriteOverlay}>
+            <FavoriteButton iconSize={scale(22)} restaurantId={aboutObject?.restaurantId} />
           </View>
-          <FavoriteButton iconSize={scale(24)} restaurantId={aboutObject?.restaurantId} />
         </View>
 
-        <TextDefault textColor={currentTheme.fontThirdColor} H5 bold isRTL>
-          {aboutObject?.restaurantCuisines?.join(', ')}
-        </TextDefault>
+        <View style={styles(currentTheme).descriptionContainer}>
+          <TextDefault H5 numberOfLines={2} textColor='#FFFFFF' bolder style={styles(currentTheme).titleText}>
+            {aboutObject?.restaurantName}
+          </TextDefault>
 
-        <View style={styles(currentTheme).spacedRow}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles(currentTheme).ratingBox}
-            onPress={() => {
-              navigation.navigate('Reviews', {
-                restaurantObject: { ...aboutObject, isOpen: null },
-                tab: false
-              })
-            }}
-          >
-            <FontAwesome5 name='smile' size={scale(20)} color={currentTheme.newIconColor} />
-            <TextDefault textColor={currentTheme.fontNewColor} bold H5 isRTL>
-              {aboutObject?.average}
-            </TextDefault>
-            <TextDefault textColor={currentTheme.fontNewColor} bold H5 isRTL>
-              {aboutObject?.reviewsCount ?? 0} review(s)
-            </TextDefault>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles(currentTheme).actionButton}
-            activeOpacity={0.8}
-            onPress={() => {
-              navigation.navigate('Reviews', {
-                restaurantObject: { ...aboutObject, isOpen: null },
-                tab: false
-              })
-            }}
-          >
-            <TextDefault bolder textColor={currentTheme.main}>
-              {t('seeReviews')}
-            </TextDefault>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles(currentTheme).spacedRow}>
-          <View style={styles(currentTheme).ratingBox}>
-            <MaterialCommunityIcons name='timer-outline' size={scale(20)} color={currentTheme.newIconColor} />
-            {todayOpeningTimes && (
-              <View style={styles(currentTheme).timingRow}>
-                <TextDefault textColor={currentTheme.fontThirdColor} bold isRTL>
-                  {t(todayOpeningTimes?.day)}{' '}
-                </TextDefault>
-                {todayOpeningTimes?.times?.length < 1 ? (
-                  <TextDefault small bold center isRTL>
-                    {t('ClosedAllDay')}
+          {(ratingLabel || categoryLabel) ? (
+            <View style={styles(currentTheme).topMetaRow}>
+              {ratingLabel ? (
+                <View style={styles(currentTheme).ratingGroup}>
+                  <TextDefault style={styles().topMetaText} textColor='#FFFFFF' bolder>
+                    {ratingLabel}
                   </TextDefault>
-                ) : (
-                  todayOpeningTimes?.times?.map((timing, index) => (
-                    <TextDefault key={index} textColor={currentTheme.fontThirdColor} bold isRTL>
-                      {timing.startTime[0]}:{timing.startTime[1]} - {timing.endTime[0]}:{timing.endTime[1]}
+                  <MaterialIcons name='star' size={scale(15)} color='#FBBC04' />
+                  {reviewCount != null && !Number.isNaN(reviewCount) ? (
+                    <TextDefault style={styles().topMetaText} textColor='#FFFFFF' bolder>
+                      ({reviewCount})
                     </TextDefault>
-                  ))
+                  ) : null}
+                </View>
+              ) : null}
+              {categoryLabel ? (
+                <TextDefault style={styles().topMetaText} textColor={ACCENT} bolder>
+                  {categoryLabel}
+                </TextDefault>
+              ) : null}
+            </View>
+          ) : null}
+
+          <View style={styles(currentTheme).bottomBlock}>
+            <View style={styles(currentTheme).deliveryBadge}>
+              <View style={styles().metaIconSlot}>
+                {isPickup ? (
+                  <MaterialCommunityIcons name='clock-outline' size={META_ICON_SIZE} color={FREE_GREEN} />
+                ) : (
+                  <MaterialCommunityIcons name='bicycle' size={META_ICON_SIZE} color={FREE_GREEN} />
                 )}
               </View>
-            )}
-          </View>
+              <TextDefault small bolder textColor={FREE_GREEN}>
+                {badgeLabel}
+              </TextDefault>
+            </View>
 
-          <View style={styles(currentTheme).actionButton}>
-            <TextDefault bolder textColor={currentTheme.main}>
-              {!aboutObject?.IsOpen ? t('Closed') : t('Open')}
-            </TextDefault>
-          </View>
-        </View>
+            {hasMinimumOrder ? (
+              <View style={styles(currentTheme).metaRow}>
+                <View style={styles().metaIconSlot}>
+                  <MaterialCommunityIcons name='basket-outline' size={META_ICON_SIZE} color={MUTED} />
+                </View>
+                <TextDefault small textColor={MUTED} style={styles().metaText}>
+                  {t('minimumOrder')} {formatMoney(minimumOrder, configuration?.currencySymbol, { decimals: 0 })}
+                </TextDefault>
+              </View>
+            ) : null}
 
-        <View style={[styles(currentTheme).ratingBox, styles(currentTheme).deliveryRow]}>
-          <Bicycle size={20} color={currentTheme.newFontcolor} />
-          <TextDefault textColor={currentTheme.fontNewColor} bold H5 isRTL>
-            {displayedDeliveryMinutes} {t('Min')}
-          </TextDefault>
+            {aboutObject?.restaurantAddress ? (
+              <View style={styles(currentTheme).metaRow}>
+                <View style={styles().metaIconSlot}>
+                  <MaterialCommunityIcons name='map-marker-outline' size={META_ICON_SIZE} color={MUTED} />
+                </View>
+                <TextDefault numberOfLines={2} small textColor={MUTED} style={styles().metaText}>
+                  {aboutObject.restaurantAddress}
+                </TextDefault>
+              </View>
+            ) : null}
+
+            {!isPickup && displayedDeliveryMinutes != null ? (
+              <View style={styles(currentTheme).metaRow}>
+                <View style={styles().metaIconSlot}>
+                  <MaterialCommunityIcons name='clock-outline' size={META_ICON_SIZE} color={MUTED} />
+                </View>
+                <TextDefault small textColor={MUTED}>
+                  {displayedDeliveryMinutes} {t('Min')}
+                </TextDefault>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
-    </Animated.View>
+    </View>
   )
 }
 
-const styles = (props) =>
+const styles = (props = {}) =>
   StyleSheet.create({
     container: {
-      backgroundColor: props.themeBackground,
-      paddingBottom: scale(18)
+      backgroundColor: '#1C1C1E',
+      paddingBottom: 0
+    },
+    cardSurface: {
+      width: '100%',
+      backgroundColor: '#1C1C1E',
+      borderRadius: 0,
+      overflow: 'hidden'
+    },
+    imageContainer: {
+      width: '100%',
+      height: HERO_IMAGE_HEIGHT,
+      position: 'relative',
+      overflow: 'hidden'
     },
     heroImage: {
       width: '100%',
-      height: HERO_IMAGE_HEIGHT
+      height: '100%'
     },
-    card: {
-      marginTop: -HERO_CARD_OFFSET,
-      marginHorizontal: props.themeBackground === '#fff' ? 0 : scale(14),
-      paddingTop: scale(16),
+    favouriteOverlay: {
+      position: 'absolute',
+      top: scale(12),
+      right: scale(12),
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(18),
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    descriptionContainer: {
+      paddingHorizontal: CONTENT_PAD_X,
+      paddingTop: scale(12),
       paddingBottom: scale(14),
-      borderRadius: scale(22),
-      backgroundColor: props.themeBackground,
-      ...alignment.PLmedium,
-      ...alignment.PRmedium
-    },
-    titleRow: {
-      flexDirection: props.isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      minHeight: scale(60),
-      marginBottom: scale(10)
-    },
-    titleContainer: {
-      flex: 1,
-      flexDirection: props.isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: scale(10),
-      marginRight: props.isRTL ? 0 : scale(10),
-      marginLeft: props.isRTL ? scale(10) : 0
+      width: '100%',
+      gap: scale(8)
     },
     titleText: {
-      flex: 1,
-      flexShrink: 1,
-      marginRight: scale(10)
+      textAlign: props?.isRTL ? 'right' : 'left'
     },
-    logo: {
-      width: scale(60),
-      height: scale(60),
-      borderRadius: 12
-    },
-    spacedRow: {
-      flexDirection: props.isRTL ? 'row-reverse' : 'row',
-      justifyContent: 'space-between',
+    topMetaRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: scale(12),
-      marginTop: scale(10)
+      gap: scale(8)
     },
-    timingRow: {
-      flexDirection: props.isRTL ? 'row-reverse' : 'row',
+    ratingGroup: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: scale(5),
-      flexWrap: 'wrap',
+      gap: scale(4)
+    },
+    topMetaText: {
+      fontSize: scale(14),
+      lineHeight: scale(18),
+      includeFontPadding: false,
+      textAlignVertical: 'center'
+    },
+    bottomBlock: {
+      gap: scale(8),
+      marginTop: scale(2)
+    },
+    deliveryBadge: {
+      alignSelf: props?.isRTL ? 'flex-end' : 'flex-start',
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(6),
+      backgroundColor: FREE_GREEN_BG,
+      paddingHorizontal: BADGE_PAD_X,
+      paddingVertical: scale(6),
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderTopRightRadius: scale(14),
+      borderBottomRightRadius: scale(14),
+      marginLeft: props?.isRTL ? 0 : -CONTENT_PAD_X,
+      marginRight: props?.isRTL ? -CONTENT_PAD_X : 0
+    },
+    metaRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(6),
+      // Align icon column with the bicycle inside the delivery badge
+      marginLeft: props?.isRTL ? 0 : BADGE_PAD_X - CONTENT_PAD_X,
+      marginRight: props?.isRTL ? BADGE_PAD_X - CONTENT_PAD_X : 0
+    },
+    metaIconSlot: {
+      width: META_ICON_SLOT,
+      height: META_ICON_SLOT,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    metaText: {
       flex: 1
-    },
-    ratingBox: {
-      flex: 1,
-      flexDirection: props.isRTL ? 'row-reverse' : 'row',
-      gap: scale(10),
-      alignItems: 'center'
-    },
-    actionButton: {
-      borderRadius: 8,
-      paddingHorizontal: scale(16),
-      paddingVertical: scale(10),
-      backgroundColor: props.newButtonBackground,
-      justifyContent: 'center',
-      alignItems: 'center'
-    },
-    deliveryRow: {
-      marginTop: scale(12)
     }
   })
 

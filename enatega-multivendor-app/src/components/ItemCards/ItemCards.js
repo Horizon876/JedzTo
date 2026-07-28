@@ -7,7 +7,7 @@ import { IMAGE_LINK } from '../../utils/constants'
 import TextDefault from '../Text/TextDefault/TextDefault'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
-import { formatNumber } from '../../utils/formatNumber'
+import { formatMoney } from '../../utils/formatMoney'
 import { LinearGradient } from 'expo-linear-gradient'
 import { RectButton } from 'react-native-gesture-handler'
 import ShimmerImage from '../ShimmerImage/ShimmerImage'
@@ -50,7 +50,7 @@ const ItemCard = ({ item, onPressItem, restaurant, tagCart }) => {
             defaultSource={require('../../assets/images/food_placeholder.png')}
           />
           <View style={styles().popularMenuPrice}>
-            <Text style={{ color: '#1C1C1E', fontSize: scale(12) }}>{`${configuration.currencySymbol}${formatNumber(item?.variations[0].price)}`}</Text>
+            <Text style={{ color: '#1C1C1E', fontSize: scale(12) }}>{formatMoney(item?.variations[0].price, configuration.currencySymbol)}</Text>
             {item?.variations[0]?.discounted > 0 && (
               <Text
                 style={{
@@ -59,7 +59,7 @@ const ItemCard = ({ item, onPressItem, restaurant, tagCart }) => {
                   textDecorationLine: 'line-through'
                 }}
               >
-                {`${configuration?.currencySymbol} ${formatNumber(parseFloat(item?.variations[0]?.price + item?.variations[0]?.discounted).toFixed(0))}`}
+                {formatMoney(item?.variations[0]?.price + item?.variations[0]?.discounted, configuration?.currencySymbol)}
               </Text>
             )}
           </View>

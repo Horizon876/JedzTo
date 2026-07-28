@@ -27,6 +27,7 @@ import { useLocation } from '../../ui/hooks'
 import UserContext from '../../context/User'
 import useGeocoding from '../../ui/hooks/useGeocoding'
 import blackmarker from '../../assets/images/user.png'
+import MapboxTileOverlay from '../../components/Map/MapboxTileOverlay'
 
 // Default location if current location can't be retrieved
 const DEFAULT_LATITUDE = 33.95
@@ -250,7 +251,9 @@ export default function AddNewAddress(props) {
             minZoomLevel={1}
             mapType='standard'
             onMapReady={() => setMapReady(true)}
-          />
+          >
+            <MapboxTileOverlay styleId={themeContext.ThemeValue === 'Dark' ? 'dark-v11' : 'streets-v12'} />
+          </MapView>
           
           {/* Marker overlay with pointer events disabled */}
           <View style={styles().mainContainer} pointerEvents='none'>

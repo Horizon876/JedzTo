@@ -1,22 +1,47 @@
 import { verticalScale, scale } from '../../utils/scaling'
 import { StyleSheet } from 'react-native'
-import { alignment } from '../../utils/alignment'
+
+const BG = '#121212'
+const SURFACE = '#1C1C1E'
+const MUTED = '#8E8E93'
+const ACCENT = '#00A8FF'
 
 const styles = (props = null) =>
   StyleSheet.create({
     flex: {
       flex: 1
     },
-    safeAreaViewStyles: {
-      flex: 1,
-      backgroundColor: props !== null ? props?.headerBackground : 'transparent'
-    },
     container: {
       flex: 1,
-      backgroundColor: props !== null ? props?.themeBackground : 'transparent'
+      backgroundColor: BG
+    },
+    topSurface: {
+      backgroundColor: SURFACE,
+      paddingHorizontal: scale(16),
+      paddingBottom: scale(4),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#2C2C2E'
+    },
+    headerRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(8),
+      marginBottom: scale(10),
+      minHeight: scale(36)
+    },
+    backButton: {
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(18),
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    headerTitle: {
+      flex: 1
     },
     listContainer: {
-      flex: 1
+      flex: 1,
+      backgroundColor: BG
     },
     visibleTabContent: {
       flex: 1
@@ -25,34 +50,34 @@ const styles = (props = null) =>
       ...StyleSheet.absoluteFillObject,
       opacity: 0
     },
-    contentContainer: {
-      flexGrow: 1,
-      ...alignment.PBsmall
+    tabContainer: {
+      width: '100%',
+      height: scale(42),
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'center',
+      alignSelf: 'center',
+      backgroundColor: SURFACE,
+      borderRadius: scale(22),
+      padding: scale(3),
+      marginBottom: scale(8)
     },
-    subContainerImage: {
+    activeTabStyles: {
       flex: 1,
       justifyContent: 'center',
-      alignContent: 'center',
-      ...alignment.PBlarge
+      alignItems: 'center',
+      backgroundColor: '#2C2C2E',
+      borderRadius: scale(20)
     },
-    imageContainer: {
+    inactiveTabStyles: {
+      flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      ...alignment.MBxSmall
-    },
-    image: {
-      width: scale(130),
-      height: scale(130)
-    },
-    descriptionEmpty: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      ...alignment.Plarge
+      borderRadius: scale(20)
     },
     emptyButton: {
       width: '85%',
       padding: scale(10),
-      backgroundColor: props !== null ? props?.buttonBackground : 'grey',
+      backgroundColor: ACCENT,
       justifyContent: 'center',
       alignItems: 'center',
       alignSelf: 'center',
@@ -60,25 +85,14 @@ const styles = (props = null) =>
     },
     subContainer: {
       flex: 1,
-      backgroundColor: props !== null ? props?.cartContainer : '#FFF',
+      backgroundColor: SURFACE,
       borderRadius: scale(10),
-      elevation: 3,
-      shadowColor: 'black',
-      shadowOffset: {
-        width: 0,
-        height: verticalScale(1)
-      },
-      shadowOpacity: 0.5,
-      shadowRadius: verticalScale(1),
       flexDirection: 'row',
       justifyContent: 'space-between',
-      ...alignment.MRsmall,
-      ...alignment.MLsmall,
-      ...alignment.MTsmall,
-      ...alignment.PTxSmall,
-      ...alignment.PBxSmall,
-      ...alignment.PRsmall,
-      ...alignment.PLxSmall
+      marginHorizontal: scale(12),
+      marginTop: scale(8),
+      paddingVertical: scale(8),
+      paddingHorizontal: scale(8)
     },
     restaurantImage: {
       height: '100%',
@@ -87,35 +101,16 @@ const styles = (props = null) =>
     },
     textContainer: {
       width: '58%',
-      ...alignment.PTsmall,
-      //...alignment.PBlarge,
-      ...alignment.PLsmall
+      paddingTop: scale(8),
+      paddingLeft: scale(8)
     },
     subContainerLeft: {
       width: '100%'
     },
     subContainerRight: {
-      ...alignment.PTsmall,
+      paddingTop: scale(8),
       width: '15%',
       justifyContent: 'space-between'
-    },
-    subContainerButton: {
-      backgroundColor: props !== null ? props?.buttonBackground : 'grey',
-      ...alignment.MTxSmall,
-      borderRadius: 10,
-      width: scale(80),
-      height: verticalScale(25),
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    subContainerReviewButton: {
-      backgroundColor: props !== null ? props?.secondaryBackground : 'grey',
-      ...alignment.MTxSmall,
-      borderRadius: 10,
-      width: scale(80),
-      height: verticalScale(25),
-      alignItems: 'center',
-      justifyContent: 'center'
     },
     rateOrderContainer: {
       display: 'flex',
@@ -125,36 +120,16 @@ const styles = (props = null) =>
       justifyContent: 'space-around',
       alignItems: 'flex-end'
     },
-    backBtnContainer: {
-      backgroundColor: 'white',
-      borderRadius: scale(50),
-      marginLeft: scale(10),
-      width: scale(55),
-      alignItems: 'center'
-    },
-    tabContainer: {
-      width: '100%',
-      height: scale(45),
-      display: 'flex',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignSelf: 'center',
-      backgroundColor: props !== null ? props?.newheaderBG : 'transparent'
-    },
-    activeTabStyles: {
-      width: '45%',
-      justifyContent: 'center',
+    subContainerButton: {
+      backgroundColor: ACCENT,
+      marginTop: scale(4),
+      borderRadius: 10,
+      width: scale(80),
+      height: verticalScale(25),
       alignItems: 'center',
-      borderBottomWidth: 3,
-      borderBottomColor: props !== null ? props?.newheaderColor : 'transparent'
-    },
-    inactiveTabStyles: {
-      width: '45%',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderBottomWidth: 3,
-      borderBottomColor: 'transparent'
+      justifyContent: 'center'
     }
   })
 
 export default styles
+export { BG, SURFACE, MUTED, ACCENT }

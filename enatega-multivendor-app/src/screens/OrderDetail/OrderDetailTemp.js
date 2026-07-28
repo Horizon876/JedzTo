@@ -19,6 +19,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import analytics from '../../utils/analytics'
 
 import { useTranslation } from 'react-i18next'
+import { formatMoney } from '../../utils/formatMoney'
 
 function calculatePrice(food) {
   var foodPrice = food.variation.price
@@ -186,8 +187,7 @@ function OrderDetail(props) {
                 )}
               </View>
               <TextDefault textColor={currentTheme.fontSecondColor} bold small style={{ width: '25%' }} right>
-                {configuration.currencySymbol}
-                {parseFloat(calculatePrice(item)).toFixed(2)}
+                {formatMoney(calculatePrice(item), configuration.currencySymbol)}
               </TextDefault>
             </View>
           ))}
@@ -197,8 +197,10 @@ function OrderDetail(props) {
               {t('subTotal')}
             </TextDefault>
             <TextDefault textColor={currentTheme.fontSecondColor} bold small style={{ width: '60%' }} right>
-              {configuration.currencySymbol}
-              {parseFloat(order.orderAmount - (order.isPickedUp ? 0 : order.deliveryCharges) - order.tipping - order.taxationAmount).toFixed(2)}
+              {formatMoney(
+                order.orderAmount - (order.isPickedUp ? 0 : order.deliveryCharges) - order.tipping - order.taxationAmount,
+                configuration.currencySymbol
+              )}
             </TextDefault>
           </View>
           <View style={[styles().marginBottom10, styles().floatView]}>
@@ -206,8 +208,7 @@ function OrderDetail(props) {
               {t('tip')}
             </TextDefault>
             <TextDefault textColor={currentTheme.fontSecondColor} bold small style={{ width: '60%' }} right>
-              {configuration.currencySymbol}
-              {parseFloat(order.tipping).toFixed(2)}
+              {formatMoney(order.tipping, configuration.currencySymbol)}
             </TextDefault>
           </View>
           <View style={[styles().marginBottom10, styles().floatView]}>
@@ -215,8 +216,7 @@ function OrderDetail(props) {
               {t('taxFee')}
             </TextDefault>
             <TextDefault textColor={currentTheme.fontSecondColor} bold small style={{ width: '60%' }} right>
-              {configuration.currencySymbol}
-              {parseFloat(order.taxationAmount).toFixed(2)}
+              {formatMoney(order.taxationAmount, configuration.currencySymbol)}
             </TextDefault>
           </View>
           {!order.isPickedUp && (
@@ -225,8 +225,7 @@ function OrderDetail(props) {
                 {t('delvieryCharges')}
               </TextDefault>
               <TextDefault textColor={currentTheme.fontSecondColor} bold small style={{ width: '60%' }} right>
-                {configuration.currencySymbol}
-                {parseFloat(order.deliveryCharges).toFixed(2)}
+                {formatMoney(order.deliveryCharges, configuration.currencySymbol)}
               </TextDefault>
             </View>
           )}
@@ -235,8 +234,7 @@ function OrderDetail(props) {
               {t('total')}
             </TextDefault>
             <TextDefault textColor={currentTheme.fontSecondColor} bold small style={{ width: '60%' }} right>
-              {configuration.currencySymbol}
-              {parseFloat(order.orderAmount).toFixed(2)}
+              {formatMoney(order.orderAmount, configuration.currencySymbol)}
             </TextDefault>
           </View>
         </View>
