@@ -65,7 +65,7 @@
     "graphql-ws": "^5.16.2",
     "i18next": "^24.2.2",
     "jest-expo": "~54.0.17",
-    "lightningcss": "^1.29.1",
+    "lightningcss": "^1.33.0",
     "lint-staged": "^15.3.0",
     "lodash": "^4.17.21",
     "moti": "^0.30.0",
