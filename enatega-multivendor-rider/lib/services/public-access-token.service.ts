@@ -151,6 +151,13 @@ class PublicAccessTokenService {
         ]);
 
         this.scheduleRefresh(apolloClient);
+      } catch (error) {
+        // Local API can run open without public tokens — keep going.
+        this.token = null;
+        this.expiry = null;
+        if (__DEV__) {
+          console.warn("Failed to refresh public access token", error);
+        }
       } finally {
         this.refreshPromise = null;
       }
@@ -162,11 +169,14 @@ class PublicAccessTokenService {
   async getToken(
     apolloClient: ApolloClient<NormalizedCacheObject>,
   ): Promise<string | null> {
-    if (!this.token || this.isExpired()) {
-      await this.refreshToken(apolloClient);
+    try {
+      if (!this.token || this.isExpired()) {
+        await this.refreshToken(apolloClient);
+      }
+      return this.token;
+    } catch {
+      return null;
     }
-
-    return this.token;
   }
 
   getNonce(): string | null {

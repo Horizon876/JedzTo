@@ -12,7 +12,6 @@ import ForgotPassword from '../screens/ForgotPassword/ForgotPassword'
 import SetYourPassword from '../screens/ForgotPassword/SetYourPassword'
 import CreateAccount from '../screens/CreateAccount/CreateAccount'
 import GuestCheckout from '../screens/GuestCheckout/GuestCheckout'
-import CheckoutAuth from '../screens/CheckoutAuth/CheckoutAuth'
 import ItemDetail from '../screens/ItemDetail/ItemDetail'
 import MyOrders from '../screens/MyOrders/MyOrders'
 import Cart from '../screens/Cart/Cart'
@@ -23,7 +22,7 @@ import Help from '../screens/Help/Help'
 import CustomerSupport from '../screens/CustomerSupport/CustomerSupport'
 import Paypal from '../screens/Paypal/Paypal'
 import StripeCheckout from '../screens/Stripe/StripeCheckout'
-import Profile from '../screens/Profile/Profile'
+import PaymentCancelled from '../screens/PaymentCancelled/PaymentCancelled'
 import Addresses from '../screens/Addresses/Addresses'
 import NewAddress from '../screens/NewAddress/NewAddress'
 import EditAddress from '../screens/EditAddress/EditAddress'
@@ -60,8 +59,7 @@ import { useTranslation } from 'react-i18next'
 import Collection from '../screens/Collection/Collection'
 import Account from '../screens/Account/Account'
 import EditName from '../components/Account/EditName/EditName'
-import UserContext from '../context/User'
-import { Easing, Platform } from 'react-native'
+import { Platform } from 'react-native'
 // import HypCheckout from '../screens/Hyp/HypCheckout'
 import { SLIDE_RIGHT_WITH_CURVE_ANIM, SLIDE_UP_RIGHT_ANIMATION, AIMATE_FROM_CENTER } from '../utils/constants'
 
@@ -87,11 +85,119 @@ const linking = {
 function MainNavigator() {
   const themeContext = useContext(ThemeContext)
   const currentTheme = theme[themeContext.ThemeValue]
-  const { isLoggedIn } = useContext(UserContext)
 
-  const protectedScreens = isLoggedIn ? (
-    <>
-      <NavigationStack.Screen name='Profile' component={Profile} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+  return (
+    <NavigationStack.Navigator
+      screenOptions={{
+        ...screenOptions({
+          theme: themeContext.ThemeValue,
+          headerMenuBackground: currentTheme.headerMenuBackground,
+          backColor: currentTheme.headerBackground,
+          lineColor: currentTheme.horizontalLine,
+          textColor: currentTheme.headerText,
+          iconColor: currentTheme.iconColorPink,
+          headerShown: false
+        }),
+        // Default the card background to the themed background so screens never
+        // flash white during the push transition (e.g. Discovery -> Restaurant)
+        // before their content paints.
+        cardStyle: { backgroundColor: currentTheme.themeBackground },
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
+        cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS
+      }}
+    >
+      <NavigationStack.Screen
+        name='Main'
+        component={BottomTabNavigator}
+        options={{
+          headerShown: false
+        }}
+      />
+      <NavigationStack.Screen name='Menu' component={Menu} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      <NavigationStack.Screen
+        name='NewRestaurantDetailDesign'
+        getComponent={() => require('../components/NewRestaurantDetailDesign/RestaurantDetailDesign').default}
+        options={{
+          header: () => null,
+          ...AIMATE_FROM_CENTER
+        }}
+      />
+      <NavigationStack.Screen
+        name='CategoryPage'
+        getComponent={() => require('../components/SubCategoryPage/SubCategoryPage').default}
+        options={{
+          header: () => null,
+          ...SLIDE_RIGHT_WITH_CURVE_ANIM
+        }}
+      />
+      <NavigationStack.Screen
+        name='Restaurant'
+        component={Restaurant}
+        options={{
+          header: () => null,
+          ...SLIDE_RIGHT_WITH_CURVE_ANIM
+        }}
+      />
+      <NavigationStack.Screen name='ItemDetail' component={ItemDetail} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      <NavigationStack.Screen
+        name='Cart'
+        component={Cart}
+        options={SLIDE_RIGHT_WITH_CURVE_ANIM}
+      />
+      <NavigationStack.Screen name='Checkout' component={Checkout} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      <NavigationStack.Screen name='Help' component={Help} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      <NavigationStack.Screen name='Collection' component={Collection} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      <NavigationStack.Screen
+        name='CustomerSupport'
+        component={CustomerSupport}
+        options={SLIDE_RIGHT_WITH_CURVE_ANIM}
+      />
+      <NavigationStack.Screen name='HelpBrowser' component={HelpBrowser} />
+      <NavigationStack.Screen name='About' component={About} options={{ header: () => null, ...SLIDE_RIGHT_WITH_CURVE_ANIM }} />
+      <NavigationStack.Screen name='Reviews' component={Reviews} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      <NavigationStack.Screen name='Paypal' component={Paypal} />
+      <NavigationStack.Screen name='RateAndReview' component={RateAndReview} />
+
+      <NavigationStack.Screen
+        name='StripeCheckout'
+        component={StripeCheckout}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+          ...SLIDE_RIGHT_WITH_CURVE_ANIM
+        }}
+      />
+      <NavigationStack.Screen
+        name='PaymentCancelled'
+        component={PaymentCancelled}
+        options={{ headerShown: false, ...SLIDE_RIGHT_WITH_CURVE_ANIM }}
+      />
+
+      {/* Customer details before checkout (no login UI) */}
+      <NavigationStack.Screen name='GuestCheckout' component={GuestCheckout} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      {/* Legacy auth screens kept registered but unused from main UX */}
+      <NavigationStack.Screen name='CreateAccount' component={CreateAccount} />
+      <NavigationStack.Screen name='Login' component={Login} />
+      <NavigationStack.Screen name='Register' component={Register} />
+      <NavigationStack.Screen name='PhoneNumber' component={PhoneNumber} />
+      <NavigationStack.Screen name='ForgotPassword' component={ForgotPassword} />
+      <NavigationStack.Screen name='SetYourPassword' component={SetYourPassword} />
+      <NavigationStack.Screen name='EmailOtp' component={EmailOtp} />
+      <NavigationStack.Screen name='PhoneOtp' component={PhoneOtp} />
+      <NavigationStack.Screen name='ForgotPasswordOtp' component={ForgotPasswordOtp} />
+      <NavigationStack.Screen
+        name='CurrentLocation'
+        component={CurrentLocation}
+        options={{ header: () => null }}
+      />
+      <NavigationStack.Screen
+        name='ChangeAddress'
+        component={ChangeAddress}
+        options={{ header: () => null, ...SLIDE_RIGHT_WITH_CURVE_ANIM }}
+      />
+      <NavigationStack.Screen name='SelectLocation' component={SelectLocation} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
+      {/* Always registered — do not gate on isLoggedIn or guest checkout remounts the stack. */}
       <NavigationStack.Screen name='Addresses' component={Addresses} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
       <NavigationStack.Screen name='NewAddress' component={NewAddress} />
       <NavigationStack.Screen name='EditAddress' component={EditAddress} />
@@ -136,115 +242,6 @@ function MainNavigator() {
         getComponent={() => require('../screens/Search/SearchScreen').default}
         options={{ headerShown: false }}
       />
-    </>
-  ) : null
-
-  return (
-    <NavigationStack.Navigator
-      key={isLoggedIn ? 'authed' : 'guest'}
-      screenOptions={{
-        ...screenOptions({
-          theme: themeContext.ThemeValue,
-          headerMenuBackground: currentTheme.headerMenuBackground,
-          backColor: currentTheme.headerBackground,
-          lineColor: currentTheme.horizontalLine,
-          textColor: currentTheme.headerText,
-          iconColor: currentTheme.iconColorPink,
-          headerShown: false
-        }),
-        // Default the card background to the themed background so screens never
-        // flash white during the push transition (e.g. Discovery -> Restaurant)
-        // before their content paints.
-        cardStyle: { backgroundColor: currentTheme.themeBackground }
-      }}
-    >
-      <NavigationStack.Screen
-        name='Main'
-        component={BottomTabNavigator}
-        options={{
-          headerShown: false,
-          gestureDirection: 'vertical-inverted',
-          cardStyleInterpolator: CardStyleInterpolators.forScaleFromCenterAndroid
-        }}
-      />
-      <NavigationStack.Screen name='Menu' component={Menu} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen
-        name='NewRestaurantDetailDesign'
-        getComponent={() => require('../components/NewRestaurantDetailDesign/RestaurantDetailDesign').default}
-        options={{
-          header: () => null,
-          ...AIMATE_FROM_CENTER
-        }}
-      />
-      <NavigationStack.Screen
-        name='CategoryPage'
-        getComponent={() => require('../components/SubCategoryPage/SubCategoryPage').default}
-        options={{
-          header: () => null,
-          ...SLIDE_RIGHT_WITH_CURVE_ANIM
-        }}
-      />
-      <NavigationStack.Screen
-        name='Restaurant'
-        component={Restaurant}
-        options={{
-          header: () => null,
-          gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS
-        }}
-      />
-      <NavigationStack.Screen name='ItemDetail' component={ItemDetail} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen
-        name='Cart'
-        component={Cart}
-        options={{
-          gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS
-        }}
-      />
-      <NavigationStack.Screen name='Checkout' component={Checkout} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen name='Help' component={Help} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen name='Collection' component={Collection} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen
-        name='CustomerSupport'
-        component={CustomerSupport}
-        options={SLIDE_RIGHT_WITH_CURVE_ANIM}
-      />
-      <NavigationStack.Screen name='HelpBrowser' component={HelpBrowser} />
-      <NavigationStack.Screen name='About' component={About} options={{ header: () => null, ...SLIDE_RIGHT_WITH_CURVE_ANIM }} />
-      <NavigationStack.Screen name='Reviews' component={Reviews} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen name='Paypal' component={Paypal} />
-      <NavigationStack.Screen name='RateAndReview' component={RateAndReview} />
-
-      <NavigationStack.Screen name='StripeCheckout' component={StripeCheckout} />
-
-      {/* Authentication Login */}
-      <NavigationStack.Screen name='CreateAccount' component={CreateAccount} />
-      <NavigationStack.Screen name='CheckoutAuth' component={CheckoutAuth} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen name='GuestCheckout' component={GuestCheckout} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      <NavigationStack.Screen name='Login' component={Login} />
-      <NavigationStack.Screen name='Register' component={Register} />
-      <NavigationStack.Screen name='PhoneNumber' component={PhoneNumber} />
-      <NavigationStack.Screen name='ForgotPassword' component={ForgotPassword} />
-      <NavigationStack.Screen name='SetYourPassword' component={SetYourPassword} />
-      <NavigationStack.Screen name='EmailOtp' component={EmailOtp} />
-      <NavigationStack.Screen name='PhoneOtp' component={PhoneOtp} />
-      <NavigationStack.Screen name='ForgotPasswordOtp' component={ForgotPasswordOtp} />
-      <NavigationStack.Screen
-        name='CurrentLocation'
-        component={CurrentLocation}
-        options={{ header: () => null }}
-      />
-      <NavigationStack.Screen
-        name='ChangeAddress'
-        component={ChangeAddress}
-        options={{ header: () => null, ...SLIDE_RIGHT_WITH_CURVE_ANIM }}
-      />
-      <NavigationStack.Screen name='SelectLocation' component={SelectLocation} options={SLIDE_RIGHT_WITH_CURVE_ANIM} />
-      {protectedScreens}
-      {/* <NavigationStack.Screen name='HypCheckout' component={HypCheckout} /> */}
     </NavigationStack.Navigator>
   )
 }
@@ -259,9 +256,7 @@ function LocationStack() {
         name='Main'
         component={BottomTabNavigator}
         options={{
-          headerShown: false,
-          gestureDirection: 'vertical-inverted',
-          cardStyleInterpolator: CardStyleInterpolators.forScaleFromCenterAndroid
+          headerShown: false
         }}
       />
     </Location.Navigator>
@@ -272,7 +267,6 @@ function BottomTabNavigator() {
   const themeContext = useContext(ThemeContext)
   const currentTheme = theme[themeContext.ThemeValue]
   const { t } = useTranslation()
-  const { isLoggedIn } = useContext(UserContext)
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -296,10 +290,7 @@ function BottomTabNavigator() {
         headerRight: () => <RightButton icon='cart' iconColor={currentTheme.iconColor} menuHeader={false} t={t} />
       })}
     >
-      {/* Krok "BottomTab" — Glovo-style 4-tab layout: Home, Explore, Orders,
-          Profile. "Restaurants"/"Store" are still reachable from the
-          Discovery home screen's category bubbles/filter pills; they no
-          longer need dedicated bottom-tab slots. */}
+      {/* Krok "BottomTab" — Home, Explore, Orders, Favourites */}
       <Tab.Screen
         name='Discovery'
         component={Main}
@@ -319,21 +310,21 @@ function BottomTabNavigator() {
         }}
       />
       {/* Named "Orders" (not "MyOrders") so it doesn't collide with the
-          existing 'MyOrders' stack screen that Profile/Sidebar still push
+          existing 'MyOrders' stack screen that Sidebar still push
           with its own back button + slide transition. */}
       <Tab.Screen
         name='Orders'
-        component={isLoggedIn ? MyOrders : CreateAccount}
+        component={MyOrders}
         options={{
           tabBarLabel: t('tabOrders'),
           headerShown: false
         }}
       />
       <Tab.Screen
-        name='Profile'
-        component={isLoggedIn ? Profile : CreateAccount}
+        name='Favourites'
+        component={Favourite}
         options={{
-          tabBarLabel: t('titleProfile'),
+          tabBarLabel: t('Favourite'),
           headerShown: false
         }}
       />
@@ -346,7 +337,6 @@ function AppContainer() {
   const themeContext = useContext(ThemeContext)
   const currentTheme = theme[themeContext.ThemeValue]
   const { permissionState, setPermissionState, location, setLocation, isLocationLoaded } = useContext(LocationContext)
-  const { isLoggedIn } = useContext(UserContext)
   const { isAuthReady } = useContext(AuthContext)
   const lastNotificationResponse = Notifications.useLastNotificationResponse()
   // Every cold start must pick a delivery address first (even if an old
@@ -356,10 +346,8 @@ function AppContainer() {
   // the persisted location has actually been loaded.
   const [isLaunchGateReady, setIsLaunchGateReady] = React.useState(false)
 
-  // React Navigation's DefaultTheme paints the scene background white. During a
-  // scale/zoom push transition (e.g. Discovery -> Restaurant) the area around
-  // the scaling card shows that background, which flashes white on the dark
-  // theme. Match it to the app background so transitions never flash white.
+  // React Navigation's DefaultTheme paints the scene background white. Match it
+  // to the app background so horizontal slide transitions never flash white.
   const navigationTheme = {
     ...DefaultTheme,
     colors: {
@@ -442,7 +430,7 @@ function AppContainer() {
           navigationService.setGlobalRef(ref)
         }}
       >
-        {shouldShowLocationStack ? <LocationStack /> : <MainNavigator key={isLoggedIn ? 'authed' : 'guest'} />}
+        {shouldShowLocationStack ? <LocationStack /> : <MainNavigator />}
 
         {/* {<LocationStack />}
         <MainNavigator /> */}

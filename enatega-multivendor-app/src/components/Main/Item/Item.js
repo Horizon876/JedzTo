@@ -10,40 +10,24 @@ import { alignment } from '../../../utils/alignment'
 import { AntDesign, Ionicons, MaterialIcons, Feather } from '@expo/vector-icons'
 import { scale } from '../../../utils/scaling'
 import { DAYS } from '../../../utils/enums'
-import { profile, FavouriteRestaurant } from '../../../apollo/queries'
-import { addFavouriteRestaurant } from '../../../apollo/mutations'
-import UserContext from '../../../context/User'
-import gql from 'graphql-tag'
-import { useMutation } from '@apollo/client'
-import Spinner from '../../Spinner/Spinner'
-import { FlashMessage } from '../../../ui/FlashMessage/FlashMessage'
+import { useFavourites } from '../../../context/Favourites'
 import { useTranslation } from 'react-i18next'
 import { formatMoney } from '../../../utils/formatMoney'
 import CachedImage from '../../CachedImage'
-
-const ADD_FAVOURITE = gql`
-  ${addFavouriteRestaurant}
-`
-const PROFILE = gql`
-  ${profile}
-`
-const FAVOURITERESTAURANTS = gql`
-  ${FavouriteRestaurant}
-`
+import UserContext from '../../../context/User'
+import { getRestaurantEtaMinutes } from '../../../utils/restaurantEta'
 
 function Item(props) {
   const { t } = useTranslation()
   const navigation = useNavigation()
-  const { profile } = useContext(UserContext)
-  const heart = profile ? profile.favourite.includes(props?.item._id) : false
+  const { isFavourite, toggleFavourite } = useFavourites()
   const item = props?.item
+  const heart = isFavourite(item?._id)
   const configuration = useContext(ConfigurationContext)
+  const { isPickup } = useContext(UserContext)
   const themeContext = useContext(ThemeContext)
   const currentTheme = theme[themeContext.ThemeValue]
-  const [mutate, { loading: loadingMutation }] = useMutation(ADD_FAVOURITE, {
-    onCompleted,
-    refetchQueries: [PROFILE,FAVOURITERESTAURANTS ]
-  })
+  const etaMinutes = getRestaurantEtaMinutes(item, { isPickup })
   const { isAvailable, openingTimes } = item
   const isOpen = () => {
     const date = new Date()
@@ -62,9 +46,6 @@ function Item(props) {
     return times.length > 0
   }
 
-  function onCompleted() {
-    FlashMessage({ message: t('favouritelistUpdated') })
-  }
   return (
     <TouchableOpacity
       // style={{ padding: scale(10), backgroundColor: 'green' }}
@@ -80,15 +61,10 @@ function Item(props) {
             />
             <View style={styles().overlayRestaurantContainer}>
               <TouchableOpacity
-                activeOpacity={0}
-                disabled={loadingMutation}
+                activeOpacity={0.7}
                 style={styles(currentTheme).favOverlay}
-                onPress={() =>
-                  profile ? mutate({ variables: { id: item._id } }) : null
-                }>
-                {loadingMutation ? (
-                  <Spinner size={'small'} backColor={'transparent'} spinnerColor={currentTheme.iconColorDark} />
-                ) : heart ? (
+                onPress={() => toggleFavourite(item)}>
+                {heart ? (
                   <AntDesign name="heart" size={scale(15)} color="black" />
                 ) : (
                   <Feather name="heart" size={scale(15)} color="black" />
@@ -188,7 +164,7 @@ function Item(props) {
                   numberOfLines={1}
                   bold
                   Normal>
-                  {item.deliveryTime + ' '}
+                  {etaMinutes + ' '}
                   {t('min')}
                 </TextDefault>
               </View>

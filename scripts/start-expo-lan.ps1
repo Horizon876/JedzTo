@@ -68,12 +68,15 @@ $env:EXPO_OFFLINE = '1'
 $env:REACT_NATIVE_PACKAGER_HOSTNAME = $lanIp
 # Metro / Expo sometimes prefer these too
 $env:EXPO_DEV_SERVER_HOSTNAME = $lanIp
+# Point the mobile apps at this machine's API (jedzto-local-api on :8001)
+$env:EXPO_PUBLIC_JEDZTO_API_HOST = $lanIp
 $env:TMPDIR = $env:TEMP
 
 Write-Host "=====================================================" -ForegroundColor Cyan
 Write-Host " $title" -ForegroundColor Cyan
 Write-Host "=====================================================" -ForegroundColor Cyan
 Write-Host " LAN IP : $lanIp" -ForegroundColor Green
+Write-Host " API    : http://${lanIp}:8001/graphql" -ForegroundColor Green
 Write-Host " Port   : $port" -ForegroundColor Green
 Write-Host " QR URL : $url" -ForegroundColor Yellow
 Write-Host ""

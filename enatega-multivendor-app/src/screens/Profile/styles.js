@@ -3,7 +3,7 @@ import { scale } from '../../utils/scaling'
 
 const BG = '#121212'
 const SURFACE = '#1C1C1E'
-const ROW = '#2C2C2E'
+const HAIRLINE = '#2C2C2E'
 const MUTED = '#8E8E93'
 const ACCENT = '#00A8FF'
 
@@ -14,43 +14,55 @@ const styles = () =>
     },
     container: {
       flex: 1,
-      backgroundColor: BG
+      backgroundColor: SURFACE
     },
     header: {
-      paddingHorizontal: scale(20),
-      paddingBottom: scale(16),
       backgroundColor: SURFACE,
+      paddingHorizontal: scale(16),
+      paddingBottom: scale(18),
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: ROW
+      borderBottomColor: HAIRLINE
     },
     headerTitle: {
-      lineHeight: scale(32),
+      fontSize: scale(28),
+      lineHeight: scale(34),
       includeFontPadding: false
     },
     greeting: {
-      marginTop: scale(4),
-      lineHeight: scale(20),
+      marginTop: scale(8),
+      fontSize: scale(16),
+      lineHeight: scale(22),
       includeFontPadding: false
     },
-    scrollContent: {
-      paddingHorizontal: scale(16),
-      paddingTop: scale(20),
-      gap: scale(16)
+    listArea: {
+      flex: 1,
+      backgroundColor: SURFACE
     },
-    menuCard: {
-      backgroundColor: SURFACE,
-      borderRadius: scale(18),
-      paddingVertical: scale(4)
+    sectionHeader: {
+      backgroundColor: BG,
+      paddingHorizontal: scale(16),
+      paddingTop: scale(10),
+      paddingBottom: scale(10),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: HAIRLINE
+    },
+    sectionHeaderText: {
+      color: '#FFFFFF',
+      fontSize: scale(13),
+      lineHeight: scale(16),
+      includeFontPadding: false
     },
     menuRow: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: scale(14),
-      paddingVertical: scale(14),
+      backgroundColor: SURFACE,
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(12),
       minHeight: scale(64),
       gap: scale(12),
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: ROW
+      borderBottomColor: HAIRLINE
     },
     menuRowLast: {
       borderBottomWidth: 0
@@ -58,29 +70,27 @@ const styles = () =>
     menuIcon: {
       width: scale(40),
       height: scale(40),
-      borderRadius: scale(20),
-      backgroundColor: ROW,
+      borderRadius: scale(12),
+      backgroundColor: HAIRLINE,
       alignItems: 'center',
       justifyContent: 'center'
-    },
-    menuIconDanger: {
-      backgroundColor: 'rgba(255, 107, 107, 0.12)'
     },
     menuContent: {
       flex: 1,
       minWidth: 0,
-      justifyContent: 'center',
       gap: scale(2)
     },
     menuTitle: {
-      lineHeight: scale(22),
+      fontSize: scale(15),
+      lineHeight: scale(20),
       includeFontPadding: false
     },
     menuDetail: {
-      lineHeight: scale(18),
+      fontSize: scale(13),
+      lineHeight: scale(17),
       includeFontPadding: false
     }
   })
 
 export default styles
-export { BG, SURFACE, MUTED, ACCENT, ROW }
+export { BG, SURFACE, MUTED, ACCENT, HAIRLINE }

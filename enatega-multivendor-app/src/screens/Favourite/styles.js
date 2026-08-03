@@ -1,60 +1,44 @@
 import { scale } from '../../utils/scaling'
 import { StyleSheet } from 'react-native'
-import { alignment } from '../../utils/alignment'
+
+const PAGE = '#121212'
+const SURFACE = '#1C1C1E'
+const ACCENT = '#00A8FF'
+const HAIRLINE = '#2C2C2E'
 
 const styles = (props = null) =>
   StyleSheet.create({
     flex: {
       flex: 1
     },
-    mainContainerEmpty: {
-      backgroundColor: props !== null ? props?.themeBackground : 'transparent'
+    screen: {
+      flex: 1,
+      backgroundColor: PAGE
     },
-    container: {
-      backgroundColor: props !== null ? props?.newheaderBG : 'transparent'
+    header: {
+      backgroundColor: SURFACE,
+      paddingHorizontal: scale(16),
+      paddingBottom: scale(12),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: HAIRLINE
+    },
+    headerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scale(8)
+    },
+    list: {
+      flex: 1,
+      backgroundColor: PAGE
     },
     contentContainer: {
-      backgroundColor: props !== null ? props?.newheaderBG : 'white',
+      backgroundColor: PAGE,
       flexGrow: 1,
-      ...alignment.PBsmall,
-      gap: 16,
-      ...alignment.Pmedium
-    },
-    subContainerImage: {
-      flex: 1,
-      justifyContent: 'center',
-      alignContent: 'center'
-    },
-    imageContainer: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      ...alignment.MBlarge
-    },
-    image: {
-      width: scale(100),
-      height: scale(100)
-    },
-    descriptionEmpty: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      ...alignment.Plarge
-    },
-    emptyButton: {
-      width: '60%',
-      height: scale(40),
-      backgroundColor: props !== null ? props?.buttonBackground : 'transparent',
-      borderRadius: scale(10),
-      justifyContent: 'center',
-      alignItems: 'center',
-      alignSelf: 'center'
-    },
-    backImageContainer: {
-      backgroundColor: 'white',
-      borderRadius: scale(50),
-      marginLeft: scale(10),
-      width: scale(55),
-      alignItems: 'center'
+      paddingHorizontal: scale(16),
+      paddingTop: scale(12),
+      gap: scale(16)
     }
   })
 
 export default styles
+export { PAGE, SURFACE, ACCENT, HAIRLINE }

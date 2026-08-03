@@ -26,6 +26,7 @@ import {
   DELETE_RESTAURANT,
   GET_RESTAURANTS_BY_OWNER,
   HARD_DELETE_RESTAURANT,
+  SUSPEND_RESTAURANT,
 } from '@/lib/api/graphql';
 
 // Contexts
@@ -136,6 +137,33 @@ export default function VendorsLayoutRestaurantCard({
     },
   });
 
+  const [suspendRestaurant] = useMutation(SUSPEND_RESTAURANT, {
+    refetchQueries: [
+      {
+        query: GET_RESTAURANTS_BY_OWNER,
+        variables: { id: vendorId },
+      },
+    ],
+    onCompleted: () => {
+      showToast({
+        type: 'success',
+        title: t('SuspendRestaurant'),
+        message: t('Status Changed Successfully'),
+      });
+      setRestaurantModifed(!isRestaurantModifed);
+    },
+    onError: ({ networkError, graphQLErrors }: ApolloError) => {
+      showToast({
+        type: 'error',
+        title: t('SuspendRestaurant'),
+        message:
+          graphQLErrors?.[0]?.message ??
+          networkError?.message ??
+          t('errorWhileSaving'),
+      });
+    },
+  });
+
   // Handle checkbox change
   const handleCheckboxChange = async () => {
     try {
@@ -234,6 +262,33 @@ export default function VendorsLayoutRestaurantCard({
             {'₪'} {restaurant?.minimumOrder}
           </span>
         </div>
+
+        <div className="flex items-center gap-1 rounded-lg border border-primary-color p-2 mb-2 text-sm font-semibold text-primary-color">
+          <span>{t('CommissionPercent')}</span>
+          <span>{restaurant?.commissionRate ?? 10}%</span>
+        </div>
+      </div>
+
+      <div className="mb-3 flex gap-2 px-4">
+        <CustomButton
+          className={`h-10 flex-1 ${restaurant?.isSuspended ? 'bg-[#30D158]' : 'bg-[#FF9F0A]'} border-0 text-white`}
+          label={
+            restaurant?.isSuspended
+              ? t('ActivateRestaurant')
+              : t('SuspendRestaurant')
+          }
+          onClick={() => {
+            suspendRestaurant({
+              variables: {
+                restaurantId: _id,
+                isSuspended: !restaurant?.isSuspended,
+                reason: restaurant?.isSuspended
+                  ? ''
+                  : 'Suspended by platform admin',
+              },
+            });
+          }}
+        />
       </div>
 
       <div className="mb-2 px-4">

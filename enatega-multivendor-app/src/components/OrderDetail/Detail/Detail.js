@@ -1,7 +1,7 @@
 import { View } from 'react-native'
 import React from 'react'
 import TextDefault from '../../Text/TextDefault/TextDefault'
-import styles, { ACCENT, MUTED } from './styles'
+import styles from './styles'
 import { useTranslation } from 'react-i18next'
 import { ChatButton } from './ChatButton'
 import { ORDER_STATUS_ENUM } from '../../../utils/enums'
@@ -48,10 +48,7 @@ export default function Detail({
           {from}
         </TextDefault>
         <View style={[styles.orderNoRow, theme?.isRTL && { flexDirection: 'row-reverse' }]}>
-          <TextDefault bolder H5 style={styles.orderLabel} isRTL>
-            {t('yourOrder')}
-          </TextDefault>
-          <TextDefault bolder H5 style={styles.orderNo} isRTL>
+          <TextDefault bolder style={styles.orderNo} isRTL>
             #{orderNo}
           </TextDefault>
         </View>
@@ -63,7 +60,7 @@ export default function Detail({
       </View>
 
       <View style={styles.itemsContainer}>
-        {items?.map((item) => {
+        {items?.map((item, index) => {
           const basePrice = Number(item?.variation?.price || 0)
           const addonPrice = (item?.addons || []).reduce((sum, addon) => {
             return (
@@ -76,6 +73,7 @@ export default function Detail({
           const options = (item?.addons || []).flatMap((addon) =>
             (addon.options || []).map(({ title }) => title)
           )
+          const isLast = index === (items?.length ?? 0) - 1
 
           return (
             <ItemRow
@@ -88,6 +86,7 @@ export default function Detail({
               price={lineTotal}
               options={options}
               image={item?.image}
+              showDivider={!isLast}
             />
           )
         })}
@@ -96,9 +95,9 @@ export default function Detail({
   )
 }
 
-const ItemRow = ({ theme, quantity, title, variationTitle, options = [], price, currency, image }) => {
+const ItemRow = ({ theme, quantity, title, variationTitle, options = [], price, currency, image, showDivider }) => {
   return (
-    <View style={styles.itemRow(theme)}>
+    <View style={[styles.itemRow(theme), !showDivider && styles.itemRowLast]}>
       <CachedImage
         style={styles.itemImage}
         source={image ? { uri: image } : require('../../../assets/images/food_placeholder.png')}

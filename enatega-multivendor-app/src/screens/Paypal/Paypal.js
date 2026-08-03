@@ -10,6 +10,7 @@ import UserContext from '../../context/User'
 import analytics from '../../utils/analytics'
 
 import { useTranslation } from 'react-i18next'
+import { endEphemeralGuestAfterOrder } from '../../utils/customerDetailsStorage'
 
 const MYORDERS = gql`
   ${myOrders}
@@ -93,6 +94,7 @@ function Paypal(props) {
               }
             ]
           })
+          await endEphemeralGuestAfterOrder()
           return
         }
       } catch (error) {

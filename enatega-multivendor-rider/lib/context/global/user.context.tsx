@@ -1,4 +1,4 @@
-import { NetworkStatus, useMutation, useQuery, useSubscription } from '@apollo/client'
+import { NetworkStatus, useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   createContext,
@@ -12,9 +12,12 @@ import { AppState, type AppStateStatus } from 'react-native'
 
 import {
   KITCHEN_ORDERS,
+  KITCHEN_RESTAURANT_TIMES,
   UPDATE_ORDER_STATUS,
+  UPDATE_ORDER_ETA,
 } from '@/lib/apollo/queries/kitchen.query'
 import { orderStatusChanged } from '@/lib/apollo/subscriptions'
+import { AuthContext } from '@/lib/context/global/auth.context'
 import { asyncStorageEmitter } from '@/lib/services/async-storage'
 import {
   IUserContextProps,
@@ -47,6 +50,8 @@ function mergeOrderIntoList(list: IOrder[], incoming: IOrder): IOrder[] {
 }
 
 export const UserProvider = ({ children }: IUserProviderProps) => {
+  const { token, isAuthReady } = useContext(AuthContext)
+  const apolloClient = useApolloClient()
   const [modalVisible, setModalVisible] = useState<
     IRiderEarnings & { bool: boolean }
   >({
@@ -63,9 +68,11 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
   >([] as IRiderEarningsArray[])
   const [userId, setUserId] = useState('')
   const [restaurantId, setRestaurantId] = useState('')
-  // Local mirror so kitchen + delivery tabs update instantly on WS events
-  // (before the network refetch finishes).
   const [liveOrders, setLiveOrders] = useState<IOrder[]>([])
+  /** Bumps kitchen top-bar ETA after accept / ETA sync. */
+  const [kitchenEtaMinutes, setKitchenEtaMinutes] = useState<number | null>(null)
+
+  const canQueryOrders = Boolean(isAuthReady && token && restaurantId)
 
   const {
     loading: loadingAssigned,
@@ -75,17 +82,29 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
     refetch: refetchAssigned,
   } = useQuery(KITCHEN_ORDERS, {
     fetchPolicy: 'network-only',
+    nextFetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
-    pollInterval: 2000,
-    skip: !restaurantId,
+    pollInterval: canQueryOrders ? 2500 : 0,
+    skip: !canQueryOrders,
     variables: { restaurantId },
+    errorPolicy: 'all',
   })
 
   useEffect(() => {
-    if (data?.restaurantOrders) {
+    if (Array.isArray(data?.restaurantOrders)) {
       setLiveOrders(data.restaurantOrders as IOrder[])
     }
   }, [data])
+
+  useEffect(() => {
+    if (errorAssigned && __DEV__) {
+      console.warn(
+        'Kitchen orders query failed',
+        errorAssigned.message,
+        errorAssigned.graphQLErrors?.map((e) => e.extensions?.code)
+      )
+    }
+  }, [errorAssigned])
 
   const [updateStatus, { loading: updatingStatus }] = useMutation(
     UPDATE_ORDER_STATUS,
@@ -95,7 +114,22 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
         if (updated?._id) {
           setLiveOrders((prev) => mergeOrderIntoList(prev, updated))
         }
-        if (restaurantId) {
+        if (canQueryOrders) {
+          void refetchAssigned({ restaurantId })
+        }
+      },
+    }
+  )
+
+  const [updateEtaMutation, { loading: updatingEta }] = useMutation(
+    UPDATE_ORDER_ETA,
+    {
+      onCompleted: (result) => {
+        const updated = result?.updateOrderEta as IOrder | undefined
+        if (updated?._id) {
+          setLiveOrders((prev) => mergeOrderIntoList(prev, updated))
+        }
+        if (canQueryOrders) {
           void refetchAssigned({ restaurantId })
         }
       },
@@ -104,7 +138,7 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
 
   useSubscription(orderStatusChanged, {
     variables: { userId },
-    skip: !userId,
+    skip: !userId || !token,
     onData: ({ data: subResult }) => {
       const order = subResult.data?.orderStatusChanged?.order as
         | IOrder
@@ -112,7 +146,7 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
       if (order?._id) {
         setLiveOrders((prev) => mergeOrderIntoList(prev, order))
       }
-      if (restaurantId) {
+      if (canQueryOrders) {
         void refetchAssigned({ restaurantId })
       }
     },
@@ -126,9 +160,12 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
   )
 
   const setOrderStatus = useCallback(
-    async (orderId: string, orderStatus: string) => {
+    async (
+      orderId: string,
+      orderStatus: string,
+      eta?: { preparationEtaMinutes?: number; deliveryEtaMinutes?: number }
+    ) => {
       let previousStatus: string | undefined
-      // Optimistic move between tabs (In progress ↔ Out for delivery ↔ Delivered).
       setLiveOrders((prev) =>
         prev.map((o) => {
           if (o._id !== orderId) return o
@@ -137,7 +174,59 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
         })
       )
       try {
-        await updateStatus({ variables: { id: orderId, orderStatus } })
+        await updateStatus({
+          variables: {
+            id: orderId,
+            orderStatus,
+            preparationEtaMinutes: eta?.preparationEtaMinutes ?? null,
+            deliveryEtaMinutes: eta?.deliveryEtaMinutes ?? null,
+          },
+          refetchQueries: restaurantId
+            ? [
+                {
+                  query: KITCHEN_RESTAURANT_TIMES,
+                  variables: { id: restaurantId },
+                },
+              ]
+            : [],
+          awaitRefetchQueries: true,
+        })
+
+        // Accept with ETA → kitchen timer must show the same minutes immediately.
+        if (
+          orderStatus === KITCHEN_STATUS.IN_PROGRESS &&
+          (eta?.preparationEtaMinutes != null || eta?.deliveryEtaMinutes != null)
+        ) {
+          const total = Math.max(
+            5,
+            Math.min(
+              240,
+              Math.round(
+                Number(eta?.preparationEtaMinutes ?? 0) +
+                  Number(eta?.deliveryEtaMinutes ?? 0)
+              )
+            )
+          )
+          setKitchenEtaMinutes(total)
+          if (restaurantId) {
+            try {
+              apolloClient.cache.modify({
+                id: apolloClient.cache.identify({
+                  __typename: 'Restaurant',
+                  _id: restaurantId,
+                }),
+                fields: {
+                  defaultEta: () => total,
+                  currentEta: () => total,
+                  pickupTime: () => total,
+                  deliveryTime: () => total,
+                },
+              })
+            } catch {
+              // Cache entry may not exist yet — refetchQueries still runs.
+            }
+          }
+        }
       } catch {
         if (previousStatus != null) {
           setLiveOrders((prev) =>
@@ -148,7 +237,24 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
         }
       }
     },
-    [updateStatus]
+    [updateStatus, restaurantId, apolloClient]
+  )
+
+  const updateOrderEta = useCallback(
+    async (
+      orderId: string,
+      payload: { preparationEtaMinutes?: number; deliveryEtaMinutes?: number }
+    ) => {
+      const result = await updateEtaMutation({
+        variables: {
+          id: orderId,
+          preparationEtaMinutes: payload.preparationEtaMinutes ?? null,
+          deliveryEtaMinutes: payload.deliveryEtaMinutes ?? null,
+        },
+      })
+      return result?.data?.updateOrderEta as IOrder | undefined
+    },
+    [updateEtaMutation]
   )
 
   useEffect(() => {
@@ -180,13 +286,20 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
 
   useEffect(() => {
     const onAppState = (state: AppStateStatus) => {
-      if (state === 'active' && restaurantId) {
+      if (state === 'active' && canQueryOrders) {
         void refetchAssigned({ restaurantId })
       }
     }
     const sub = AppState.addEventListener('change', onAppState)
     return () => sub.remove()
-  }, [restaurantId, refetchAssigned])
+  }, [canQueryOrders, restaurantId, refetchAssigned])
+
+  // After login (token appears), force a fresh pull.
+  useEffect(() => {
+    if (canQueryOrders) {
+      void refetchAssigned({ restaurantId })
+    }
+  }, [canQueryOrders, restaurantId, refetchAssigned])
 
   return (
     <UserContext.Provider
@@ -206,13 +319,19 @@ export const UserProvider = ({ children }: IUserProviderProps) => {
               name: 'Kitchen',
             } as never)
           : null,
-        loadingAssigned,
+        loadingAssigned: !canQueryOrders || loadingAssigned,
         errorAssigned,
         assignedOrders,
         pendingOrders,
         setOrderStatus,
+        kitchenEtaMinutes,
+        updateOrderEta,
         updatingStatus,
-        refetchAssigned: () => refetchAssigned({ restaurantId }),
+        updatingEta,
+        refetchAssigned: () =>
+          canQueryOrders
+            ? refetchAssigned({ restaurantId })
+            : Promise.resolve(),
         refetchProfile: async () => undefined,
         networkStatusAssigned: networkStatusAssigned ?? NetworkStatus.ready,
       }}

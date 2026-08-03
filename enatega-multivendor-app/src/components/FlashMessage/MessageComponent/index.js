@@ -1,25 +1,35 @@
 import React from 'react'
-import { View, StyleSheet, Dimensions } from 'react-native'
+import { View, StyleSheet, Platform, StatusBar } from 'react-native'
 import TextDefault from '../../Text/TextDefault/TextDefault'
-const { height: HEIGHT } = Dimensions.get('window')
-const MESSAGE_TOP = HEIGHT / 2
-export const MessageComponent = props => (
-  <View style={styles.flashMessage}>
-    <TextDefault textColor={'#fff'} numberOfLines={3}>
-      {props?.message.message}
+import { scale } from '../../../utils/scaling'
+
+const topInset =
+  Platform.OS === 'android'
+    ? StatusBar.currentHeight || scale(24)
+    : scale(44)
+
+export const MessageComponent = (props) => (
+  <View style={[styles.banner, { paddingTop: topInset + scale(14) }]}>
+    <TextDefault style={styles.text} numberOfLines={4} center bolder>
+      {props?.message?.message}
     </TextDefault>
   </View>
 )
 
 const styles = StyleSheet.create({
-  flashMessage: {
+  banner: {
+    width: '100%',
+    backgroundColor: '#D32F2F',
+    paddingHorizontal: scale(18),
+    paddingBottom: scale(18),
+    minHeight: scale(72),
     alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    top: MESSAGE_TOP,
-    borderRadius: 15,
-    backgroundColor: 'rgba(52, 52, 52, .9)',
-    marginHorizontal: 20,
-    padding: 10
+    justifyContent: 'center'
+  },
+  text: {
+    color: '#FFFFFF',
+    fontSize: scale(16),
+    lineHeight: scale(22),
+    textAlign: 'center'
   }
 })

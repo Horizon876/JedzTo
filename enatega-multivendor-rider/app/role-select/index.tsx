@@ -3,11 +3,16 @@ import { useApptheme } from '@/lib/context/global/theme.context'
 import { ROUTES } from '@/lib/utils/constants'
 import { Href, Redirect, router } from 'expo-router'
 import { useContext } from 'react'
-import { Text, TouchableOpacity, View } from 'react-native'
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { AuthContext } from '@/lib/context/global/auth.context'
 import SpinnerComponent from '@/lib/ui/useable-components/spinner'
+
+const ACCENT = '#00A8FF'
+const MUTED = '#8E8E93'
+const SURFACE = '#1C1C1E'
+const HAIRLINE = '#2C2C2E'
 
 export default function RoleSelectScreen() {
   const { t } = useTranslation()
@@ -18,7 +23,14 @@ export default function RoleSelectScreen() {
 
   if (!isAuthReady || !isWorkModeReady) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: appTheme.themeBackground,
+        }}
+      >
         <SpinnerComponent />
       </View>
     )
@@ -48,12 +60,13 @@ export default function RoleSelectScreen() {
         backgroundColor: appTheme.themeBackground,
       }}
     >
+      <StatusBar barStyle="light-content" backgroundColor={appTheme.themeBackground} />
       <Text
         style={{
           textAlign: 'center',
           fontSize: 28,
-          fontWeight: '900',
-          color: appTheme.fontMainColor,
+          fontWeight: '800',
+          color: '#FFFFFF',
           marginBottom: 8,
         }}
       >
@@ -63,7 +76,7 @@ export default function RoleSelectScreen() {
         style={{
           textAlign: 'center',
           fontSize: 15,
-          color: '#6B7280',
+          color: MUTED,
           marginBottom: 32,
           lineHeight: 22,
         }}
@@ -73,16 +86,17 @@ export default function RoleSelectScreen() {
 
       <TouchableOpacity
         onPress={() => choose('kitchen')}
+        activeOpacity={0.85}
         style={{
           alignItems: 'center',
-          borderRadius: 16,
+          borderRadius: 14,
           paddingVertical: 28,
           paddingHorizontal: 16,
           marginBottom: 14,
-          backgroundColor: appTheme.primary || '#16a34a',
+          backgroundColor: ACCENT,
         }}
       >
-        <Text style={{ fontSize: 22, fontWeight: '800', color: '#fff' }}>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: '#FFFFFF' }}>
           {t('Kitchen')}
         </Text>
         <Text
@@ -100,20 +114,22 @@ export default function RoleSelectScreen() {
 
       <TouchableOpacity
         onPress={() => choose('delivery')}
+        activeOpacity={0.85}
         style={{
           alignItems: 'center',
-          borderRadius: 16,
+          borderRadius: 14,
           paddingVertical: 28,
           paddingHorizontal: 16,
-          borderWidth: 2,
-          borderColor: appTheme.primary || '#16a34a',
+          backgroundColor: SURFACE,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: HAIRLINE,
         }}
       >
         <Text
           style={{
             fontSize: 22,
             fontWeight: '800',
-            color: appTheme.primary || '#16a34a',
+            color: ACCENT,
           }}
         >
           {t('Delivery')}
@@ -122,7 +138,7 @@ export default function RoleSelectScreen() {
           style={{
             marginTop: 8,
             textAlign: 'center',
-            color: '#6B7280',
+            color: MUTED,
             fontSize: 14,
             lineHeight: 20,
           }}

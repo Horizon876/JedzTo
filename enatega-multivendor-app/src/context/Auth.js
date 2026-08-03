@@ -8,6 +8,12 @@ import {
   invalidateUserSession,
   subscribeToSessionInvalidation
 } from '../utils/session'
+import {
+  clearCustomerDetails,
+  clearEphemeralGuestSession,
+  isEphemeralGuestSession,
+  setEphemeralGuestSession
+} from '../utils/customerDetailsStorage'
 
 const AuthContext = React.createContext()
 
@@ -15,9 +21,14 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null)
   const [isAuthReady, setIsAuthReady] = useState(false)
 
-  const setTokenAsync = async token => {
-    await AsyncStorage.setItem('token', token)
-    setToken(token)
+  const setTokenAsync = async (nextToken, options = {}) => {
+    await AsyncStorage.setItem('token', nextToken)
+    if (options.ephemeral) {
+      await setEphemeralGuestSession(true)
+    } else {
+      await clearEphemeralGuestSession()
+    }
+    setToken(nextToken)
   }
 
   useEffect(() => {
@@ -27,6 +38,15 @@ export const AuthProvider = ({ children }) => {
         const storedToken = await AsyncStorage.getItem('token')
 
         if (!storedToken) {
+          isSubscribed && setToken(null)
+          return
+        }
+
+        // Guest unchecked "Zapisz dane" — do not restore identity on cold start.
+        if (await isEphemeralGuestSession()) {
+          await AsyncStorage.removeItem('token')
+          await clearEphemeralGuestSession()
+          await clearCustomerDetails()
           isSubscribed && setToken(null)
           return
         }

@@ -109,6 +109,32 @@ const setupApollo = () => {
           },
         },
       },
+      // Order polls request ETA on nested restaurant; missing/null values must
+      // not wipe the kitchen timer fields written by KitchenRestaurantTimes.
+      Restaurant: {
+        fields: {
+          defaultEta: {
+            merge(existing, incoming) {
+              return incoming != null ? incoming : existing;
+            },
+          },
+          currentEta: {
+            merge(existing, incoming) {
+              return incoming != null ? incoming : existing;
+            },
+          },
+          pickupTime: {
+            merge(existing, incoming) {
+              return incoming != null ? incoming : existing;
+            },
+          },
+          deliveryTime: {
+            merge(existing, incoming) {
+              return incoming != null ? incoming : existing;
+            },
+          },
+        },
+      },
       DeliveryAddress: {
         keyFields: ["id"],
         fields: {
@@ -186,14 +212,15 @@ const setupApollo = () => {
   const request = async (operation: Operation) => {
     const skipPublicAuth =
       operation.getContext().headers?.["x-skip-public-auth"];
-    const token = await getSecureItem(RIDER_TOKEN);
+    // Prefer secure storage, fall back to AsyncStorage (Expo Go edge cases).
+    const token =
+      (await getSecureItem(RIDER_TOKEN)) ||
+      (await AsyncStorage.getItem(RIDER_TOKEN));
     const nonce = PublicAccessTokenService.getNonce();
 
-    // Get platform-specific information for fingerprinting
     const platform = Platform.OS;
     const locale = (await AsyncStorage.getItem("lang")) || "en";
 
-    // Build headers object
     const headers: Record<string, string> = {
       authorization: token ? `Bearer ${token}` : "",
       nonce: nonce || "",
@@ -204,8 +231,19 @@ const setupApollo = () => {
     };
 
     if (!skipPublicAuth) {
-      const publicToken = await PublicAccessTokenService.getToken(client);
-      headers["bop-auth"] = `Bearer ${publicToken}`;
+      try {
+        const publicToken = await PublicAccessTokenService.getToken(client);
+        if (publicToken) {
+          headers["bop-auth"] = `Bearer ${publicToken}`;
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.warn(
+            "Public access token unavailable; continuing without bop-auth",
+            error
+          );
+        }
+      }
     }
 
     operation.setContext({
@@ -235,41 +273,28 @@ const setupApollo = () => {
   );
 
   const errorLink = onError(({ graphQLErrors, networkError }) => {
-    const hasInvalidSession = (graphQLErrors || []).some(
-      (graphQLError) =>
-        graphQLError?.extensions?.code === "TOKEN_EXPIRED" ||
-        graphQLError?.extensions?.code === "INVALID_TOKEN",
-    );
+    // Only force logout for explicit session-invalid codes — never for a
+    // transient UNAUTHENTICATED race (e.g. query before token hydrate).
+    const hasInvalidSession = (graphQLErrors || []).some((graphQLError) => {
+      const code = graphQLError?.extensions?.code;
+      return code === "TOKEN_EXPIRED" || code === "INVALID_TOKEN";
+    });
 
     if (hasInvalidSession) {
       void handleInvalidSession();
       return;
     }
 
-    if (graphQLErrors) {
-      graphQLErrors.forEach(({ message }) => {
-        // IMPORTANT: Only remove user token for actual user auth failures
-        // Do NOT remove token for public auth failures (bop-auth related)
-        const isPublicAuthError =
-          message.toLowerCase().includes("fingerprint mismatch") ||
-          message.toLowerCase().includes("token expired") ||
-          message.toLowerCase().includes("invalid token") ||
-          message.toLowerCase().includes("token missing");
-
-        // Only remove rider token if it's a user auth error (not public auth error)
-        if (
-          !isPublicAuthError &&
-          (message.toLowerCase().includes("unauthenticate") ||
-           message.toLowerCase().includes("unauthorize"))
-        ) {
-          removeSecureItem(RIDER_TOKEN)
-            .then(() => {})
-            .catch(() => {});
-        }
+    if (graphQLErrors && __DEV__) {
+      graphQLErrors.forEach(({ message, extensions }) => {
+        console.warn("GraphQL error", message, extensions?.code);
       });
     }
     if (networkError && __DEV__) {
-      console.warn("Network error while processing GraphQL request");
+      console.warn(
+        "Network error while processing GraphQL request",
+        networkError.message
+      );
     }
   });
 

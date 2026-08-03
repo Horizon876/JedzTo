@@ -17,12 +17,6 @@ import { useTranslation } from 'react-i18next'
 
 const datas = [
   {
-    title: 'titleProfile',
-    icon: 'user',
-    navigateTo: 'Profile',
-    isAuth: true
-  },
-  {
     title: 'myAddresses',
     icon: 'location-pin',
     navigateTo: 'Addresses',
@@ -31,8 +25,8 @@ const datas = [
   {
     title: 'Favourite',
     icon: 'heart',
-    navigateTo: 'Favourite',
-    isAuth: true
+    navigateTo: 'Favourites',
+    isAuth: false
   },
   {
     title: 'titleOrders',
@@ -116,7 +110,9 @@ function SidebBar(props) {
                 style={styles(currentTheme).iconContainer}
                 onPress={async () => {
                   if (dataItem.isAuth && !isLoggedIn) {
-                    props.navigation.navigate('CreateAccount')
+                    props.navigation.navigate('GuestCheckout')
+                  } else if (dataItem.navigateTo === 'Favourites') {
+                    props.navigation.navigate('Main', { screen: 'Favourites' })
                   } else {
                     props.navigation.navigate(dataItem.navigateTo)
                   }

@@ -1,5 +1,5 @@
-import React, { useContext, useMemo, useCallback } from 'react'
-import { View, Text, Image, Dimensions, Platform } from 'react-native'
+import React, { useContext, useMemo, useCallback, useEffect, useState } from 'react'
+import { View, Text, Image, Dimensions, Platform, DeviceEventEmitter } from 'react-native'
 import styles from './styles'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import { alignment } from '../../../utils/alignment'
@@ -22,6 +22,8 @@ import {
   getJedzToLocalRestaurantPreviews,
   jedzToLocalRestaurantsEnabled
 } from '../../../utils/jedztoLocalRestaurants'
+import { RESTAURANT_TIMES_UPDATED_EVENT } from '../../RestaurantTimesSync/RestaurantTimesSync'
+import { getRestaurantEtaMinutes } from '../../../utils/restaurantEta'
 
 const { height } = Dimensions.get('window')
 function TopBrands({ forPickup = false }) {
@@ -49,7 +51,35 @@ function TopBrands({ forPickup = false }) {
     return { topRatedVendorsPreview: getJedzToLocalRestaurantPreviews() }
   }, [useLocalRestaurants, remoteData])
 
-  const RenderItem = ({ item }) => (
+  const [liveTimesById, setLiveTimesById] = useState({})
+  useEffect(() => {
+    const onTimesUpdated = (payload) => {
+      if (!payload?._id) return
+      setLiveTimesById((prev) => ({
+        ...prev,
+        [String(payload._id)]: {
+          deliveryTime: payload.deliveryTime,
+          pickupTime: payload.pickupTime,
+          defaultEta: payload.defaultEta,
+          currentEta: payload.currentEta
+        }
+      }))
+    }
+    const sub = DeviceEventEmitter.addListener(
+      RESTAURANT_TIMES_UPDATED_EVENT,
+      onTimesUpdated
+    )
+    return () => sub.remove()
+  }, [])
+
+  const RenderItem = ({ item }) => {
+    const live = liveTimesById[String(item?._id)]
+    const merged = {
+      ...item,
+      ...(live || {})
+    }
+    const deliveryTime = getRestaurantEtaMinutes(merged, { isPickup: forPickup })
+    return (
     <TouchableOpacity style={styles().topbrandsContainer} onPress={() => navigation.navigate('Restaurant', { ...item })}>
       <View style={styles().brandImgContainer}>
         <Image source={{ uri: useCachedMediaUri(resolveLogoImage(item), 'image') }} style={styles().brandImg} resizeMode='contain' />
@@ -65,19 +95,35 @@ function TopBrands({ forPickup = false }) {
           {item?.name}
         </TextDefault>
         <TextDefault textColor={currentTheme.fontFifthColor} normal>
-          {item?.deliveryTime} mins
+          {deliveryTime != null ? `${deliveryTime} mins` : ''}
         </TextDefault>
       </View>
     </TouchableOpacity>
-  )
+  )}
 
-  const topRatedVendors = useMemo(() => data?.topRatedVendorsPreview ?? [], [data])
+  const topRatedVendors = useMemo(() => {
+    const list = data?.topRatedVendorsPreview ?? []
+    return list.map((item) => {
+      const live = liveTimesById[String(item?._id)]
+      if (!live) return item
+      return {
+        ...item,
+        deliveryTime: live.deliveryTime ?? item.deliveryTime,
+        pickupTime: live.pickupTime ?? item.pickupTime,
+        defaultEta: live.defaultEta ?? item.defaultEta,
+        currentEta: live.currentEta ?? item.currentEta
+      }
+    })
+  }, [data, liveTimesById])
   const restaurantBrands = useMemo(() => topRatedVendors.filter((item) => item.shopType === 'restaurant'), [topRatedVendors])
   const groceryBrands = useMemo(() => topRatedVendors.filter((item) => item.shopType === 'grocery'), [topRatedVendors])
   const sortedRestaurantBrands = useMemo(() => sortRestaurantsByOpenStatus(restaurantBrands || []), [restaurantBrands])
   const sortedGroceryBrands = useMemo(() => sortRestaurantsByOpenStatus(groceryBrands || []), [groceryBrands])
 
-  const renderBrandItem = useCallback(({ item }) => <RenderItem item={item} />, [])
+  const renderBrandItem = useCallback(
+    ({ item }) => <RenderItem item={item} />,
+    [liveTimesById, currentTheme, navigation]
+  )
   const renderRestaurantItem = useCallback(({ item }) => {
     const restaurantOpen = isOpen(item)
     return <NewRestaurantCard {...item} isOpen={restaurantOpen} />

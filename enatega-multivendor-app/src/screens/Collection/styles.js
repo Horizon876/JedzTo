@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native'
+import { scale } from '../../utils/scaling'
 
 const styles = (props = null) =>
   StyleSheet.create({
@@ -46,6 +47,47 @@ const styles = (props = null) =>
       gap: 12,
       paddingTop: 4,
       paddingBottom: 50
+    },
+    cardWrap: {
+      flex: 1 / 2,
+      marginHorizontal: 5,
+      marginVertical: 2
+    },
+    // Circular layout — matches TasteCategories section tiles.
+    circleContainer: {
+      flex: 1,
+      backgroundColor: '#121212'
+    },
+    circleContent: {
+      paddingHorizontal: scale(16),
+      paddingTop: scale(16),
+      paddingBottom: scale(40),
+      gap: scale(18)
+    },
+    circleRow: {
+      justifyContent: 'flex-start',
+      gap: scale(12)
+    },
+    circleItem: {
+      width: scale(96),
+      alignItems: 'center',
+      gap: scale(8)
+    },
+    circleTile: {
+      width: scale(88),
+      height: scale(88),
+      borderRadius: scale(44),
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center'
+    },
+    circleImage: {
+      width: '100%',
+      height: '100%'
+    },
+    circleLabel: {
+      width: scale(96)
     }
   })
+
 export default styles

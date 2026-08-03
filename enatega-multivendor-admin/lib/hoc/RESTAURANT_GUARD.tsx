@@ -24,10 +24,12 @@ const RESTAURANT_GUARD = <T extends object>(
       !!user &&
       (user.userType === 'ADMIN' ||
         user.userType === 'RESTAURANT' ||
+        user.userType === 'VENDOR' ||
         (user.userType === 'STAFF' &&
           !!(
             user.permissions?.includes('Restaurants') ||
-            user.permissions?.includes('Stores')
+            user.permissions?.includes('Stores') ||
+            user.permissions?.includes('Vendors')
           )));
 
     useEffect(() => {

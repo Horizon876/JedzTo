@@ -228,7 +228,10 @@ const DeliveryAreasMain = () => {
                         name:
                           typeof e.value === 'string'
                             ? e.value
-                            : e.value.description,
+                            : e.value?.description ?? '',
+                        ...(typeof e.value === 'string'
+                          ? { latitude: null, longitude: null }
+                          : {}),
                       })
                     }
                     onSelect={(e) => applyPlace(row.key, e.value)}

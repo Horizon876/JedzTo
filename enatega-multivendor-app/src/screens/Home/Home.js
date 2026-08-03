@@ -229,13 +229,9 @@ function Main(props) {
         <TouchableOpacity
           activeOpacity={0.5}
           onPress={() => {
-            if (isLoggedIn) {
-              navigation.navigate('NewAddress')
-            } else {
-              const modal = modalRef.current
-              modal?.close()
-              props?.navigation.navigate({ name: 'CreateAccount' })
-            }
+            const modal = modalRef.current
+            modal?.close()
+            navigation.navigate('NewAddress')
           }}
         >
           <View style={styles().addressSubContainer}>

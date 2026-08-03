@@ -1,13 +1,17 @@
 import React, { useMemo } from 'react'
 import { ScrollView, TouchableOpacity, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import ShimmerImage from '../../ShimmerImage/ShimmerImage'
 import { IMAGE_LINK } from '../../../utils/constants'
+import { restaurantMatchesCuisine } from '../../../utils/cuisineMatch'
+import { scale } from '../../../utils/scaling'
 import styles from './styles'
 
 const TILE_COLORS = ['#2C2C2E', '#323236', '#2A2A2E', '#34343A', '#2E2E32']
 const ACCENT = '#00A8FF'
+const ALL_CHIP = { _id: '__all__', name: '__all__', isAll: true }
 
 export const TASTE_CATEGORIES = [
   {
@@ -42,10 +46,19 @@ export const TASTE_CATEGORIES = [
   }
 ]
 
-const TasteCategories = ({ onCuisinePress, onSeeAllPress }) => {
+const matchesSelected = (cuisine, selectedCuisine) =>
+  !!selectedCuisine &&
+  (cuisine?.name === selectedCuisine ||
+    restaurantMatchesCuisine(
+      { cuisines: [cuisine?.name], tags: [cuisine?.name], name: cuisine?.name },
+      selectedCuisine
+    ))
+
+const TasteCategories = ({ selectedCuisine = null, onCuisinePress }) => {
   const { t } = useTranslation()
   const themedStyles = styles()
-  const items = useMemo(() => TASTE_CATEGORIES, [])
+
+  const items = useMemo(() => [ALL_CHIP, ...TASTE_CATEGORIES], [])
 
   return (
     <View style={themedStyles.section}>
@@ -53,11 +66,6 @@ const TasteCategories = ({ onCuisinePress, onSeeAllPress }) => {
         <TextDefault bolder H4 textColor='#FFFFFF'>
           {t('findYourTaste')}
         </TextDefault>
-        <TouchableOpacity activeOpacity={0.8} onPress={onSeeAllPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <TextDefault small bolder textColor={ACCENT}>
-            {t('SeeAll')}
-          </TextDefault>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -66,24 +74,42 @@ const TasteCategories = ({ onCuisinePress, onSeeAllPress }) => {
         contentContainerStyle={themedStyles.scrollContent}
       >
         {items.map((cuisine, index) => {
+          const isSelected = cuisine?.isAll ? !selectedCuisine : matchesSelected(cuisine, selectedCuisine)
           const imageUrl = cuisine?.image?.split('#')?.[0] || IMAGE_LINK
           return (
             <TouchableOpacity
-              key={cuisine?.name || index}
+              key={cuisine?._id || cuisine?.name || index}
               activeOpacity={0.85}
               style={themedStyles.item}
-              onPress={() => onCuisinePress?.(cuisine)}
+              onPress={() => onCuisinePress?.(cuisine?.isAll ? null : cuisine)}
             >
-              <View style={[themedStyles.tile, { backgroundColor: TILE_COLORS[index % TILE_COLORS.length] }]}>
-                <ShimmerImage
-                  imageUrl={imageUrl}
-                  style={themedStyles.image}
-                  resizeMode='cover'
-                  defaultSource={{ uri: IMAGE_LINK }}
-                />
+              <View
+                style={[
+                  themedStyles.tile,
+                  { backgroundColor: TILE_COLORS[index % TILE_COLORS.length] },
+                  isSelected && themedStyles.tileSelected
+                ]}
+              >
+                {cuisine?.isAll ? (
+                  <Ionicons name='grid' size={scale(22)} color={isSelected ? ACCENT : '#FFFFFF'} />
+                ) : (
+                  <ShimmerImage
+                    imageUrl={imageUrl}
+                    style={themedStyles.image}
+                    resizeMode='cover'
+                    defaultSource={{ uri: IMAGE_LINK }}
+                  />
+                )}
               </View>
-              <TextDefault numberOfLines={1} smaller center textColor='#FFFFFF' style={themedStyles.label}>
-                {cuisine?.name}
+              <TextDefault
+                numberOfLines={1}
+                smaller
+                center
+                bolder={isSelected}
+                textColor={isSelected ? ACCENT : '#FFFFFF'}
+                style={themedStyles.label}
+              >
+                {cuisine?.isAll ? t('allCuisines') : cuisine?.name}
               </TextDefault>
             </TouchableOpacity>
           )

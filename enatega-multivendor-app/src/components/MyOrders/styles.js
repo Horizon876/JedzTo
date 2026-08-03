@@ -12,7 +12,8 @@ const styles = (props = null) =>
   StyleSheet.create({
     listContent: {
       paddingBottom: scale(24),
-      flexGrow: 1
+      flexGrow: 1,
+      backgroundColor: SURFACE
     },
     orderRow: {
       backgroundColor: ROW,
@@ -21,6 +22,9 @@ const styles = (props = null) =>
       paddingHorizontal: scale(16),
       paddingVertical: scale(14),
       gap: scale(10)
+    },
+    orderRowLast: {
+      borderBottomWidth: 0
     },
     etaBlock: {
       gap: scale(4)

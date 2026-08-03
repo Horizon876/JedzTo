@@ -1,4 +1,4 @@
-import { View, ScrollView, Dimensions, TouchableOpacity, StatusBar, Platform } from 'react-native'
+import { View, ScrollView, Dimensions, StatusBar, Platform, TouchableOpacity } from 'react-native'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import { scale } from '../../utils/scaling'
 import { alignment } from '../../utils/alignment'
@@ -9,7 +9,6 @@ import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import ConfigurationContext from '../../context/Configuration'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
-// import analytics from '../../utils/analytics'
 import Detail from '../../components/OrderDetail/Detail/Detail'
 import RestaurantMarker from '../../assets/SVG/restaurant-marker'
 import CustomerMarker from '../../assets/SVG/customer-marker'
@@ -21,21 +20,21 @@ import { Ionicons } from '@expo/vector-icons'
 import { textStyles } from '../../utils/textStyles'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import navigationService from '../../routes/navigationService'
-import { PriceRow } from '../../components/OrderDetail/PriceRow'
 import { ORDER_STATUS_ENUM } from '../../utils/enums'
 import { CancelModal } from '../../components/OrderDetail/CancelModal'
-import Button from '../../components/Button/Button'
 import { gql, useMutation, useSubscription } from '@apollo/client'
 import { cancelOrder as cancelOrderMutation } from '../../apollo/mutations'
 import { subscriptionOrder, subscriptionNewMessage } from '../../apollo/subscriptions'
 import { useUserContext } from '../../context/User'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import { Instructions } from '../../components/Checkout/Instructions'
+import { getOrderEtaClockLabel } from '../../utils/orderEtaClock'
+import { formatMoney } from '../../utils/formatMoney'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import MapViewDirections from 'react-native-maps-directions'
 import useEnvVars from '../../../environment'
 import LottieView from 'lottie-react-native'
-import Taxes from './Taxes'
 import { getOrderStatusHintKey, getOrderStatusLabelKey } from '../../utils/orderStatusLabel'
 const { height: HEIGHT, width: WIDTH } = Dimensions.get('screen')
 
@@ -100,6 +99,8 @@ function OrderDetail(props) {
     ...theme[themeContext.ThemeValue]
   }
   const navigation = useNavigation()
+  const inset = useSafeAreaInsets()
+  const footerPad = Math.max(inset.bottom, 8)
   const { GOOGLE_MAPS_KEY } = useEnvVars()
   const mapView = useRef(null)
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
@@ -275,9 +276,9 @@ function OrderDetail(props) {
   return (
     <View style={styles().screen}>
       <ScrollView
+        style={styles().scrollArea}
         contentContainerStyle={styles().scrollContent}
         showsVerticalScrollIndicator={false}
-        overScrollMode='never'
       >
         {order?.rider && order?.orderStatus === ORDER_STATUS_ENUM.PICKED && (
           <MapView
@@ -353,6 +354,26 @@ function OrderDetail(props) {
               {t(getOrderStatusHintKey(order?.orderStatus))}
             </TextDefault>
           )}
+          {(() => {
+            const status = order?.orderStatus
+            const isDone = ['DELIVERED', 'CANCELLED', 'CANCELLEDBYREST'].includes(status)
+            if (isDone) return null
+            const outForDelivery = ['ASSIGNED', 'PICKED'].includes(status)
+            const isPickupOrder = !!order?.isPickedUp
+            const clock = getOrderEtaClockLabel(order, { outForDelivery })
+            if (!clock) return null
+            return (
+              <>
+                <TextDefault style={styles().etaLine} bolder isRTL>
+                  {outForDelivery || !isPickupOrder
+                    ? t('estimatedDeliveryTime')
+                    : t('estimatedPrepTime')}
+                  {': '}
+                  {clock}
+                </TextDefault>
+              </>
+            )
+          })()}
         </View>
 
         <Instructions title={'Instructions'} theme={currentTheme} message={order?.instructions} />
@@ -375,33 +396,82 @@ function OrderDetail(props) {
           hasUnread={hasUnreadMessage}
           onChatOpen={() => setHasUnreadMessage(false)}
         />
-        <Taxes
-          tax={tax}
-          deliveryCharges={deliveryCharges}
-          currency={configuration.currencySymbol}
-          tip={tip}
-          discountAmount={discountAmount}
-        />
       </ScrollView>
 
-      <View style={[styles().bottomContainer(), { paddingBottom: scale(20) }]}>
-        <PriceRow
-          theme={currentTheme}
-          title={t('total')}
-          currency={configuration.currencySymbol}
-          price={total.toFixed(2)}
-        />
-        <Button
-          disabled={!isOrderCancelable}
-          text={t('cancelOrder')}
-          buttonProps={{ onPress: cancelModalToggle }}
-          buttonStyles={[
-            styles().cancelButtonContainer(),
-            !isOrderCancelable && styles().cancelButtonDisabled
-          ]}
-          textProps={{ textColor: '#FF453A' }}
-          textStyles={{ ...alignment.Pmedium }}
-        />
+      <View style={[styles().bottomContainer, { paddingBottom: Math.max(footerPad, scale(8)) }]}>
+        <View style={styles().summaryInner}>
+          <View style={styles(currentTheme).summaryRow}>
+            <TextDefault style={styles().summaryLabel} isRTL>
+              {t('subTotal')}
+            </TextDefault>
+            <TextDefault style={styles().summaryValue} bolder isRTL>
+              {formatMoney(subTotal, configuration.currencySymbol)}
+            </TextDefault>
+          </View>
+          <View style={styles(currentTheme).summaryRow}>
+            <TextDefault style={styles().summaryLabel} isRTL>
+              {t('deliveryFee')}
+            </TextDefault>
+            <TextDefault style={styles().summaryValue} bolder isRTL>
+              {Number(deliveryCharges || 0) > 0
+                ? formatMoney(deliveryCharges, configuration.currencySymbol)
+                : t('freeDelivery')}
+            </TextDefault>
+          </View>
+          {Number(discountAmount) > 0 ? (
+            <View style={styles(currentTheme).summaryRow}>
+              <TextDefault style={styles().summaryLabel} isRTL>
+                {t('voucherDiscount')}
+              </TextDefault>
+              <TextDefault style={styles().summaryValue} bolder isRTL>
+                -{formatMoney(discountAmount, configuration.currencySymbol)}
+              </TextDefault>
+            </View>
+          ) : null}
+          <View style={styles(currentTheme).summaryRow}>
+            <TextDefault style={styles().summaryLabel} isRTL>
+              {t('cashPaymentFee')}
+            </TextDefault>
+            <TextDefault style={styles().summaryValue} bolder isRTL>
+              {formatMoney(Number(tax) || 0, configuration.currencySymbol)}
+            </TextDefault>
+          </View>
+          {Number(tip) > 0 ? (
+            <View style={styles(currentTheme).summaryRow}>
+              <TextDefault style={styles().summaryLabel} isRTL>
+                {t('tip')}
+              </TextDefault>
+              <TextDefault style={styles().summaryValue} bolder isRTL>
+                {formatMoney(tip, configuration.currencySymbol)}
+              </TextDefault>
+            </View>
+          ) : null}
+          <View style={styles(currentTheme).totalRow}>
+            <TextDefault textColor='#FFFFFF' bolder H4 isRTL>
+              {t('total')}
+            </TextDefault>
+            <TextDefault textColor='#00A8FF' bolder H4 isRTL>
+              {formatMoney(total, configuration.currencySymbol)}
+            </TextDefault>
+          </View>
+          <TouchableOpacity
+            disabled={!isOrderCancelable || loadingCancel}
+            activeOpacity={0.85}
+            onPress={cancelModalToggle}
+            style={[
+              styles().cancelButton,
+              (!isOrderCancelable || loadingCancel) && styles().cancelButtonDisabled
+            ]}
+          >
+            {loadingCancel ? (
+              <Spinner backColor={'transparent'} spinnerColor='#fff' />
+            ) : (
+              <TextDefault textColor='#FFFFFF' style={styles().cancelButtonText} bold H5>
+                {t('cancelOrder')}
+              </TextDefault>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
       <CancelModal
         theme={currentTheme}
@@ -419,24 +489,37 @@ export const OrderStatusImage = ({ status }) => {
   if (status === ORDER_STATUS_ENUM.PENDING) {
     return (
       <View style={styles().checkIconWrap}>
-        <Ionicons name='checkmark-circle' size={scale(88)} color='#34C759' />
+        <Ionicons name='checkmark-circle' size={scale(88)} color='#00A8FF' />
+      </View>
+    )
+  }
+
+  if (
+    status === ORDER_STATUS_ENUM.CANCELLED ||
+    status === ORDER_STATUS_ENUM.CANCELLEDBYREST ||
+    status === 'REJECTED'
+  ) {
+    return (
+      <View style={styles().checkIconWrap}>
+        <Ionicons name='close-circle' size={scale(88)} color='#FF453A' />
       </View>
     )
   }
 
   let imagePath = null
+  let loop = true
   switch (status) {
     case ORDER_STATUS_ENUM.ACCEPTED:
       imagePath = require('../../assets/SVG/order-tracking-preparing.json')
       break
     case ORDER_STATUS_ENUM.ASSIGNED:
+    case ORDER_STATUS_ENUM.PICKED:
       imagePath = require('../../assets/SVG/food-picked.json')
       break
     case ORDER_STATUS_ENUM.COMPLETED:
-      imagePath = require('../../assets/SVG/place-order.json')
-      break
     case ORDER_STATUS_ENUM.DELIVERED:
       imagePath = require('../../assets/SVG/place-order.json')
+      loop = false
       break
   }
 
@@ -447,7 +530,7 @@ export const OrderStatusImage = ({ status }) => {
       style={styles().lottie}
       source={imagePath}
       autoPlay
-      loop
+      loop={loop}
     />
   )
 }

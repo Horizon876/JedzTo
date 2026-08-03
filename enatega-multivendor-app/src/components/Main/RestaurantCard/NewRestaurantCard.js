@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native'
-import React, { useCallback, useContext, useMemo } from 'react'
+import React, { useCallback, useContext, useMemo, useState } from 'react'
 import { TouchableOpacity, View, Image, Alert, Platform } from 'react-native'
 import ConfigurationContext from '../../../context/Configuration'
 import ThemeContext from '../../../ui/ThemeContext/ThemeContext'
@@ -9,12 +9,9 @@ import TextDefault from '../../Text/TextDefault/TextDefault'
 import styles from './styles'
 import { AntDesign, Feather, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
-import { addFavouriteRestaurant } from '../../../apollo/mutations'
 import UserContext from '../../../context/User'
-import { useApolloClient, useMutation } from '@apollo/client'
-import gql from 'graphql-tag'
-import { profile, FavouriteRestaurant } from '../../../apollo/queries'
-import { FlashMessage } from '../../../ui/FlashMessage/FlashMessage'
+import { useFavourites } from '../../../context/Favourites'
+import { useApolloClient } from '@apollo/client'
 import Spinner from '../../Spinner/Spinner'
 import { storeSearch } from '../../../utils/recentSearch'
 import Ripple from 'react-native-material-ripple'
@@ -22,16 +19,7 @@ import { useCachedMediaUri } from '../../../utils/mediaCache'
 import { resolveRestaurantImage } from '../../../utils/resolveImageUrl'
 import { formatMoney } from '../../../utils/formatMoney'
 import { RESTAURANT } from '../../../ui/hooks/useRestaurant'
-
-const ADD_FAVOURITE = gql`
-  ${addFavouriteRestaurant}
-`
-const PROFILE = gql`
-  ${profile}
-`
-const FAVOURITERESTAURANTS = gql`
-  ${FavouriteRestaurant}
-`
+import { getRestaurantEtaMinutes } from '../../../utils/restaurantEta'
 
 const MUTED = '#8E8E93'
 const ACCENT = '#00A8FF'
@@ -59,12 +47,10 @@ function NewRestaurantCard(props) {
     [i18n.language, themeContext.ThemeValue]
   )
 
-  const { profile, isPickup } = useContext(UserContext)
-  const heart = profile ? profile.favourite.includes(props?._id) : false
-  const [mutate, { loading: loadingMutation }] = useMutation(ADD_FAVOURITE, {
-    onCompleted,
-    refetchQueries: [PROFILE, FAVOURITERESTAURANTS]
-  })
+  const { isPickup } = useContext(UserContext)
+  const { isFavourite, toggleFavourite } = useFavourites()
+  const [toggling, setToggling] = useState(false)
+  const heart = isFavourite(props?._id)
   const isRestaurantOpen = props?.isOpen
   const isAvailable = props?.isAvailable
   const isRestaurantClosed = !isRestaurantOpen || !isAvailable
@@ -116,6 +102,12 @@ function NewRestaurantCard(props) {
       ? t('freeDelivery')
       : `${t('deliveryFee')}: ${paidDeliveryLabel}`
 
+  const etaMinutes = getRestaurantEtaMinutes(props, { isPickup })
+  const etaLabel =
+    etaMinutes != null && !Number.isNaN(Number(etaMinutes)) && Number(etaMinutes) > 0
+      ? `~${Number(etaMinutes)} ${t('Min')}`
+      : null
+
   const prefetchRestaurant = useCallback(() => {
     if (!restaurantId) return
     client
@@ -127,17 +119,12 @@ function NewRestaurantCard(props) {
       .catch(() => {})
   }, [client, restaurantId])
 
-  function onCompleted() {
-    FlashMessage({ message: t('favouritelistUpdated') })
-  }
-
-  const handleAddToFavorites = () => {
-    if (!loadingMutation && profile) {
-      mutate({ variables: { id: props?._id } })
-    } else if (!profile) {
-      FlashMessage({ message: t('loginRequired') })
-      navigation.navigate('Profile')
-    }
+  function handleAddToFavorites() {
+    if (toggling || !props?._id) return
+    setToggling(true)
+    Promise.resolve(toggleFavourite(props))
+      .catch(() => {})
+      .finally(() => setToggling(false))
   }
 
   const handleRestaurantClick = () => {
@@ -243,6 +230,15 @@ function NewRestaurantCard(props) {
                 </TextDefault>
               </View>
 
+              {etaLabel ? (
+                <View style={styles(currentTheme).metaRow}>
+                  <Ionicons name='time-outline' size={14} color={MUTED} />
+                  <TextDefault small textColor={MUTED} style={styles().metaText}>
+                    {etaLabel}
+                  </TextDefault>
+                </View>
+              ) : null}
+
               {props?.address ? (
                 <View style={styles(currentTheme).metaRow}>
                   <Ionicons name='location-outline' size={14} color={MUTED} />
@@ -258,7 +254,7 @@ function NewRestaurantCard(props) {
 
       <TouchableOpacity
         activeOpacity={0.7}
-        disabled={loadingMutation}
+        disabled={toggling}
         onPress={handleAddToFavorites}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         style={{
@@ -274,7 +270,7 @@ function NewRestaurantCard(props) {
         }}
       >
         <View style={styles(currentTheme).favouriteOverlay}>
-          {loadingMutation ? (
+          {toggling ? (
             <Spinner size={'small'} backColor={'transparent'} spinnerColor={ACCENT} />
           ) : heart ? (
             <AntDesign name='heart' size={scale(15)} color='#FF4D6A' />

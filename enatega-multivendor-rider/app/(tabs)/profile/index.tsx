@@ -1,12 +1,27 @@
+import { useContext } from 'react'
+import {
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ScrollView,
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
+import { Href, router } from 'expo-router'
+
 import { AuthContext } from '@/lib/context/global/auth.context'
 import { useWorkMode } from '@/lib/context/global/work-mode.context'
 import { useApptheme } from '@/lib/context/global/theme.context'
 import { ROUTES } from '@/lib/utils/constants'
-import { Href, router } from 'expo-router'
-import { useContext } from 'react'
-import { Text, TouchableOpacity, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useTranslation } from 'react-i18next'
+
+const ACCENT = '#00A8FF'
+const MUTED = '#8E8E93'
+const SURFACE = '#1C1C1E'
+const HAIRLINE = '#2C2C2E'
+const DESTRUCTIVE = '#FF453A'
+const PAGE = '#121212'
 
 export default function Profile() {
   const { t } = useTranslation()
@@ -24,64 +39,84 @@ export default function Profile() {
     <View
       style={{
         flex: 1,
-        paddingHorizontal: 20,
-        paddingTop: insets.top + 20,
-        paddingBottom: insets.bottom + 80,
-        backgroundColor: appTheme.themeBackground,
+        backgroundColor: appTheme.themeBackground || PAGE,
       }}
     >
-      <Text
-        style={{
-          fontSize: 28,
-          fontWeight: '900',
-          color: appTheme.fontMainColor,
-          marginBottom: 8,
+      <StatusBar barStyle="light-content" backgroundColor={PAGE} />
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: insets.top + 20,
+          paddingBottom: insets.bottom + 100,
+          gap: 14,
         }}
+        showsVerticalScrollIndicator={false}
       >
-        {t('Settings')}
-      </Text>
-      <Text style={{ fontSize: 15, color: '#6B7280', marginBottom: 28 }}>
-        {t('Current role')}:{' '}
-        <Text style={{ fontWeight: '700', color: appTheme.fontMainColor }}>
-          {workMode === 'delivery' ? t('Delivery') : t('Kitchen')}
+        <Text style={styles.title}>{t('Settings')}</Text>
+        <Text style={styles.subtitle}>
+          {t('Current role')}:{' '}
+          <Text style={styles.roleValue}>
+            {workMode === 'delivery' ? t('Delivery') : t('Kitchen')}
+          </Text>
         </Text>
-      </Text>
 
-      <TouchableOpacity
-        onPress={switchRole}
-        style={{
-          alignItems: 'center',
-          borderRadius: 12,
-          borderWidth: 2,
-          borderColor: appTheme.primary || '#16a34a',
-          paddingVertical: 16,
-          marginBottom: 12,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: '700',
-            color: appTheme.primary || '#16a34a',
-          }}
+        <TouchableOpacity
+          onPress={switchRole}
+          activeOpacity={0.85}
+          style={styles.outlineBtn}
         >
-          {t('Switch role')}
-        </Text>
-      </TouchableOpacity>
+          <Text style={styles.outlineBtnText}>{t('Switch role')}</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => logout?.()}
-        style={{
-          alignItems: 'center',
-          borderRadius: 12,
-          paddingVertical: 16,
-          backgroundColor: '#dc2626',
-        }}
-      >
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>
-          {t('Logout')}
-        </Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => logout?.()}
+          activeOpacity={0.85}
+          style={styles.logoutBtn}
+        >
+          <Text style={styles.logoutBtnText}>{t('Logout')}</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  subtitle: {
+    fontSize: 15,
+    color: MUTED,
+    marginBottom: 8,
+  },
+  roleValue: {
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  outlineBtn: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: HAIRLINE,
+    backgroundColor: SURFACE,
+    paddingVertical: 16,
+  },
+  outlineBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: ACCENT,
+  },
+  logoutBtn: {
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingVertical: 16,
+    backgroundColor: DESTRUCTIVE,
+  },
+  logoutBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+})

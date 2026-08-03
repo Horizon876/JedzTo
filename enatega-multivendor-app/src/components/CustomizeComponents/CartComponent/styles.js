@@ -1,88 +1,77 @@
 import { verticalScale, scale } from '../../../utils/scaling'
-import { Dimensions, StyleSheet } from 'react-native'
-const { height } = Dimensions.get('window')
+import { StyleSheet } from 'react-native'
+
+export const ACCENT = '#00A8FF'
+export const PAGE = '#121212'
+export const SURFACE = '#1C1C1E'
+export const CARD = '#2C2C2E'
+export const MUTED = '#8E8E93'
 
 const styles = (props = null) =>
   StyleSheet.create({
-    flex: {
-      flex: 1
-    },
     mainContainer: {
       width: '100%',
-      height: height * 0.09,
-      borderTopRightRadius: scale(25),
-      borderTopLeftRadius: scale(25),
-      shadowColor: props !== null ? props?.shadowColor : '#fefefe',
-      shadowOffset: {
-        width: 0,
-        height: -verticalScale(2)
-      },
-      shadowOpacity: 0.8,
-      shadowRadius: verticalScale(2),
-      elevation: 10,
-      backgroundColor: props !== null ? props?.themeBackground : '#a92d2d',
+      paddingTop: scale(10),
+      paddingBottom: scale(12),
+      borderTopLeftRadius: scale(22),
+      borderTopRightRadius: scale(22),
+      backgroundColor: SURFACE,
       justifyContent: 'center',
-      alignItems: 'center'
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -verticalScale(2) },
+      shadowOpacity: 0.25,
+      shadowRadius: verticalScale(6),
+      elevation: 12
     },
     subContainer: {
       width: '90%',
-      height: '70%',
       alignItems: 'center',
-      justifyContent: 'space-around',
-      flexDirection: 'row'
+      justifyContent: 'space-between',
+      flexDirection: 'row',
+      gap: scale(12)
     },
-    icon: {
-      width: '8%',
-      height: '55%',
-      backgroundColor: props !== null ? props?.newFontcolor :'#fafafa',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: scale(15)
-    },
-    quantity: {
-      borderWidth: 1,
-      paddingLeft: scale(18),
-      paddingRight: scale(18),
-      paddingTop: scale(10),
-      paddingBottom: scale(10),
-      borderRadius: scale(10),
-      borderColor: props !== null ? props?.newFontcolor :'#fafafa',
-    },
-    btnContainer: {
-      width: '60%',
-      height: '90%',
-      backgroundColor: props !== null ? props?.main : 'black',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: scale(10)
-    },
-    // New styles for quantity
     actionContainer: {
-      width: '30%',
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      backgroundColor: props !== null ? props?.newBorderColor : '#F3F4F6',
-      borderRadius:40,
-      borderWidth:1,
-      borderColor:props !== null ? props?.iconBackground: '#fcfcfc',
+      backgroundColor: CARD,
+      borderRadius: scale(999),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: '#3A3A3C',
+      paddingHorizontal: scale(4),
+      paddingVertical: scale(4),
+      minWidth: scale(110)
     },
     actionContainerBtns: {
-      width: scale(30),
-      height:scale(30),
-      borderRadius: scale(20),
+      width: scale(34),
+      height: scale(34),
+      borderRadius: scale(17),
       alignItems: 'center',
-     justifyContent:'center'
+      justifyContent: 'center'
     },
-    minusBtn:{
-      backgroundColor: '#fff',
+    minusBtn: {
+      backgroundColor: PAGE
     },
-    plusBtn:{
-      backgroundColor: '#111827',
+    plusBtn: {
+      backgroundColor: ACCENT
     },
-    actionContainerView: {    
+    actionContainerView: {
+      minWidth: scale(28),
+      justifyContent: 'center',
+      alignItems: 'center'
+    },
+    btnContainer: {
+      flex: 1,
+      height: scale(48),
+      backgroundColor: ACCENT,
       justifyContent: 'center',
       alignItems: 'center',
+      borderRadius: scale(999)
     },
+    btnContainerDisabled: {
+      opacity: 0.45
+    }
   })
+
 export default styles

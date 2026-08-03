@@ -1,26 +1,18 @@
 'use client';
 
-// HOC
-import VENDOR_GUARD from '@/lib/hoc/VENDOR_GUARD';
-// CONTEXT
-import { VendorLayoutProvider } from '@/lib/context/vendor/layout-vendor.context';
-import VendorLayout from '@/lib/ui/layouts/protected/vendor';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import CustomLoader from '@/lib/ui/useable-components/custom-progress-indicator';
 
-export default function RootLayout({
+/** Vendor panel merged into restaurant store panel. */
+export default function VendorRedirectLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
-  const ProtectedLayout = VENDOR_GUARD(
-    ({ children }: { children: React.ReactNode }) => {
-      return <VendorLayout>{children}</VendorLayout>;
-    }
-  );
-
-  return (
-    <VendorLayoutProvider>
-      {/* VendorLayoutProvider for context */}
-      <ProtectedLayout>{children}</ProtectedLayout> {/* UI Layout for Vendor */}
-    </VendorLayoutProvider>
-  );
+}) {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/admin/store/dashboard');
+  }, [router]);
+  return <CustomLoader />;
 }

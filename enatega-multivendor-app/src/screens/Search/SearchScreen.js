@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { restaurantListPreview } from '../../apollo/queries'
 import { LocationContext } from '../../context/Location'
+import UserContext from '../../context/User'
 import { scale } from '../../utils/scaling'
 import { storeSearch, getRecentSearches, removeRecentSearch } from '../../utils/recentSearch'
 import {
@@ -35,6 +36,7 @@ const SearchScreen = () => {
   const insets = useSafeAreaInsets()
   const navigation = useNavigation()
   const { location } = useContext(LocationContext)
+  const { isPickup } = useContext(UserContext)
   const { isConnected: connect } = useNetworkStatus()
 
   const [searchText, setSearchText] = useState('')
@@ -70,8 +72,9 @@ const SearchScreen = () => {
 
   const { data: remoteData, loading: remoteLoading } = useQuery(RESTAURANTS, {
     variables: {
-      longitude: location?.longitude || null,
-      latitude: location?.latitude || null,
+      // Pickup: null coords → API skips delivery-area filter.
+      longitude: isPickup ? null : (location?.longitude || null),
+      latitude: isPickup ? null : (location?.latitude || null),
       shopType: null,
       ip: null
     },

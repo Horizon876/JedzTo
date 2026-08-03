@@ -18,8 +18,19 @@ export interface IUserContextProps {
   errorAssigned: ApolloError | undefined;
   assignedOrders: IOrder[] | null;
   pendingOrders?: IOrder[];
-  setOrderStatus?: (orderId: string, orderStatus: string) => Promise<void>;
+  setOrderStatus?: (
+    orderId: string,
+    orderStatus: string,
+    eta?: { preparationEtaMinutes?: number; deliveryEtaMinutes?: number }
+  ) => Promise<void>;
+  /** Latest ETA pushed after kitchen accept — drives the home timer UI. */
+  kitchenEtaMinutes?: number | null;
+  updateOrderEta?: (
+    orderId: string,
+    payload: { preparationEtaMinutes?: number; deliveryEtaMinutes?: number }
+  ) => Promise<IOrder | undefined>;
   updatingStatus?: boolean;
+  updatingEta?: boolean;
   refetchAssigned: () => void;
   refetchProfile: () => Promise<unknown>;
   networkStatusAssigned: NetworkStatus;

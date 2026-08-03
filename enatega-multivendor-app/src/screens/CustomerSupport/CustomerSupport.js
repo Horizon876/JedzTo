@@ -84,7 +84,7 @@ const CustomerSupport = (props) => {
   const openSupportComposer = () => {
     if (!isLoggedIn) {
       FlashMessage({ message: t('loginRequired', 'Please login to contact support') })
-      props?.navigation.navigate('Login')
+      props?.navigation.navigate('GuestCheckout')
       return
     }
 

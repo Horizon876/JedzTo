@@ -7,10 +7,10 @@ import { scale } from '../../utils/scaling'
 import Spinner from '../Spinner/Spinner'
 import { useFavorite } from './useFavorite'
 
-const FavoriteButton = ({ restaurantId, iconSize }) => {
+const FavoriteButton = ({ restaurantId, restaurant, iconSize }) => {
   const themeContext = useContext(ThemeContext)
   const currentTheme = theme[themeContext.ThemeValue]
-  const { isFavorite, loading, toggleFavorite } = useFavorite(restaurantId)
+  const { isFavorite, loading, toggleFavorite } = useFavorite(restaurantId, restaurant)
 
   return (
     <TouchableOpacity
@@ -31,7 +31,9 @@ const FavoriteButton = ({ restaurantId, iconSize }) => {
         position: 'relative'
       }}
     >
-      {loading ? <Spinner size={'small'} backColor={'transparent'} spinnerColor={currentTheme.iconColorDark} /> : isFavorite ? (
+      {loading ? (
+        <Spinner size={'small'} backColor={'transparent'} spinnerColor={currentTheme.iconColorDark} />
+      ) : isFavorite ? (
         <AntDesign name='heart' size={iconSize} color={currentTheme.newIconColor} />
       ) : (
         <Feather name='heart' size={iconSize} color={currentTheme.newIconColor} />

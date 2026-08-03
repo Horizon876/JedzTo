@@ -28,6 +28,7 @@ import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 import { populateCart, pruneCartToRestaurant } from '../../utils/populateCart'
+import { hasSavedCustomerDetails, isEphemeralGuestSession } from '../../utils/customerDetailsStorage'
 import { deliveryQuote } from '../../apollo/queries'
 import { calculateAmount, calculateDistance } from '../../utils/customFunctions'
 import { formatMoney as formatMoneyValue } from '../../utils/formatMoney'
@@ -59,10 +60,14 @@ function Cart(props) {
   const { location } = useContext(LocationContext)
   const themeContext = useContext(ThemeContext)
   const { t, i18n } = useTranslation()
-  const currentTheme = {
-    isRTL: i18n.dir() === 'rtl',
-    ...theme[themeContext.ThemeValue]
-  }
+  const currentTheme = useMemo(
+    () => ({
+      isRTL: i18n.dir() === 'rtl',
+      ...theme[themeContext.ThemeValue]
+    }),
+    [i18n.language, themeContext.ThemeValue]
+  )
+  const cartTitle = t('titleCart')
   const [loadingData, setLoadingData] = useState(true)
   const isCartEmpty = !cart?.length
   const { loading, data } = useRestaurant(cartRestaurant)
@@ -150,8 +155,10 @@ function Cart(props) {
           }))
           .sort((a, b) => String(a.key).localeCompare(String(b.key)))
       )
-    if (serialize(pruned) !== serialize(cart)) updateCart(pruned)
-  }, [cart, restaurant, updateCart])
+    if (serialize(pruned) !== serialize(cart)) {
+      updateCart(pruned)
+    }
+  }, [cart, restaurant]) // eslint-disable-line react-hooks/exhaustive-deps -- updateCart identity changes on login and must not re-trigger
 
   useFocusEffect(
     useCallback(() => {
@@ -162,9 +169,11 @@ function Cart(props) {
     }, [currentTheme.menuBar, themeContext.ThemeValue])
   )
 
+  // Do NOT put `navigation` in deps: setOptions updates nav state and can
+  // change the navigation identity → infinite Maximum update depth loop.
   useLayoutEffect(() => {
-    props?.navigation.setOptions({
-      title: t('titleCart'),
+    navigation.setOptions({
+      title: cartTitle,
       headerRight: null,
       headerBackVisible: false,
       headerTitleAlign: 'center',
@@ -196,12 +205,12 @@ function Cart(props) {
         </TouchableOpacity>
       )
     })
-  }, [currentTheme.newFontcolor, currentTheme.newIconColor, currentTheme.newheaderBG, props?.navigation, t])
+  }, [cartTitle, currentTheme.newFontcolor, currentTheme.newIconColor, currentTheme.newheaderBG])
 
   useLayoutEffect(() => {
-    if (!data) return
+    if (!data?.restaurant) return
     setLoadingData(false)
-  }, [data])
+  }, [data?.restaurant?._id])
 
   useEffect(() => {
     async function Track() {
@@ -293,18 +302,36 @@ function Cart(props) {
   const payableTotal = subtotal + (isPickup ? 0 : deliveryFee)
   const remainingToMinimumLabel = formatMoneyValue(remainingToMinimum, configuration?.currencySymbol || 'zł')
 
-  const goCheckout = () => {
+  const goCheckout = async () => {
     if (belowMinimum) {
       FlashMessage({
         message: t('OrderPriceValidation')
       })
       return
     }
-    if (isLoggedIn && profile) {
+
+    if (isLoggedIn && profile?.phone) {
+      const remembered = await hasSavedCustomerDetails()
+      const ephemeral = await isEphemeralGuestSession()
+      const isGuestAccount =
+        typeof profile?.email === 'string' &&
+        (profile.email.includes('@jedzto.local') || profile.email.startsWith('guest+'))
+
+      if (isGuestAccount) {
+        // Only skip the form when the guest opted into "Zapisz dane",
+        // or when they are mid-checkout after just entering details.
+        if (remembered || ephemeral) {
+          navigation.navigate('Checkout')
+          return
+        }
+        navigation.navigate('GuestCheckout')
+        return
+      }
+
       navigation.navigate('Checkout')
       return
     }
-    navigation.navigate('CheckoutAuth', { nextScreen: 'Checkout' })
+    navigation.navigate('GuestCheckout')
   }
 
   return (

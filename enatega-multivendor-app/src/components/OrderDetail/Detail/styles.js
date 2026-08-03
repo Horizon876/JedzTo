@@ -10,19 +10,21 @@ const { width: WIDTH } = Dimensions.get('window')
 export default StyleSheet.create({
   container: () => ({
     width: '100%',
-    marginTop: scale(8)
+    marginTop: 0
   }),
   header: {
+    marginTop: 0,
     paddingHorizontal: scale(14),
-    paddingVertical: scale(12),
+    paddingTop: scale(12),
+    paddingBottom: scale(12),
     backgroundColor: SURFACE,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: HAIRLINE
   },
   restaurantName: {
     color: MUTED,
-    fontSize: scale(13),
-    marginBottom: scale(4)
+    fontSize: scale(12),
+    marginBottom: scale(2)
   },
   orderNoRow: {
     flexDirection: 'row',
@@ -30,15 +32,19 @@ export default StyleSheet.create({
     gap: scale(6)
   },
   orderLabel: {
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    fontSize: scale(13),
+    marginTop: 0,
+    marginBottom: 0
   },
   orderNo: {
-    color: ACCENT
+    color: ACCENT,
+    fontSize: scale(13)
   },
   addressText: {
     color: MUTED,
     fontSize: scale(13),
-    marginTop: scale(8),
+    marginTop: scale(6),
     lineHeight: scale(18)
   },
   chatButton: (theme) => ({
@@ -49,10 +55,25 @@ export default StyleSheet.create({
     borderBottomColor: HAIRLINE,
     flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    width: '100%'
+    width: '100%',
+    marginTop: scale(8)
   }),
   itemsContainer: {
-    width: '100%'
+    width: '100%',
+    marginTop: 0
+  },
+  itemsHeader: {
+    paddingHorizontal: scale(14),
+    paddingTop: scale(10),
+    paddingBottom: scale(10),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIRLINE
+  },
+  itemsHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: scale(13),
+    marginTop: 0,
+    marginBottom: 0
   },
   itemRow: (theme) => ({
     width: '100%',
@@ -66,6 +87,9 @@ export default StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: HAIRLINE
   }),
+  itemRowLast: {
+    borderBottomWidth: 0
+  },
   itemImage: {
     width: scale(64),
     height: scale(64),

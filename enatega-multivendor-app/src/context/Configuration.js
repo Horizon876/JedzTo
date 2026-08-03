@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useQuery } from '@apollo/client'
 import gql from 'graphql-tag'
 
 import { getConfiguration } from '../apollo/queries'
+import { configureAnalytics } from '../utils/analytics'
 
 const GETCONFIGURATION = gql`
   ${getConfiguration}
@@ -22,6 +23,12 @@ export const ConfigurationProvider = props => {
           costType: 'perKM'
         }
       : data?.configuration
+
+  useEffect(() => {
+    if (data?.configuration?.appAmplitudeApiKey) {
+      configureAnalytics(data.configuration.appAmplitudeApiKey)
+    }
+  }, [data?.configuration?.appAmplitudeApiKey])
   
   return (
     <ConfigurationContext.Provider value={configuration}>

@@ -248,8 +248,8 @@ function RightButton(props) {
           bolder
           onPress={() =>
             isLoggedIn && profile
-              ? navigation.navigate('Favourite')
-              : navigation.navigate('CreateAccount')
+              ? navigation.navigate('Favourites')
+              : navigation.navigate('GuestCheckout')
           }
         /> */}
         {cartCount >= 0 && (

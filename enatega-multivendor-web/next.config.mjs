@@ -1,18 +1,27 @@
 import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin();
+
+// ---------------------------------------------------------------------------
+// Content Security Policy
+// ---------------------------------------------------------------------------
+// Removed 'unsafe-eval' — Next.js App Router does not require eval() at runtime.
+// If you add a third-party library that needs eval(), consider an alternative
+// instead of re-adding unsafe-eval (it defeats XSS protection entirely).
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "form-action 'self'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https: http://localhost:8001 http://127.0.0.1:8001",
   "font-src 'self' data: https:",
   "style-src 'self' 'unsafe-inline' https:",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
-  "connect-src 'self' https: wss: ws:",
-  "frame-src 'self' https:",
+  // unsafe-inline is required by Next.js inline scripts.
+  // unsafe-eval removed — improves XSS protection.
+  "script-src 'self' 'unsafe-inline' https:",
+  "connect-src 'self' https: wss: ws: http://localhost:8001 http://127.0.0.1:8001",
+  "frame-src 'self' https://js.stripe.com https:",
   "media-src 'self' data: blob: https:",
   "upgrade-insecure-requests",
 ].join("; ");
@@ -27,130 +36,58 @@ const nextConfig = {
     });
     return config;
   },
+
+  // Remove console.log calls in production builds.
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production",
+  },
+
   async headers() {
     return [
       {
         source: "/(.*)",
         headers: [
-          {
-            key: "Content-Security-Policy",
-            value: contentSecurityPolicy,
-          },
-          // Optional: Add other security headers
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=31536000; includeSubDomains",
-          },
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
+          { key: "Content-Security-Policy",    value: contentSecurityPolicy },
+          { key: "Strict-Transport-Security",  value: "max-age=31536000; includeSubDomains" },
+          { key: "X-Content-Type-Options",     value: "nosniff" },
+          { key: "X-Frame-Options",            value: "DENY" },
+          { key: "Referrer-Policy",            value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy",         value: "camera=(), microphone=(), geolocation=(self)" },
         ],
       },
     ];
   },
 
   images: {
-    // domains: ["storage.googleapis.com"],
-    unoptimized: true,
+    // Removed: unoptimized: true — enables Next.js WebP/AVIF conversion and lazy loading.
+    // All hostnames must be listed in remotePatterns below.
     dangerouslyAllowSVG: false,
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "storage.googleapis.com",
-      },
-      // Dummy
-      {
-        protocol: "https",
-        hostname: "images.ctfassets.net",
-      },
-      //////////
-      {
-        protocol: "https",
-        hostname: "placehold.co",
-      },
-      {
-        protocol: "https",
-        hostname: "plus.unsplash.com",
-      },
-      {
-        protocol: "https",
-        hostname: "res.cloudinary.com",
-      },
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
-      {
-        protocol: "https",
-        hostname: "enatega.com",
-      },
-      {
-        protocol: "https",
-        hostname: "www.lifcobooks.com",
-      },
-      {
-        protocol: "https",
-        hostname: "images.pexels.com",
-      },
-      {
-        protocol: "https",
-        hostname: "upload.wikimedia.org",
-      },
-      {
-        hostname: "example.com",
-        protocol: "https",
-      },
-      {
-        protocol: "https",
-        hostname: "encrypted-tbn0.gstatic.com",
-      },
-      {
-        protocol: "https",
-        hostname: "t4.ftcdn.net",
-      },
-      {
-        protocol: "https",
-        hostname: "static.vecteezy.com",
-      },
-      {
-        protocol: "https",
-        hostname: "cdn-icons-png.flaticon.com",
-      },
-      {
-        protocol: "https",
-        hostname: "images.ctfassets.net",
-      },
-      {
-        protocol: "https",
-        hostname: "flagcdn.com",
-      },
-      {
-        protocol: "https",
-        hostname: "images.deliveryhero.io",
-      },
-      {
-        protocol: "https",
-        hostname: "enatega-backend.s3.eu-north-1.amazonaws.com",
-      },
-      {
-        protocol: "https",
-        hostname: "assets.enatega.com",
-      },
-      {
-        protocol: "https",
-        hostname: "*.s3.*.amazonaws.com",
-      },
-    ], // Add placehold.co as an allowed domain
+      { protocol: "https", hostname: "storage.googleapis.com" },
+      { protocol: "https", hostname: "placehold.co" },
+      { protocol: "https", hostname: "plus.unsplash.com" },
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "enatega.com" },
+      { protocol: "https", hostname: "www.lifcobooks.com" },
+      { protocol: "https", hostname: "images.pexels.com" },
+      { protocol: "https", hostname: "upload.wikimedia.org" },
+      { protocol: "https", hostname: "example.com" },
+      { protocol: "https", hostname: "encrypted-tbn0.gstatic.com" },
+      { protocol: "https", hostname: "t4.ftcdn.net" },
+      { protocol: "https", hostname: "static.vecteezy.com" },
+      { protocol: "https", hostname: "cdn-icons-png.flaticon.com" },
+      { protocol: "https", hostname: "images.ctfassets.net" },
+      { protocol: "https", hostname: "flagcdn.com" },
+      { protocol: "https", hostname: "images.deliveryhero.io" },
+      { protocol: "https", hostname: "enatega-backend.s3.eu-north-1.amazonaws.com" },
+      { protocol: "https", hostname: "assets.enatega.com" },
+      { protocol: "https", hostname: "*.s3.*.amazonaws.com" },
+      // Local API uploads (development / ngrok)
+      { protocol: "http", hostname: "localhost", port: "8001", pathname: "/uploads/**" },
+      { protocol: "http", hostname: "127.0.0.1", port: "8001", pathname: "/uploads/**" },
+    ],
   },
 };
-// export default withPWA(withNextIntl(nextConfig));
+
 export default withNextIntl(nextConfig);

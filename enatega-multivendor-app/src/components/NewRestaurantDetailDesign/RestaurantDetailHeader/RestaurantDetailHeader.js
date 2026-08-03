@@ -21,6 +21,7 @@ import { scale } from '../../../utils/scaling'
 import styles from './styles'
 import CachedImage from '../../CachedImage'
 import { formatMoney } from '../../../utils/formatMoney'
+import { getRestaurantEtaMinutes } from '../../../utils/restaurantEta'
 
 function RestaurantDetailHeader({
   restaurant,
@@ -180,7 +181,7 @@ function RestaurantDetailHeader({
               {restaurant?.name?.substring(0, 25) + '...'}
             </TextDefault>
           </View>
-          <FavoriteButton iconSize={scale(24)} restaurantId={restaurant?._id} />
+          <FavoriteButton iconSize={scale(24)} restaurantId={restaurant?._id} restaurant={restaurant} />
         </View>
 
         <View style={[styles(currentTheme).cuisineContainer, { paddingRight: scale(14) }]}>
@@ -309,7 +310,7 @@ function RestaurantDetailHeader({
         <View style={styles(currentTheme).deliveryContainer}>
           <Bicycle size={24} color={currentTheme.newFontcolor} />
           <TextDefault textColor={currentTheme.fontNewColor} bold H5>
-            {restaurant?.deliveryTime} {t('Min')}
+            {getRestaurantEtaMinutes(restaurant) ?? restaurant?.deliveryTime} {t('Min')}
           </TextDefault>
         </View>
       </View>

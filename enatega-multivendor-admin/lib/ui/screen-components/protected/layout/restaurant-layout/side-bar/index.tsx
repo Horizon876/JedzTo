@@ -1,36 +1,26 @@
-// Core
+'use client';
+
 import { useContext, useState } from 'react';
-
-// Context
 import { LayoutContext } from '@/lib/context/global/layout.context';
-
-// Interface & Types
 import {
   IGlobalComponentProps,
   ISidebarMenuItem,
   LayoutContextProps,
 } from '@/lib/utils/interfaces';
-
-// Icons
 import {
   faArrowLeft,
-  faCog,
-  faHome,
-  faMoneyBillTrendUp,
+  faChartLine,
+  faMapLocationDot,
   faRectangleList,
-  faStar,
   faStore,
-  faWallet,
+  faUtensils,
 } from '@fortawesome/free-solid-svg-icons';
-
-// Components
 import SidebarItem from './side-bar-item';
 import { useUserContext } from '@/lib/hooks/useUser';
 import { onUseLocalStorage } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 
 function AdminSidebar({ children }: IGlobalComponentProps) {
-  // Context
   const { isRestaurantSidebarVisible } =
     useContext<LayoutContextProps>(LayoutContext);
 
@@ -41,7 +31,7 @@ function AdminSidebar({ children }: IGlobalComponentProps) {
         className={`box-border transform overflow-hidden transition-all duration-300 ease-in-out ${isRestaurantSidebarVisible ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'}`}
       >
         <nav
-          className={`flex h-full flex-col border-r dark:border-dark-600 bg-white dark:bg-dark-950 shadow-sm transition-opacity duration-300 ${isRestaurantSidebarVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+          className={`flex h-full flex-col border-r border-dark-600 bg-dark-950 text-white shadow-sm transition-opacity duration-300 ${isRestaurantSidebarVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         >
           <ul className="flex-1 pl-2">{children}</ul>
         </nav>
@@ -51,13 +41,10 @@ function AdminSidebar({ children }: IGlobalComponentProps) {
 }
 
 export default function MakeSidebar() {
-  // Hooks
   const t = useTranslations();
-
   const { isRestaurantSidebarVisible } =
     useContext<LayoutContextProps>(LayoutContext);
   const { user } = useUserContext();
-  // Get the current route stack from localStorage without modifying it
   const [routeStack, setRouteStack] = useState<string[]>(
     JSON.parse(onUseLocalStorage('get', 'routeStack') || '[]')
   );
@@ -69,49 +56,14 @@ export default function MakeSidebar() {
       text: t('Dashboard'),
       route: '/admin/store/dashboard',
       isParent: true,
-      icon: faHome,
+      icon: faChartLine,
       isClickable: true,
     },
-
     {
-      text: t('Store'),
-      route: '/admin/store/general',
-      isParent: true,
-      icon: faStore,
-      subMenu: [
-        {
-          text: t('Profile'),
-          route: '/admin/store/profile',
-          isParent: false,
-        },
-        {
-          text: t('Timing'),
-          route: '/admin/store/general/timing',
-          isParent: false,
-        },
-        {
-          text: t('Location'),
-          route: '/admin/store/general/location',
-          isParent: false,
-        },
-        {
-          text: t('Delivery Areas'),
-          route: '/admin/store/general/delivery-areas',
-          isParent: false,
-        },
-        {
-          text: t('Payment'),
-          route: '/admin/store/general/payment',
-          isParent: false,
-        },
-      ],
-    },
-
-    {
-      text: t('Product Management'),
+      text: t('Menu'),
       route: '/admin/store/product-management',
       isParent: true,
-      icon: faCog,
+      icon: faUtensils,
       subMenu: [
         {
           text: t('Products'),
@@ -135,31 +87,51 @@ export default function MakeSidebar() {
         },
       ],
     },
-
     {
-      text: t('Wallet'),
-      route: '/admin/store/wallets',
+      text: t('Delivery'),
+      route: '/admin/store/general/delivery-areas',
       isParent: true,
-      icon: faWallet,
+      icon: faMapLocationDot,
+      isClickable: true,
+    },
+    {
+      text: t('Venue'),
+      route: '/admin/store/general',
+      isParent: true,
+      icon: faStore,
       subMenu: [
         {
-          text: t('Transaction History'),
-          route: '/admin/store/wallets/transaction-history',
+          text: t('Profile'),
+          route: '/admin/store/profile',
           isParent: false,
         },
         {
-          text: t('Withdrawal Request'),
-          route: '/admin/store/wallets/withdrawal-request',
+          text: t('Timing'),
+          route: '/admin/store/general/timing',
           isParent: false,
         },
         {
-          text: t('Earnings'),
-          route: '/admin/store/wallets/earnings',
+          text: t('Holidays'),
+          route: '/admin/store/general/holidays',
+          isParent: false,
+        },
+        {
+          text: t('PauseOrders'),
+          route: '/admin/store/general/pause',
+          isParent: false,
+        },
+        {
+          text: t('Location'),
+          route: '/admin/store/general/location',
+          isParent: false,
+        },
+        {
+          text: t('Payment'),
+          route: '/admin/store/general/payment',
           isParent: false,
         },
       ],
     },
-
     {
       text: t('Orders'),
       route: '/admin/store/orders',
@@ -168,27 +140,12 @@ export default function MakeSidebar() {
       isClickable: true,
     },
     {
-      text: t('Marketing'),
-      route: '/admin/store/coupons',
-      isParent: true,
-      icon: faMoneyBillTrendUp,
-      isClickable: true,
-    },
-    {
-      text: t('Reviews'),
-      route: '/admin/store/ratings',
-      isParent: true,
-      icon: faStar,
-      isClickable: true,
-    },
-    {
       text: lastRoute ? t(`Back to ${lastRoute}`) : 'Back',
-      route: lastRoute == 'Vendor' ? `/admin/vendor/dashboard` : '/home',
+      route: '/home',
       isParent: true,
       icon: faArrowLeft,
       isClickable: true,
       onClick: () => {
-        // Handle popping the route and updating localStorage
         const updatedStack = [...routeStack];
         updatedStack.pop();
         onUseLocalStorage('save', 'routeStack', JSON.stringify(updatedStack));
@@ -196,26 +153,26 @@ export default function MakeSidebar() {
       },
       isLastItem: true,
       shouldShow: () => {
-        return !(user?.userType === 'RESTAURANT');
+        return !(
+          user?.userType === 'RESTAURANT' || user?.userType === 'VENDOR'
+        );
       },
     },
   ];
 
   return (
-    <>
-      <AdminSidebar>
-        <div className="h-[92vh] overflow-y-auto overflow-x-hidden pr-2">
-          {navBarItems.map((item, index) =>
-            item.shouldShow && !item.shouldShow() ? null : (
-              <SidebarItem
-                key={index}
-                expanded={isRestaurantSidebarVisible}
-                {...item}
-              />
-            )
-          )}
-        </div>
-      </AdminSidebar>
-    </>
+    <AdminSidebar>
+      <div className="h-[92vh] overflow-y-auto overflow-x-hidden pr-2">
+        {navBarItems.map((item, index) =>
+          item.shouldShow && !item.shouldShow() ? null : (
+            <SidebarItem
+              key={index}
+              expanded={isRestaurantSidebarVisible}
+              {...item}
+            />
+          )
+        )}
+      </div>
+    </AdminSidebar>
   );
 }

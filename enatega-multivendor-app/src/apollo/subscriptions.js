@@ -7,6 +7,10 @@ export const subscriptionOrder = `subscription SubscriptionOrder($id:String!){
         }
         completionTime
         preparationTime
+        expectedTime
+        preparationEtaMinutes
+        deliveryEtaMinutes
+        deliveryExpectedTime
     }
   }`
 
@@ -94,6 +98,9 @@ export const orderStatusChanged = `subscription OrderStatusChanged($userId:Strin
       preparationTime
       orderDate
       expectedTime
+      preparationEtaMinutes
+      deliveryEtaMinutes
+      deliveryExpectedTime
       isPickedUp
       deliveryCharges
       acceptedAt
@@ -117,5 +124,16 @@ export const subscriptionNewMessage = `subscription SubscriptionNewMessage($orde
       name
     }
     createdAt
+  }
+}`
+
+export const subscriptionRestaurantUpdated = `subscription SubscriptionRestaurantUpdated {
+  subscriptionRestaurantUpdated {
+    _id
+    deliveryTime
+    pickupTime
+    defaultEta
+    isBusy
+    currentEta
   }
 }`

@@ -47,8 +47,15 @@ export const useStyles = (theme) =>
       justifyContent: 'center'
     },
     paymentTitle: {
-      flex: 1,
       color: '#FFFFFF'
+    },
+    paymentTextWrap: {
+      flex: 1,
+      gap: scale(2)
+    },
+    paymentHint: {
+      color: MUTED,
+      fontSize: scale(12)
     },
     radioOuter: {
       width: scale(22),
@@ -105,7 +112,6 @@ export const useStyles = (theme) =>
       paddingHorizontal: scale(14),
       paddingVertical: scale(14),
       flexDirection: theme?.isRTL ? 'row-reverse' : 'row',
-      marginTop: scale(8),
       backgroundColor: SURFACE,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: HAIRLINE,

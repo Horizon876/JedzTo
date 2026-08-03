@@ -1,32 +1,30 @@
 import { StyleSheet } from 'react-native'
-import { alignment } from '../../../utils/alignment'
 import { scale } from '../../../utils/scaling'
+
 const styles = (props = null) =>
   StyleSheet.create({
     topContainer: {
       width: '100%',
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
-      ...alignment.MTsmall,
-      paddingHorizontal: scale(10),
-      zIndex: 9999
+      gap: scale(12),
+      zIndex: 2
     },
     titleContainer: {
-      width: 'auto',
-      ...alignment.MTsmall,
-      ...alignment.MBsmall
+      flex: 1,
+      paddingRight: scale(8)
     },
     priceContainer: {
-      width: '30%',
       flexDirection: 'row',
+      alignItems: 'center',
       justifyContent: 'flex-end',
-      ...alignment.MTsmall,
-      ...alignment.MBsmall
+      gap: scale(6)
     },
     descContainer: {
       width: '100%',
-      ...alignment.MBsmall
+      marginTop: scale(4)
     }
   })
+
 export default styles

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { TouchableOpacity } from 'react-native-gesture-handler'
 import UserContext from '../../../context/User'
@@ -8,12 +8,27 @@ import styles from './stylesV2'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import { alignment } from '../../../utils/alignment'
 import { useTranslation } from 'react-i18next'
+import { loadCustomerDetails } from '../../../utils/customerDetailsStorage'
 
 function DrawerProfile(props) {
   const { t } = useTranslation()
   const themeContext = useContext(ThemeContext)
   const currentTheme = theme[themeContext.ThemeValue]
   const { isLoggedIn, loadingProfile, profile } = useContext(UserContext)
+  const [savedName, setSavedName] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const saved = await loadCustomerDetails()
+      if (cancelled || !saved) return
+      const name = `${saved.firstName || ''} ${saved.lastName || ''}`.trim()
+      if (name) setSavedName(name)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isLoggedIn])
 
   if (loadingProfile) return <TextDefault>{t('loading')}</TextDefault>
   return (
@@ -23,14 +38,16 @@ function DrawerProfile(props) {
           <TouchableOpacity
             style={{ ...alignment.PTxSmall, ...alignment.PBxSmall }}
             onPress={() => {
-              props?.navigation.navigate({ name: 'CreateAccount' })
-            }}>
+              props?.navigation.navigate({ name: 'GuestCheckout' })
+            }}
+          >
             <TextDefault
               style={styles(currentTheme).alignLeft}
               textColor={currentTheme.fontMainColor}
               bold
-              H5>
-              {t('loginOrCreateAccount')}
+              H5
+            >
+              {savedName || t('customerDetailsTitle')}
             </TextDefault>
           </TouchableOpacity>
         </View>

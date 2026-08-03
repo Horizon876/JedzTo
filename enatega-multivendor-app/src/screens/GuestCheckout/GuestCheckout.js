@@ -34,19 +34,23 @@ function GuestCheckout(props) {
     setPhone,
     phoneError,
     setPhoneError,
+    saveDetails,
+    setSaveDetails,
     country,
     countryCode,
     onCountrySelect,
     isCountryLoading,
     submitting,
     submitGuestDetails,
-    currentTheme
+    currentTheme,
+    isProfileEdit
   } = useGuestCheckout()
 
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const headerHeight = useHeaderHeight()
 
   useLayoutEffect(() => {
+    const title = t('customerDetailsTitle')
     props?.navigation.setOptions({
       headerTitle: () => (
         <TextDefault
@@ -56,7 +60,7 @@ function GuestCheckout(props) {
             ...textStyles.Bolder
           }}
         >
-          {t('continueAsGuest')}
+          {title}
         </TextDefault>
       ),
       headerTitleAlign: 'center',
@@ -64,19 +68,21 @@ function GuestCheckout(props) {
       headerStyle: {
         backgroundColor: '#121212'
       },
-      headerLeft: () => (
-        <HeaderBackButton
-          truncatedLabel=''
-          backImage={() => (
-            <View style={{ width: scale(36), paddingLeft: scale(6) }}>
-              <Feather name='arrow-left' size={22} color='#FFFFFF' />
-            </View>
-          )}
-          onPress={() => navigationService.goBack()}
-        />
-      )
+      headerLeft: isProfileEdit
+        ? () => null
+        : () => (
+            <HeaderBackButton
+              truncatedLabel=''
+              backImage={() => (
+                <View style={{ width: scale(36), paddingLeft: scale(6) }}>
+                  <Feather name='arrow-left' size={22} color='#FFFFFF' />
+                </View>
+              )}
+              onPress={() => navigationService.goBack()}
+            />
+          )
     })
-  }, [props?.navigation, t])
+  }, [isProfileEdit, i18n.language]) // eslint-disable-line react-hooks/exhaustive-deps -- setOptions must not depend on navigation identity
 
   useLayoutEffect(() => {
     StatusBar.setBarStyle('light-content')
@@ -102,10 +108,10 @@ function GuestCheckout(props) {
             <View>
               <View style={styles().hero}>
                 <TextDefault H3 bolder style={styles().title} isRTL>
-                  {t('continueAsGuest')}
+                  {t('customerDetailsTitle')}
                 </TextDefault>
                 <TextDefault style={styles().subtitle} isRTL>
-                  {t('guestCheckoutSubtitle')}
+                  {t('customerDetailsSubtitle')}
                 </TextDefault>
               </View>
 
@@ -203,6 +209,23 @@ function GuestCheckout(props) {
                     {phoneError}
                   </TextDefault>
                 )}
+
+                {!isProfileEdit && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setSaveDetails((v) => !v)}
+                    style={styles().saveRow}
+                  >
+                    <View style={[styles().checkbox, saveDetails && styles().checkboxChecked]}>
+                      {saveDetails ? (
+                        <Feather name='check' size={scale(14)} color='#FFFFFF' />
+                      ) : null}
+                    </View>
+                    <TextDefault style={styles().saveLabel} isRTL>
+                      {t('saveCustomerDetails')}
+                    </TextDefault>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -217,7 +240,7 @@ function GuestCheckout(props) {
                   <ActivityIndicator size='small' color='#FFFFFF' />
                 ) : (
                   <TextDefault H5 textColor='#FFFFFF' bold>
-                    {t('continueBtn')}
+                    {isProfileEdit ? t('saveBtn') : t('continueBtn')}
                   </TextDefault>
                 )}
               </TouchableOpacity>

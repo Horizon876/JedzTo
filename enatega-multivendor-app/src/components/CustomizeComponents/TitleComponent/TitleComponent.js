@@ -1,6 +1,6 @@
 import React, { useContext } from 'react'
 import { View } from 'react-native'
-import styles from './styles'
+import styles, { ACCENT, MUTED } from './styles'
 import ThemeContext from '../../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../../utils/themeColors'
 import TextDefault from '../../Text/TextDefault/TextDefault'
@@ -9,39 +9,41 @@ import { useTranslation } from 'react-i18next'
 function TitleComponent(props) {
   const { i18n } = useTranslation()
   const themeContext = useContext(ThemeContext)
-  const currentTheme = {isRTL: i18n.dir() === 'rtl', ...theme[themeContext.ThemeValue]}
-
+  const currentTheme = { isRTL: i18n.dir() === 'rtl', ...theme[themeContext.ThemeValue] }
+  const isOptional = String(props?.status || '').toLowerCase().includes('opcj') ||
+    String(props?.status || '').toLowerCase().includes('optional')
+  const hasError = Boolean(props?.error)
 
   return (
     <View style={styles(currentTheme).mainContainer}>
-      <View>
-        <TextDefault
-          numberOfLines={1}
-          textColor={currentTheme.fontMainColor}
-          H6
-          bolder
-          isRTL>
+      <View style={styles(currentTheme).textWrap}>
+        <TextDefault numberOfLines={1} textColor='#FFFFFF' H6 bolder isRTL>
           {props?.title}
         </TextDefault>
-        <TextDefault
-          numberOfLines={1}
-          textColor={currentTheme.fontSecondColor}
-          small
-          isRTL
+        {!!props?.subTitle && (
+          <TextDefault numberOfLines={2} textColor={MUTED} small isRTL>
+            {props?.subTitle}
+          </TextDefault>
+        )}
+      </View>
+      {!!props?.status && (
+        <View
+          style={[
+            styles(currentTheme).rightContainer,
+            isOptional && styles(currentTheme).rightContainerMuted,
+            hasError && styles(currentTheme).rightContainerError
+          ]}
         >
-          {props?.subTitle}
-        </TextDefault>
-      </View>
-      <View style={styles(currentTheme).rightContainer}>
-        <TextDefault
-          textColor={
-            currentTheme.color2
-          }
-          H6
-          center>
-          {props?.status}
-        </TextDefault>
-      </View>
+          <TextDefault
+            textColor={hasError ? '#FF6B6B' : isOptional ? MUTED : ACCENT}
+            small
+            bolder
+            center
+          >
+            {props?.status}
+          </TextDefault>
+        </View>
+      )}
     </View>
   )
 }

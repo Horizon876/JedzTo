@@ -2,7 +2,7 @@
 import React, { useRef, useContext, useLayoutEffect, useState, useEffect, useCallback } from 'react'
 import { View, TouchableOpacity, Animated, StatusBar, Platform, RefreshControl, FlatList, Dimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { SimpleLineIcons, AntDesign } from '@expo/vector-icons'
+import { SimpleLineIcons, AntDesign, Ionicons } from '@expo/vector-icons'
 import { useQuery, useMutation } from '@apollo/client'
 import { useCollapsibleSubHeader } from 'react-navigation-collapsible'
 import { Placeholder, PlaceholderLine, Fade } from 'rn-placeholder'
@@ -44,8 +44,12 @@ import {
 } from '../../utils/jedztoLocalRestaurants'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import { isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions'
+import { restaurantMatchesCuisine } from '../../utils/cuisineMatch'
 import Ripple from 'react-native-material-ripple'
 import useGeocoding from '../../ui/hooks/useGeocoding'
+import { TASTE_CATEGORIES } from '../../components/Main/TasteCategories/TasteCategories'
+import ShimmerImage from '../../components/ShimmerImage/ShimmerImage'
+import { IMAGE_LINK } from '../../utils/constants'
 
 const SELECT_ADDRESS = gql`
   ${selectAddress}
@@ -56,6 +60,10 @@ const GET_CUISINES = gql`
 const GET_RESTAURANTS_CUISINES = gql`
   ${RestaurantCuisines}
 `
+
+const FILTER_ACCENT = '#00A8FF'
+const TILE_COLORS = ['#2C2C2E', '#323236', '#2A2A2E', '#34343A', '#2E2E32']
+const ALL_CUISINE_CHIP = { _id: '__all_cuisines__', name: '__all__', isAll: true }
 
 export const FILTER_VALUES = {
   Sort: {
@@ -84,8 +92,16 @@ function Menu({ route, props }) {
   const { t, i18n } = useTranslation()
   const { getAddress } = useGeocoding()
   const [busy, setBusy] = useState(false)
-  const { loadingOrders, isLoggedIn, profile } = useContext(UserContext)
+  const { loadingOrders, isLoggedIn, profile, isPickup } = useContext(UserContext)
   const { location, setLocation } = useContext(LocationContext)
+  // Pickup skips delivery-area filtering so out-of-zone restaurants still list.
+  const browseLocation = useMemo(
+    () =>
+      isPickup
+        ? { ...location, latitude: null, longitude: null }
+        : location,
+    [location, isPickup]
+  )
   const [filters, setFilters] = useState(FILTER_VALUES)
   const [filterSectionApplied, setfilterSectionApplied] = useState(false)
   const [appliedFilters, setAppliedFilters] = useState(FILTER_VALUES)
@@ -155,12 +171,18 @@ function Menu({ route, props }) {
     isNearbyPaginatedQuery,
     isInitialLoading,
     isRefreshing
-  } = useRestaurantQueries(queryType, location, selectedType)
+  } = useRestaurantQueries(queryType, browseLocation, selectedType)
   const [mutate, { loading: mutationLoading }] = useMutation(SELECT_ADDRESS, {
     onError
   })
 
-  const restaurantsCuisinsVariables = isShopType ? { latitude: location.latitude || null, longitude: location.longitude || null, shopType: collection } : {}
+  const restaurantsCuisinsVariables = isShopType
+    ? {
+        latitude: isPickup ? null : location.latitude || null,
+        longitude: isPickup ? null : location.longitude || null,
+        shopType: collection
+      }
+    : {}
 
   console.log('restaurantsCuisinsVariables::', restaurantsCuisinsVariables)
 
@@ -236,6 +258,7 @@ function Menu({ route, props }) {
   useEffect(() => {
     if (collection) {
       setActiveCollection(collection)
+      setfilterApplied(true)
     }
   }, [collection, route])
 
@@ -304,9 +327,8 @@ function Menu({ route, props }) {
   // }, [routeData, allCuisines])
 
   const collectionData = useMemo(() => {
-    console.log('allCuisines collection', allCuisines?.cuisines, isShopType)
     if (isShopType) {
-      return allCuisines?.cuisines
+      return allCuisines?.cuisines ?? []
     }
 
     const normalizedShopType = (
@@ -315,14 +337,33 @@ function Menu({ route, props }) {
       (routeData?.name === 'Restaurants' ? 'restaurant' : routeData?.name === 'Store' ? 'grocery' : '')
     )?.toLowerCase()
 
-    if (normalizedShopType === 'restaurant' || normalizedShopType === 'grocery') {
-      return allCuisines?.cuisines?.filter(
-        (cuisine) => cuisine?.shopType?.toLowerCase() === normalizedShopType
+    // Discovery taste chips drive restaurant browse — keep the same set/images.
+    if (normalizedShopType === 'restaurant' || selectedType === 'restaurant') {
+      const apiCuisines = allCuisines?.cuisines ?? []
+      const extras = apiCuisines.filter(
+        (cuisine) =>
+          !TASTE_CATEGORIES.some(
+            (taste) =>
+              taste.name?.toLowerCase() === cuisine?.name?.toLowerCase() ||
+              restaurantMatchesCuisine({ cuisines: [taste.name] }, cuisine?.name)
+          )
+      )
+      return [...TASTE_CATEGORIES, ...extras]
+    }
+
+    if (normalizedShopType === 'grocery') {
+      return (allCuisines?.cuisines ?? []).filter(
+        (cuisine) => cuisine?.shopType?.toLowerCase() === 'grocery'
       )
     }
 
-    return allCuisines?.cuisines
+    return allCuisines?.cuisines ?? []
   }, [allCuisines, isShopType, routeData, selectedType])
+
+  // "Wszystkie" first; selected cuisine stays in place and is highlighted.
+  const orderedCollections = useMemo(() => {
+    return [ALL_CUISINE_CHIP, ...(collectionData ?? [])]
+  }, [collectionData])
 
   console.log('collectionData::', collectionData)
 
@@ -446,13 +487,9 @@ function Menu({ route, props }) {
           activeOpacity={0.5}
           style={styles(currentTheme).addButton}
           onPress={() => {
-            if (isLoggedIn) {
-              navigation.navigate('AddNewAddress', { ...locationData })
-            } else {
-              const modal = modalRef.current
-              modal?.close()
-              navigation.navigate({ name: 'CreateAccount' })
-            }
+            const modal = modalRef.current
+            modal?.close()
+            navigation.navigate('AddNewAddress', { ...locationData })
           }}
         >
           <View style={styles(currentTheme).addressSubContainer}>
@@ -553,12 +590,17 @@ function Menu({ route, props }) {
   //   }
   // }
   const onPressCollection = (collection, index) => {
-    flatListRef.current.scrollToIndex({
-      index: index,
-      animated: true
-    })
+    if (flatListRef.current && typeof index === 'number') {
+      try {
+        flatListRef.current.scrollToIndex({ index: 0, animated: true })
+      } catch (_) {}
+    }
+    if (collection?.isAll) {
+      setActiveCollection(null)
+      setfilterApplied(false)
+      return
+    }
     if (activeCollection === collection.name) {
-      // If the same collection is clicked again, deselect it
       setActiveCollection(null)
       setfilterApplied(false)
     } else {
@@ -572,9 +614,9 @@ function Menu({ route, props }) {
     setItemWidth(width)
   }
 
-  const getItemLayout = (data, index) => ({
-    length: 108,
-    offset: 108 * index,
+  const getItemLayout = (_data, index) => ({
+    length: scale(82),
+    offset: scale(82) * index,
     index
   })
 
@@ -586,7 +628,9 @@ function Menu({ route, props }) {
         if (isShopType) {
           filteredData = [...filteredData]
         } else {
-          filteredData = filteredData.filter((item) => item?.cuisines?.includes(selectedCollection))
+          filteredData = filteredData.filter((item) =>
+            restaurantMatchesCuisine(item, selectedCollection)
+          )
         }
       }
 
@@ -618,7 +662,9 @@ function Menu({ route, props }) {
       }
 
       if (cuisines?.selected?.length > 0) {
-        filteredData = filteredData.filter((item) => item.cuisines.some((cuisine) => cuisines?.selected?.includes(cuisine)))
+        filteredData = filteredData.filter((item) =>
+          cuisines.selected.some((cuisine) => restaurantMatchesCuisine(item, cuisine))
+        )
       }
 
       return filteredData
@@ -689,7 +735,8 @@ function Menu({ route, props }) {
                 collectionType,
                 title: t('BrowseCuisines'),
                 data: collectionData,
-                showHeader: false
+                showHeader: false,
+                layout: 'circle'
               })
             }}
           >
@@ -698,37 +745,59 @@ function Menu({ route, props }) {
             </TextDefault>
           </Ripple>
         </View>
-        <View style={{ paddingLeft: 10, paddingRight: 10, paddingHorizontal: '5' }}>
+        <View style={{ paddingLeft: 10, paddingRight: 10 }}>
           <FlatList
             ref={flatListRef}
-            data={collectionData ?? []}
+            data={orderedCollections}
             renderItem={({ item, index }) => {
+              const isSelected = item?.isAll
+                ? !activeCollection
+                : activeCollection === item?.name ||
+                  restaurantMatchesCuisine(
+                    { cuisines: [item?.name], tags: [item?.name], name: item?.name },
+                    activeCollection
+                  )
+              const imageUrl = item?.image?.split('#')?.[0] || IMAGE_LINK
               return (
-                <Ripple
-                  activeOpacity={0.8}
+                <TouchableOpacity
+                  activeOpacity={0.85}
                   onPress={() => onPressCollection(item, index)}
-                  style={[
-                    styles(currentTheme).collectionCard,
-                    activeCollection === item.name && {
-                      backgroundColor: currentTheme.newButtonBackground
-                    }
-                  ]}
+                  style={styles().circleChip}
                 >
-                  <View style={[styles().brandImgContainer]}>
-                    <View>
-                      <CachedImage source={{ uri: item?.image }} style={styles().collectionImage} resizeMode='cover' />
-                    </View>
-                    <TextDefault Normal bolder style={{ padding: 4 }} textColor={activeCollection === item.name ? currentTheme.main : currentTheme.gray700} isRTL>
-                      {item.name}
-                    </TextDefault>
+                  <View
+                    style={[
+                      styles().circleTile,
+                      { backgroundColor: TILE_COLORS[index % TILE_COLORS.length] },
+                      isSelected && styles().circleTileSelected
+                    ]}
+                  >
+                    {item?.isAll ? (
+                      <Ionicons name='grid' size={scale(22)} color={isSelected ? FILTER_ACCENT : '#FFFFFF'} />
+                    ) : (
+                      <ShimmerImage
+                        imageUrl={imageUrl}
+                        style={styles().circleImage}
+                        resizeMode='cover'
+                        defaultSource={{ uri: IMAGE_LINK }}
+                      />
+                    )}
                   </View>
-                </Ripple>
+                  <TextDefault
+                    numberOfLines={1}
+                    smaller
+                    center
+                    bolder={isSelected}
+                    textColor={isSelected ? FILTER_ACCENT : '#FFFFFF'}
+                    style={styles().circleLabel}
+                  >
+                    {item?.isAll ? t('allCuisines') : item?.name}
+                  </TextDefault>
+                </TouchableOpacity>
               )
             }}
             initialScrollIndex={0}
-            keyExtractor={(item) => item?._id}
+            keyExtractor={(item) => item?._id || item?.name}
             contentContainerStyle={styles().collectionContainer}
-            // showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             horizontal={true}
             inverted={currentTheme?.isRTL ? true : false}

@@ -1,37 +1,27 @@
 'use client';
 
-// Core
 import { useContext } from 'react';
-
-// Context
 import { LayoutContext } from '@/lib/context/global/layout.context';
-
-// Interface & Types
 import {
   IGlobalComponentProps,
   ISidebarMenuItem,
   LayoutContextProps,
 } from '@/lib/utils/interfaces';
-
-// Icons
 import {
   faCog,
   faHome,
-  faSliders,
-  faUpRightFromSquare,
+  faStore,
+  faReceipt,
+  faTicket,
+  faEllipsis,
   faWallet,
 } from '@fortawesome/free-solid-svg-icons';
-
-// Constants and Utiils
 import useCheckAllowedRoutes from '@/lib/hooks/useCheckAllowedRoutes';
-
-// Components
 import SidebarItem from './side-bar-item';
 import { useTranslations } from 'next-intl';
 import { faHeadset } from '@fortawesome/free-solid-svg-icons/faHeadset';
 
 function SuperAdminSidebar({ children }: IGlobalComponentProps) {
-  // Contexts
   const { isSuperAdminSidebarVisible } =
     useContext<LayoutContextProps>(LayoutContext);
 
@@ -42,7 +32,7 @@ function SuperAdminSidebar({ children }: IGlobalComponentProps) {
         className={`box-border transform overflow-hidden transition-all duration-300 ease-in-out ${isSuperAdminSidebarVisible ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'}`}
       >
         <nav
-          className={`flex h-full flex-col border-r bg-white dark:bg-dark-950 dark:border-dark-600 dark:text-white shadow-sm transition-opacity duration-300 ${isSuperAdminSidebarVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+          className={`flex h-full flex-col border-r border-dark-600 bg-dark-950 text-white shadow-sm transition-opacity duration-300 ${isSuperAdminSidebarVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         >
           <ul className="flex-1 pl-2">{children}</ul>
         </nav>
@@ -52,23 +42,11 @@ function SuperAdminSidebar({ children }: IGlobalComponentProps) {
 }
 
 export default function MakeSidebar() {
-  // Hooks
   const t = useTranslations();
-
-  // Contexts
   const { isSuperAdminSidebarVisible } =
     useContext<LayoutContextProps>(LayoutContext);
 
   const navBarItems: ISidebarMenuItem[] = [
-    {
-      text: 'My Website',
-      label: t('My Website'),
-      route: 'https://multivendor.enatega.com/',
-      isParent: true,
-      icon: faUpRightFromSquare,
-      isClickable: true,
-      shouldOpenInNewTab: true,
-    },
     {
       text: 'Home',
       label: t('Home'),
@@ -78,22 +56,70 @@ export default function MakeSidebar() {
       isClickable: true,
     },
     {
-      text: 'General',
-      label: t('General'),
-      route: '/general',
+      text: 'Finance',
+      label: t('Finance'),
+      route: '/wallet',
       isParent: true,
-      icon: faCog,
+      icon: faWallet,
+      subMenu: useCheckAllowedRoutes([
+        {
+          text: 'Settlements',
+          label: t('Settlements'),
+          route: '/wallet/settlements',
+          isParent: false,
+        },
+        {
+          text: t('Earnings'),
+          label: t('Earnings'),
+          route: '/wallet/earnings',
+          isParent: false,
+        },
+        {
+          text: 'Withdrawal Request',
+          label: t('Withdrawal Request'),
+          route: '/wallet/withdraw-requests',
+          isParent: false,
+        },
+      ]),
+      shouldShow: function () {
+        return this.subMenu ? this.subMenu.length > 0 : false;
+      },
+    },
+    {
+      text: 'Restaurants',
+      label: t('Restaurants'),
+      route: '/general/stores',
+      isParent: true,
+      icon: faStore,
+      isClickable: true,
+    },
+    {
+      text: 'Orders',
+      label: t('Orders'),
+      route: '/management/orders',
+      isParent: true,
+      icon: faReceipt,
+      isClickable: true,
+    },
+    {
+      text: 'Marketing',
+      label: t('Marketing'),
+      route: '/management/coupons',
+      isParent: true,
+      icon: faTicket,
+      isClickable: true,
+    },
+    {
+      text: 'More',
+      label: t('More'),
+      route: '/management',
+      isParent: true,
+      icon: faEllipsis,
       subMenu: useCheckAllowedRoutes([
         {
           text: 'Vendors',
           label: t('Vendors'),
           route: '/general/vendors',
-          isParent: false,
-        },
-        {
-          text: 'Stores',
-          label: t('Stores'),
-          route: '/general/stores',
           isParent: false,
         },
         {
@@ -114,34 +140,10 @@ export default function MakeSidebar() {
           route: '/general/staff',
           isParent: false,
         },
-      ]),
-      shouldShow: function () {
-        return this.subMenu ? this.subMenu.length > 0 : false;
-      },
-    },
-    {
-      text: 'Management',
-      label: t('Management'),
-      route: '/management',
-      isParent: true,
-      icon: faSliders,
-      subMenu: useCheckAllowedRoutes([
         {
           text: 'Configuration',
           label: t('Configuration'),
           route: '/management/configurations',
-          isParent: false,
-        },
-        {
-          text: 'Orders',
-          label: t('Orders'),
-          route: '/management/orders',
-          isParent: false,
-        },
-        {
-          text: 'Coupons',
-          label: t('Coupons'),
-          route: '/management/coupons',
           isParent: false,
         },
         {
@@ -174,7 +176,6 @@ export default function MakeSidebar() {
           route: '/management/commission-rates',
           isParent: false,
         },
-
         {
           text: 'Notification',
           label: t('Notification'),
@@ -187,34 +188,10 @@ export default function MakeSidebar() {
           route: '/audit-logs',
           isParent: false,
         },
-      ]),
-      shouldShow: function () {
-        return this.subMenu ? this.subMenu.length > 0 : false;
-      },
-    },
-    {
-      text: 'Wallet',
-      label: t('Wallet'),
-      route: '/wallet',
-      isParent: true,
-      icon: faWallet,
-      subMenu: useCheckAllowedRoutes([
         {
-          text: t('Transaction History'),
-          label: t('Transaction History'),
-          route: '/wallet/transaction-history',
-          isParent: false,
-        },
-        {
-          text: 'Withdrawal Request',
-          label: t('Withdrawal Request'),
-          route: '/wallet/withdraw-requests',
-          isParent: false,
-        },
-        {
-          text: t('Earnings'),
-          label: t('Earnings'),
-          route: '/wallet/earnings',
+          text: 'CustomerSupport',
+          label: t('CustomerSupport'),
+          route: '/customerSupport',
           isParent: false,
         },
       ]),
@@ -223,30 +200,29 @@ export default function MakeSidebar() {
       },
     },
     {
-      text: 'CustomerSupport',  
+      text: 'CustomerSupport',
       label: t('CustomerSupport'),
       route: '/customerSupport',
       icon: faHeadset,
       isClickable: true,
       isParent: true,
+      shouldShow: () => false,
     },
   ];
 
   return (
-    <>
-      <SuperAdminSidebar>
-        <div className="h-[90vh] pb-4 overflow-y-auto overflow-x-hidden pr-2">
-          {navBarItems.map((item, index) =>
-            item.shouldShow && !item.shouldShow() ? null : (
-              <SidebarItem
-                key={index}
-                expanded={isSuperAdminSidebarVisible}
-                {...item}
-              />
-            )
-          )}
-        </div>
-      </SuperAdminSidebar>
-    </>
+    <SuperAdminSidebar>
+      <div className="h-[90vh] pb-4 overflow-y-auto overflow-x-hidden pr-2">
+        {navBarItems.map((item, index) =>
+          item.shouldShow && !item.shouldShow() ? null : (
+            <SidebarItem
+              key={index}
+              expanded={isSuperAdminSidebarVisible}
+              {...item}
+            />
+          )
+        )}
+      </div>
+    </SuperAdminSidebar>
   );
 }

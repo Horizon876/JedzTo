@@ -204,9 +204,34 @@ const styles = (props = null) =>
     },
     collectionContainer: {
       flexGrow: 1,
-      gap: 8,
-      // ...alignment.PTsmall,
-      ...alignment.PBsmall
+      gap: scale(10),
+      ...alignment.PBsmall,
+      paddingTop: scale(4)
+    },
+    circleChip: {
+      width: scale(72),
+      alignItems: 'center',
+      gap: scale(6)
+    },
+    circleTile: {
+      width: scale(68),
+      height: scale(68),
+      borderRadius: scale(34),
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent'
+    },
+    circleTileSelected: {
+      borderColor: '#00A8FF'
+    },
+    circleImage: {
+      width: '100%',
+      height: '100%'
+    },
+    circleLabel: {
+      width: scale(72)
     },
     all:
     {

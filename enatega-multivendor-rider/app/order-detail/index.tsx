@@ -1,5 +1,5 @@
-import OrderDetailScreen from "@/lib/ui/screen-components/home/orders/main/order-details";
+import KitchenOrderDetailScreen from '@/lib/ui/screen-components/home/orders/main/kitchen-order-detail'
 
 export default function OrderDetail() {
-  return <OrderDetailScreen />;
+  return <KitchenOrderDetailScreen />
 }

@@ -1,5 +1,5 @@
 import React, { useContext, useLayoutEffect } from 'react'
-import { View, FlatList, Animated, TouchableOpacity } from 'react-native'
+import { View, FlatList, TouchableOpacity } from 'react-native'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
@@ -7,10 +7,11 @@ import navigationOptions from './navigationOptions'
 import styles from './styles'
 import { useTranslation } from 'react-i18next'
 import Ripple from 'react-native-material-ripple'
-
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 import CachedImage from '../../components/CachedImage'
+import ShimmerImage from '../../components/ShimmerImage/ShimmerImage'
+import { IMAGE_LINK } from '../../utils/constants'
 
 const HEADING = {
   Restaurants: 'I feel like eating',
@@ -18,31 +19,7 @@ const HEADING = {
   default: 'Collections'
 }
 
-// CustomItem component to handle animation
-const CustomItem = ({ index, children }) => {
-  const scaleValue = new Animated.Value(0)
-
-  React.useEffect(() => {
-    Animated.timing(scaleValue, {
-      toValue: 1,
-      delay: index * 130,
-      useNativeDriver: true // Use native driver for better performance
-    }).start()
-  }, [index])
-
-  return (
-    <Animated.View
-      style={{
-        opacity: 1,
-        flex: 1 / 2,
-        marginHorizontal: 5,
-        marginVertical: 2
-      }}
-    >
-      {children}
-    </Animated.View>
-  )
-}
+const TILE_COLORS = ['#2C2C2E', '#323236', '#2A2A2E', '#34343A', '#2E2E32']
 
 const Collection = ({ navigation, route }) => {
   const themeContext = useContext(ThemeContext)
@@ -51,21 +28,75 @@ const Collection = ({ navigation, route }) => {
   const collectionType = route?.params?.collectionType ?? 'default'
   const pageTitle = route?.params?.title || 'Browse Cuisines'
   const showHeader = route?.params?.showHeader ?? false
+  const circular = route?.params?.layout === 'circle'
   const { t } = useTranslation()
 
   useLayoutEffect(() => {
     navigation.setOptions(
       navigationOptions({
         navigation,
-        headerMenuBackground: currentTheme.headerMenuBackground,
-        backIconColor: currentTheme.newIconColor
+        headerMenuBackground: circular ? '#121212' : currentTheme.headerMenuBackground,
+        backIconColor: circular ? '#FFFFFF' : currentTheme.newIconColor,
+        title: circular ? pageTitle : null
       })
     )
-  }, [navigation, currentTheme])
+  }, [navigation, currentTheme, circular, pageTitle])
 
-  const { isConnected: connect, setIsConnected: setConnect } =
-    useNetworkStatus()
+  const openCollection = (item) => {
+    const selectedType = collectionType === 'Store' ? 'grocery' : 'restaurant'
+    navigation.navigate('Menu', {
+      collectionType,
+      collection: item?.name,
+      selectedType,
+      queryType: selectedType
+    })
+  }
+
+  const { isConnected: connect } = useNetworkStatus()
   if (!connect) return <ErrorView refetchFunctions={[]} />
+
+  if (circular) {
+    return (
+      <View style={styles().circleContainer}>
+        <FlatList
+          numColumns={3}
+          data={data}
+          keyExtractor={(item) => item?._id || item?.name}
+          contentContainerStyle={styles().circleContent}
+          columnWrapperStyle={styles().circleRow}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item, index }) => {
+            const imageUrl = item?.image?.split('#')?.[0] || IMAGE_LINK
+            return (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles().circleItem}
+                onPress={() => openCollection(item)}
+              >
+                <View
+                  style={[
+                    styles().circleTile,
+                    { backgroundColor: TILE_COLORS[index % TILE_COLORS.length] }
+                  ]}
+                >
+                  <ShimmerImage
+                    imageUrl={imageUrl}
+                    style={styles().circleImage}
+                    resizeMode='cover'
+                    defaultSource={{ uri: IMAGE_LINK }}
+                  />
+                </View>
+                <TextDefault numberOfLines={1} smaller center textColor='#FFFFFF' style={styles().circleLabel}>
+                  {item?.name}
+                </TextDefault>
+              </TouchableOpacity>
+            )
+          }}
+        />
+      </View>
+    )
+  }
+
   return (
     <View style={styles(currentTheme).container}>
       {showHeader ? (
@@ -81,20 +112,12 @@ const Collection = ({ navigation, route }) => {
       <FlatList
         numColumns={2}
         data={data ?? []}
-        renderItem={({ item, index }) => (
-          <CustomItem index={index}>
+        renderItem={({ item }) => (
+          <View style={styles().cardWrap}>
             <Ripple
               activeOpacity={0.7}
               style={styles(currentTheme).collectionCard}
-              onPress={() => {
-                const selectedType = collectionType === 'Store' ? 'grocery' : 'restaurant'
-                navigation.navigate('Menu', {
-                  collectionType: collectionType,
-                  collection: item?.name,
-                  selectedType: selectedType,
-                  queryType: selectedType
-                })
-              }}
+              onPress={() => openCollection(item)}
             >
               <View style={styles().brandImgContainer}>
                 <CachedImage
@@ -107,9 +130,8 @@ const Collection = ({ navigation, route }) => {
                 {item.name}
               </TextDefault>
             </Ripple>
-          </CustomItem>
+          </View>
         )}
-        ItemSeparatorComponent={() => <View style={{ width: 20 }} />}
         keyExtractor={(item) => item?._id}
         contentContainerStyle={styles().contentContainerStyle}
         showsVerticalScrollIndicator={false}

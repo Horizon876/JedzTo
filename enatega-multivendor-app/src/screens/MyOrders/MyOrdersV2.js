@@ -213,30 +213,6 @@ function MyOrders(props) {
                     {getItems(item.items)}
                   </TextDefault>
                   <View style={styles().rateOrderContainer}>
-                    {!item.review && (
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles(currentTheme).subContainerReviewButton}
-                        onPress={() =>
-                          props?.navigation.navigate('OrderDetail', {
-                            _id: item._id,
-                            currencySymbol: configuration.currencySymbol,
-                            restaurant: item.restaurant,
-                            user: item.user
-                          })
-                        }>
-                        <TextDefault
-                          textColor={currentTheme.Black}
-                          smaller
-                          bolder
-                          B700
-                          center
-                          uppercase>
-                          {' '}
-                          {t('RateOrder')}
-                        </TextDefault>
-                      </TouchableOpacity>
-                    )}
                     <TouchableOpacity
                       activeOpacity={0.7}
                       style={styles(currentTheme).subContainerButton}

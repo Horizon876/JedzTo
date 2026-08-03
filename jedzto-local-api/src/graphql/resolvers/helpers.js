@@ -1,0 +1,270 @@
+/**
+ * resolvers/helpers.js
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Pure utility functions and shared data shapes used across all resolver
+ * modules. No DB calls, no GraphQL errors — just transformations.
+ */
+
+import { GraphQLError } from 'graphql'
+import { withCurrentEta, computeCurrentEta, resolveDefaultEta } from '../../services/eta.js'
+import { rewriteUploadUrl } from '../../utils/publicUrl.js'
+import { rewriteUploadUrlsDeep } from '../../services/menu.js'
+import { canAcceptOrders } from '../../services/restaurantAvailability.js'
+
+// ---------------------------------------------------------------------------
+// Scalar helpers
+// ---------------------------------------------------------------------------
+
+/** Stringify a Mongoose document _id to a plain string (or null). */
+export const id = (doc) => (doc?._id ? String(doc._id) : null)
+
+/** Safely parse a number, returning `fallback` for non-finite values. */
+export const toCoord = (value, fallback = 0) => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+/** Clamp an ETA value in minutes to a sane range [min, 240]. */
+export const clampEtaMinutes = (value, fallback = 20, { min = 5 } = {}) => {
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return fallback
+  return Math.max(min, Math.min(240, n))
+}
+
+/** URL-friendly slug from any string. */
+export const slugify = (text = '') =>
+  text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+
+// ---------------------------------------------------------------------------
+// Geo helpers
+// ---------------------------------------------------------------------------
+
+const EARTH_RADIUS_KM = 6371
+
+/** Great-circle distance in kilometres (Haversine). */
+export const distanceKm = (lat1, lng1, lat2, lng2) => {
+  const toRad = (deg) => (deg * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+/**
+ * Compares area names the way a person would: "Myślenice" and "Myslenice"
+ * are the same place, so the owner cannot accidentally price it twice.
+ */
+export const normalizeAreaName = (name) =>
+  name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ł/g, 'l')
+
+// ---------------------------------------------------------------------------
+// ETA helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Applies prep + delivery ETA fields to an order document and recomputes
+ * the absolute expectedTime timestamps.
+ */
+export const applyOrderEtaFields = (
+  order,
+  { preparationEtaMinutes, deliveryEtaMinutes } = {},
+  nowMs = Date.now()
+) => {
+  const isPickup = Boolean(order.isPickedUp)
+  if (preparationEtaMinutes != null) {
+    order.preparationEtaMinutes = clampEtaMinutes(preparationEtaMinutes)
+  }
+  if (deliveryEtaMinutes != null) {
+    order.deliveryEtaMinutes = isPickup
+      ? 0
+      : clampEtaMinutes(deliveryEtaMinutes, 0, { min: 0 })
+  }
+
+  const prep = Number(order.preparationEtaMinutes ?? 0)
+  const delivery = isPickup ? 0 : Number(order.deliveryEtaMinutes ?? 0)
+  const total = Math.max(5, prep + delivery)
+
+  order.preparationTime = new Date(nowMs + prep * 60 * 1000)
+  order.expectedTime = new Date(nowMs + total * 60 * 1000)
+  if (!isPickup) {
+    order.deliveryExpectedTime = order.expectedTime
+  }
+  return { prep, delivery, total }
+}
+
+// ---------------------------------------------------------------------------
+// Delivery area helpers
+// ---------------------------------------------------------------------------
+
+export const mapDeliveryArea = (a) => ({
+  _id: id(a) || String(a._id),
+  name: a.name,
+  fee: a.fee ?? 0,
+  minOrder: a.minOrder ?? 0,
+  latitude: a.latitude,
+  longitude: a.longitude,
+  radiusKm: a.radiusKm ?? 3,
+  isActive: a.isActive !== false
+})
+
+/** Returns the tightest delivery area covering (latitude, longitude). */
+export const matchDeliveryArea = (restaurant, latitude, longitude) => {
+  const areas = (restaurant?.deliveryAreas || []).filter((a) => a.isActive !== false)
+  if (!areas.length) return null
+  const covering = areas
+    .filter((a) => distanceKm(latitude, longitude, a.latitude, a.longitude) <= a.radiusKm)
+    .sort((a, b) => a.radiusKm - b.radiusKm)
+  return covering[0] || null
+}
+
+/**
+ * Resolves deliverability for a restaurant at a location. A restaurant with
+ * no areas configured yet is treated as "delivers everywhere" so a freshly
+ * created store is not invisible before its owner sets things up.
+ */
+export const resolveDelivery = (restaurant, latitude, longitude) => {
+  const areas = (restaurant?.deliveryAreas || []).filter((a) => a.isActive !== false)
+  if (!areas.length) return { available: true, fee: null, minOrder: null, areaName: null }
+  if (latitude == null || longitude == null) {
+    return { available: true, fee: null, minOrder: null, areaName: null }
+  }
+  const area = matchDeliveryArea(restaurant, latitude, longitude)
+  if (!area) return { available: false, fee: null, minOrder: null, areaName: null }
+  return {
+    available: true,
+    fee: area.fee ?? 0,
+    minOrder: area.minOrder ?? 0,
+    areaName: area.name
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Restaurant data shapes
+// ---------------------------------------------------------------------------
+
+/**
+ * Lightweight preview shape used in listing queries (no categories loaded).
+ * Mirrors the legacy deliveryTime/pickupTime fields so older UI works.
+ */
+export const toPreview = (r) => {
+  const currentEta =
+    r.currentEta == null ? resolveDefaultEta(r) : Number(r.currentEta)
+  return {
+    _id: id(r),
+    name: r.name,
+    image: r.image,
+    logo: r.logo,
+    deliveryTime: currentEta,
+    pickupTime: currentEta,
+    defaultEta: r.defaultEta == null ? resolveDefaultEta(r) : Number(r.defaultEta),
+    isBusy: Boolean(r.isBusy),
+    currentEta,
+    minimumOrder: r.minimumOrder,
+    isAvailable: canAcceptOrders(r),
+    isSuspended: Boolean(r.isSuspended),
+    pausedUntil: r.pausedUntil ? new Date(r.pausedUntil).toISOString() : null,
+    tax: r.tax,
+    shopType: r.shopType,
+    cuisines: r.cuisines,
+    tags: r.tags,
+    reviewCount: r.reviewCount,
+    reviewAverage: r.reviewAverage,
+    freeDelivery: r.freeDelivery,
+    acceptVouchers: r.acceptVouchers,
+    location: r.location,
+    openingTimes: r.openingTimes,
+    deliveryFee: r.deliveryFee ?? null,
+    deliveryAreaName: r.deliveryAreaName ?? null,
+    address: r.address ?? null
+  }
+}
+
+export function publishedCategories(restaurant) {
+  const snapshot = restaurant?.publishedMenu
+  if (!snapshot || !Array.isArray(snapshot.categories)) return []
+  return rewriteUploadUrlsDeep(snapshot.categories)
+}
+
+/**
+ * Determines whether the caller should see the live (draft) menu or the
+ * customer-facing published snapshot.
+ */
+export const audienceFor = (ctx, restaurant) => {
+  const user = ctx?.user
+  if (!user?.userId) return 'customer'
+  if (user.role === 'SUPER_ADMIN') return 'owner'
+  if (
+    user.role === 'RESTAURANT_OWNER' &&
+    String(restaurant.ownerId) === String(user.userId)
+  ) {
+    return 'owner'
+  }
+  return 'customer'
+}
+
+// ---------------------------------------------------------------------------
+// Role shape helpers
+// ---------------------------------------------------------------------------
+
+export const mapUserType = (role) => {
+  if (role === 'SUPER_ADMIN') return 'ADMIN'
+  if (role === 'RESTAURANT_OWNER') return 'RESTAURANT'
+  return 'CUSTOMER'
+}
+
+export const adminUserShape = (user) => ({
+  _id: id(user),
+  name: user.name,
+  email: user.email,
+  phone: user.phone || '',
+  createdAt: user.createdAt?.toISOString?.() || user.createdAt || null,
+  userType: mapUserType(user.role),
+  status: user.isActive === false ? 'inactive' : 'active',
+  lastLogin: null,
+  notes: '',
+  addresses: (user.addresses || []).map((a) => ({
+    _id: id(a) || String(a._id),
+    id: id(a) || String(a._id),
+    label: a.label,
+    deliveryAddress: a.deliveryAddress,
+    details: a.details,
+    location: a.location,
+    selected: a.selected
+  }))
+})
+
+export const profileShape = (user) => ({
+  _id: id(user),
+  name: user.name,
+  phone: user.phone,
+  phoneIsVerified: user.phoneIsVerified,
+  email: user.email,
+  emailIsVerified: user.emailIsVerified,
+  notificationToken: user.notificationToken,
+  isActive: user.isActive,
+  isOrderNotification: user.isOrderNotification,
+  isOfferNotification: user.isOfferNotification,
+  role: user.role,
+  favourite: (user.favourite || []).map(String),
+  addresses: (user.addresses || []).map((a) => ({
+    _id: id(a) || String(a._id),
+    id: id(a) || String(a._id),
+    label: a.label,
+    deliveryAddress: a.deliveryAddress,
+    details: a.details,
+    location: a.location,
+    selected: a.selected
+  }))
+})

@@ -30,7 +30,7 @@ const ItemCard = ({ item, onPressItem, restaurant, tagCart }) => {
   return (
     <RectButton onPress={handleAddToCart} rippleColor={currentTheme.rippleColor}>
       <LinearGradient style={styles(currentTheme).card} colors={[currentTheme.gray100, currentTheme.white]}>
-        {tagCart(item?._id)}
+        {typeof tagCart === 'function' ? tagCart(item?._id) : null}
         <TextDefault
           textColor={currentTheme.gray600}
           style={{

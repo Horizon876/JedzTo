@@ -1,17 +1,22 @@
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { useApolloClient, useMutation } from '@apollo/client'
 import gql from 'graphql-tag'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import AuthContext from '../../context/Auth'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import { nameRegex } from '../../utils/regex'
-import { isValidPhoneNumber, getPhoneExample, toE164 } from '../../utils/phone'
+import { isValidPhoneNumber, toE164 } from '../../utils/phone'
 import { useCountryFromIP } from '../../utils/useCountryFromIP'
 import { guestCheckout } from '../../apollo/mutations'
 import { profile as PROFILE_QUERY } from '../../apollo/queries'
+import {
+  loadCustomerDetails,
+  saveCustomerDetails,
+  clearCustomerDetails
+} from '../../utils/customerDetailsStorage'
 import analytics from '../../utils/analytics'
 
 const GUEST_CHECKOUT = gql`
@@ -21,10 +26,10 @@ const PROFILE = gql`
   ${PROFILE_QUERY}
 `
 
-// Simplified guest checkout: first name + last name + phone → token → Checkout.
 const useGuestCheckout = () => {
   const Analytics = analytics()
   const navigation = useNavigation()
+  const route = useRoute()
   const client = useApolloClient()
   const { t, i18n } = useTranslation()
   const { setTokenAsync } = useContext(AuthContext)
@@ -33,10 +38,12 @@ const useGuestCheckout = () => {
     isRTL: i18n.dir() === 'rtl',
     ...theme[themeContext.ThemeValue]
   }
+  const isProfileEdit = route?.name === 'Profile'
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
+  const [saveDetails, setSaveDetails] = useState(false)
   const [firstNameError, setFirstNameError] = useState(null)
   const [lastNameError, setLastNameError] = useState(null)
   const [phoneError, setPhoneError] = useState(null)
@@ -56,6 +63,23 @@ const useGuestCheckout = () => {
   }
 
   const [mutateGuestCheckout] = useMutation(GUEST_CHECKOUT)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const saved = await loadCustomerDetails()
+      if (cancelled || !saved) return
+      setFirstName(saved.firstName || '')
+      setLastName(saved.lastName || '')
+      setPhone(saved.phone || '')
+      if (saved.countryCode) {
+        setCountryCode(saved.countryCode)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function validate() {
     let result = true
@@ -83,8 +107,7 @@ const useGuestCheckout = () => {
       setPhoneError(t('mobileErr1'))
       result = false
     } else if (!isValidPhoneNumber(phone, country?.cca2)) {
-      const example = getPhoneExample(country?.cca2)
-      setPhoneError(example ? t('mobileErrFormat', { example }) : t('mobileErr2'))
+      setPhoneError(t('mobileErr2'))
       result = false
     }
 
@@ -100,6 +123,26 @@ const useGuestCheckout = () => {
     const e164Phone = toE164(phone, country?.cca2)
 
     try {
+      const shouldPersistDetails = saveDetails || isProfileEdit
+      if (shouldPersistDetails) {
+        await saveCustomerDetails({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone,
+          countryCode: country?.cca2 || countryCode || ''
+        })
+      } else {
+        // Explicitly opted out — do not keep previous saved details either.
+        await clearCustomerDetails()
+      }
+
+      // Profile tab: save local details only (no checkout navigation).
+      if (isProfileEdit) {
+        setSubmitting(false)
+        FlashMessage({ message: t('customerDetailsSaved') })
+        return
+      }
+
       const { data } = await mutateGuestCheckout({
         variables: {
           name: fullName,
@@ -112,7 +155,8 @@ const useGuestCheckout = () => {
         throw new Error(t('somethingWentWrong'))
       }
 
-      await setTokenAsync(created.token)
+      // Without "Zapisz dane", keep auth only for this checkout — cleared after order / cold start.
+      await setTokenAsync(created.token, { ephemeral: !shouldPersistDetails })
       await client
         .query({
           query: PROFILE,
@@ -149,6 +193,8 @@ const useGuestCheckout = () => {
     setPhone,
     phoneError,
     setPhoneError,
+    saveDetails,
+    setSaveDetails,
     country,
     countryCode,
     onCountrySelect,
@@ -156,7 +202,8 @@ const useGuestCheckout = () => {
     submitting,
     submitGuestDetails,
     currentTheme,
-    themeContext
+    themeContext,
+    isProfileEdit
   }
 }
 

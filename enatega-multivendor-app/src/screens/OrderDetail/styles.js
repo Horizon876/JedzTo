@@ -14,29 +14,32 @@ const styles = (props = null) =>
     },
     screen: {
       flex: 1,
-      backgroundColor: PAGE
+      backgroundColor: SURFACE
+    },
+    scrollArea: {
+      flex: 1,
+      backgroundColor: SURFACE
     },
     scrollContent: {
-      flexGrow: 1,
-      backgroundColor: PAGE,
-      paddingBottom: scale(160)
+      flexGrow: 0,
+      paddingBottom: 0
     },
     statusSection: {
       width: '100%',
       backgroundColor: SURFACE,
       alignItems: 'center',
       paddingHorizontal: scale(14),
-      paddingTop: scale(28),
-      paddingBottom: scale(28),
+      paddingTop: scale(20),
+      paddingBottom: scale(18),
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: HAIRLINE
     },
     checkIconWrap: {
-      width: scale(96),
-      height: scale(96),
+      width: scale(88),
+      height: scale(88),
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: scale(8)
+      marginBottom: scale(4)
     },
     statusTitle: {
       color: '#FFFFFF',
@@ -46,64 +49,90 @@ const styles = (props = null) =>
     statusSubtitle: {
       color: MUTED,
       textAlign: 'center',
-      marginTop: scale(8),
-      fontSize: scale(14),
+      marginTop: scale(6),
+      fontSize: scale(13),
+      lineHeight: scale(18),
+      paddingHorizontal: scale(8)
+    },
+    etaLine: {
+      color: ACCENT,
+      textAlign: 'center',
+      marginTop: scale(10),
+      fontSize: scale(15),
       lineHeight: scale(20),
       paddingHorizontal: scale(8)
     },
-    etaLabel: {
-      color: MUTED,
-      marginTop: scale(10)
-    },
-    etaValue: {
-      color: '#FFFFFF',
-      marginTop: scale(4)
+    sectionGap: {
+      marginTop: scale(8),
+      width: '100%'
     },
     sectionHeader: {
       paddingHorizontal: scale(14),
-      paddingVertical: scale(12),
+      paddingTop: scale(10),
+      paddingBottom: scale(10),
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: HAIRLINE
+      borderBottomColor: HAIRLINE,
+      justifyContent: 'center'
     },
     sectionTitle: {
-      color: '#FFFFFF'
+      color: '#FFFFFF',
+      marginTop: 0,
+      marginBottom: 0,
+      fontSize: scale(13),
+      lineHeight: scale(16),
+      includeFontPadding: false
     },
-    summaryBlock: {
+    bottomContainer: {
       width: '100%',
       backgroundColor: SURFACE,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: HAIRLINE,
-      paddingHorizontal: scale(14),
-      paddingVertical: scale(8),
-      marginTop: scale(8)
+      overflow: 'hidden'
     },
-    bottomContainer: () => ({
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      width: '100%',
-      backgroundColor: SURFACE,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: HAIRLINE,
+    summaryInner: {
       paddingHorizontal: scale(14),
-      paddingTop: scale(14)
-    }),
-    cancelButtonContainer: () => ({
+      paddingTop: scale(14),
+      paddingBottom: scale(10)
+    },
+    summaryRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
       alignItems: 'center',
+      marginBottom: scale(6)
+    },
+    summaryLabel: {
+      color: MUTED,
+      fontSize: scale(13)
+    },
+    summaryValue: {
+      color: '#FFFFFF',
+      fontSize: scale(13)
+    },
+    totalRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: scale(6),
+      marginBottom: scale(14)
+    },
+    cancelButton: {
+      backgroundColor: '#FF453A',
       justifyContent: 'center',
-      borderColor: '#FF453A',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: scale(999),
-      height: scale(48),
+      alignItems: 'center',
       width: '100%',
-      backgroundColor: 'transparent'
-    }),
+      height: scale(50),
+      borderRadius: scale(999)
+    },
     cancelButtonDisabled: {
-      opacity: 0.35
+      opacity: 0.45
+    },
+    cancelButtonText: {
+      width: '100%',
+      textAlign: 'center'
     },
     lottie: {
-      width: scale(160),
-      height: scale(160)
+      width: scale(140),
+      height: scale(140)
     }
   })
 

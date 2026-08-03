@@ -13,6 +13,7 @@ export interface IOrder {
   _id: string;
   orderId: string;
   paymentMethod?: string;
+  instructions?: string;
   items: Array<{
     variation: {
       price: number;
@@ -30,6 +31,7 @@ export interface IOrder {
     image: string;
     title: string;
     quantity: number;
+    specialInstructions?: string;
   }>;
   user: {
     _id: string;
@@ -41,6 +43,8 @@ export interface IOrder {
   acceptedAt: string;
   deliveryAddress: {
     deliveryAddress: string;
+    details?: string;
+    label?: string;
     location: {
       coordinates: Array<number>;
     };
@@ -49,6 +53,10 @@ export interface IOrder {
   orderStatus: string;
   preparationTime: string;
   completionTime: string;
+  expectedTime?: string;
+  preparationEtaMinutes?: number | null;
+  deliveryEtaMinutes?: number | null;
+  deliveryExpectedTime?: string;
   isPickedUp: boolean;
   isRiderRinged: boolean;
   rider: IRiderProfile;

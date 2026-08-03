@@ -69,6 +69,7 @@ export const typeDefs = `#graphql
     subCategory: String
     isOutOfStock: Boolean
     isActive: Boolean
+    ingredients: [String!]
     createdAt: String
     updatedAt: String
     variations: [Variation!]
@@ -216,6 +217,15 @@ export const typeDefs = `#graphql
     card: [PaymentMethodBucket!]
   }
 
+  type HolidayException {
+    _id: ID
+    date: String!
+    closed: Boolean!
+    open: String
+    close: String
+    label: String
+  }
+
   type BussinessDetails {
     bankName: String
     accountName: String
@@ -242,6 +252,13 @@ export const typeDefs = `#graphql
     deliveryBounds: Point
     deliveryInfo: DeliveryInfo
     deliveryTime: Int
+    pickupTime: Int
+    """Fallback ETA (minutes) when not busy and no recent accepted order."""
+    defaultEta: Int
+    """Manual kitchen overload switch — when true, currentEta is 90."""
+    isBusy: Boolean
+    """Live ETA shown on restaurant listings (busy / recent order / default)."""
+    currentEta: Int
     minimumOrder: Float
     tax: Float
     shopType: String
@@ -258,6 +275,11 @@ export const typeDefs = `#graphql
     rating: Float
     isAvailable: Boolean
     isActive: Boolean
+    isSuspended: Boolean
+    suspendedReason: String
+    pausedUntil: String
+    holidayExceptions: [HolidayException!]
+    freeDeliveryFrom: Float
     openingTimes: [OpeningTime!]
     phone: String
     restaurantUrl: String
@@ -284,6 +306,10 @@ export const typeDefs = `#graphql
     image: String
     logo: String
     deliveryTime: Int
+    pickupTime: Int
+    defaultEta: Int
+    isBusy: Boolean
+    currentEta: Int
     minimumOrder: Float
     isAvailable: Boolean
     tax: Float
@@ -306,8 +332,14 @@ export const typeDefs = `#graphql
     image: String
     logo: String
     deliveryTime: Int
+    pickupTime: Int
+    defaultEta: Int
+    isBusy: Boolean
+    currentEta: Int
     minimumOrder: Float
     isAvailable: Boolean
+    isSuspended: Boolean
+    pausedUntil: String
     tax: Float
     shopType: String
     cuisines: [String!]
@@ -551,6 +583,15 @@ export const typeDefs = `#graphql
     preparationTime: String
     orderDate: String
     expectedTime: String
+    preparationEtaMinutes: Int
+    deliveryEtaMinutes: Int
+    deliveryExpectedTime: String
+    platformCommissionRate: Float
+    platformCommission: Float
+    stripePaymentIntentId: String
+    refundedAt: String
+    refundAmount: Float
+    acceptedEtaMinutes: Int
     isPickedUp: Boolean
     deliveryCharges: Float
     acceptedAt: String
@@ -607,6 +648,7 @@ export const typeDefs = `#graphql
 
   type PopularItem {
     id: ID
+    title: String
     count: Int
   }
 
@@ -753,6 +795,7 @@ export const typeDefs = `#graphql
     image: String
     logo: String
     deliveryTime: Int
+    pickupTime: Int
     minimumOrder: Float
     shopType: String
     salesTax: Float
@@ -767,6 +810,7 @@ export const typeDefs = `#graphql
     image: String
     logo: String
     deliveryTime: Int
+    pickupTime: Int
     minimumOrder: Float
     username: String
     password: String
@@ -776,6 +820,13 @@ export const typeDefs = `#graphql
     cuisines: [String!]
     isAvailable: Boolean
     openingTimes: JSON
+    commissionRate: Float
+    isSuspended: Boolean
+    suspendedReason: String
+    pausedUntil: String
+    holidayExceptions: JSON
+    freeDeliveryFrom: Float
+    freeDelivery: Boolean
   }
 
   # Customer accounts as listed on the super admin's Users screen.
@@ -881,6 +932,7 @@ export const typeDefs = `#graphql
     image: String
     isOutOfStock: Boolean
     isActive: Boolean
+    ingredients: [String!]
     variations: [VariationInput!]
   }
 
@@ -980,6 +1032,9 @@ export const typeDefs = `#graphql
     subCategory(_id: String!): SubCategory
     deliveryQuote(restaurantId: ID!, latitude: Float!, longitude: Float!): DeliveryQuote
     menuPublishStatus(restaurantId: ID!): MenuPublishStatus
+    restaurantSettlements(periodKey: String): [RestaurantSettlement!]
+    restaurantSettlement(restaurantId: ID!, periodKey: String): RestaurantSettlement
+    restaurantSalesReport(restaurantId: ID!, from: String, to: String): RestaurantSalesReport
     getDashboardUsers: DashboardUsers
     getDashboardUsersByYear(year: Int!): DashboardUsers
     getDashboardOrdersByType: [DashboardLabelValue!]
@@ -1054,9 +1109,78 @@ export const typeDefs = `#graphql
     uploadImageToS3(image: String!): UploadImageResult
     updateDeliveryAreas(restaurantId: ID!, areas: [DeliveryAreaInput!]!): Restaurant
     publishMenu(restaurantId: ID!): MenuPublishStatus
-    updateStatus(id: String!, orderStatus: String!): Order
+    updateStatus(
+      id: String!
+      orderStatus: String!
+      preparationEtaMinutes: Int
+      deliveryEtaMinutes: Int
+    ): Order
+    updateOrderEta(
+      id: String!
+      preparationEtaMinutes: Int
+      deliveryEtaMinutes: Int
+    ): Order
+    updateRestaurantOrderTimes(
+      restaurantId: ID!
+      deliveryTime: Int
+      pickupTime: Int
+      defaultEta: Int
+      isBusy: Boolean
+    ): Restaurant
     editRestaurant(restaurant: RestaurantProfileInput!): Restaurant
+    suspendRestaurant(restaurantId: ID!, isSuspended: Boolean!, reason: String): Restaurant
+    setRestaurantPause(restaurantId: ID!, paused: Boolean!, pausedUntil: String): Restaurant
+    setRestaurantHolidays(restaurantId: ID!, holidays: [HolidayExceptionInput!]!): Restaurant
+    settleRestaurantPeriod(restaurantId: ID!, periodKey: String!): RestaurantSettlement
+    refundOrder(orderId: ID!, amount: Float): Order
     refreshToken(refreshToken: String!, userType: String!): OwnerAuthPayload
+  }
+
+  input HolidayExceptionInput {
+    date: String!
+    closed: Boolean
+    open: String
+    close: String
+    label: String
+  }
+
+  type RestaurantSettlement {
+    _id: ID
+    restaurantId: ID!
+    restaurantName: String
+    periodKey: String!
+    periodStart: String
+    periodEnd: String
+    onlineGross: Float!
+    cashGross: Float!
+    totalGross: Float!
+    commissionRate: Float!
+    commissionOnOnline: Float!
+    commissionOnCash: Float!
+    commissionDue: Float!
+    cashCommissionOwed: Float!
+    onlinePayoutDue: Float!
+    status: String!
+    settledAt: String
+  }
+
+  type RestaurantSalesReport {
+    restaurantId: ID!
+    from: String
+    to: String
+    totalGross: Float!
+    onlineGross: Float!
+    cashGross: Float!
+    orderCount: Int!
+    topItems: [PopularItem!]
+    byWeekday: [WeekdaySales!]
+  }
+
+  type WeekdaySales {
+    weekday: Int!
+    label: String!
+    gross: Float!
+    orderCount: Int!
   }
 
   type Subscription {
@@ -1064,6 +1188,16 @@ export const typeDefs = `#graphql
     subscriptionRiderLocation(riderId: String!): Rider
     orderStatusChanged(userId: String!): OrderStatusChangedPayload
     subscriptionNewMessage(order: ID!): ChatMessage
+    subscriptionRestaurantUpdated: RestaurantTimesUpdate
+  }
+
+  type RestaurantTimesUpdate {
+    _id: ID!
+    deliveryTime: Int
+    pickupTime: Int
+    defaultEta: Int
+    isBusy: Boolean
+    currentEta: Int
   }
 `
 

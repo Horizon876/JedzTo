@@ -24,6 +24,7 @@ import ItemCard from '../../components/ItemCards/ItemCards'
 import { IMAGE_LINK } from '../../utils/constants'
 import PopularIcon from '../../assets/SVG/popular'
 import { calculateDistance, isOpen } from '../../utils/customFunctions'
+import { getRestaurantEtaMinutes } from '../../utils/restaurantEta'
 import { LocationContext } from '../../context/Location'
 import ShimmerImage from '../../components/ShimmerImage/ShimmerImage'
 import { resolveRestaurantImage as resolveResolvedRestaurantImage } from '../../utils/resolveImageUrl'
@@ -32,7 +33,6 @@ import { getPopulatedCartQuantityTotal, populateCart, pruneCartToRestaurant } fr
 import { formatMoney } from '../../utils/formatMoney'
 
 const CATEGORY_RAIL_HEIGHT = scale(48)
-const LIST_BOTTOM_PADDING = scale(120)
 const POPULAR_ROW_LIMIT = 4
 
 function resolveRestaurantImage(restaurant = {}, propsData = {}) {
@@ -90,7 +90,7 @@ function Restaurant(props) {
   const configuration = useContext(ConfigurationContext)
   const { location } = useContext(LocationContext)
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0)
-  const { restaurant: restaurantCart, setCartRestaurant, cartCount, cart, addCartItem, addQuantity, clearCart, checkItemCart, isPickup, updateCart } = useContext(UserContext)
+  const { restaurant: restaurantCart, cartCount, cart, clearCart, isPickup, updateCart } = useContext(UserContext)
   const { data, refetch, networkStatus, loading, error } = useRestaurant(propsData._id)
   const client = useApolloClient()
   const { data: popularItemsData } = useQuery(POPULAR_ITEMS, {
@@ -206,10 +206,11 @@ function Restaurant(props) {
     [location?.latitude, location?.longitude, restaurant?.location?.coordinates]
   )
 
-  const displayedDeliveryMinutes = useMemo(
-    () => restaurant?.estimatedDeliveryMinutes ?? restaurant?.deliveryTime ?? '...',
-    [restaurant]
-  )
+  const displayedDeliveryMinutes = useMemo(() => {
+    const eta = getRestaurantEtaMinutes(restaurant, { isPickup })
+    if (eta != null) return eta
+    return restaurant?.estimatedDeliveryMinutes ?? restaurant?.deliveryTime ?? '...'
+  }, [isPickup, restaurant])
 
   const aboutObject = useMemo(
     () => ({
@@ -301,10 +302,16 @@ function Restaurant(props) {
           key: `food-${section.index}-${item?._id || item?.id || itemIndex}`,
           type: 'food-item',
           categoryIndex: section.index,
-          item
+          item,
+          isLastInSection: itemIndex === section.data.length - 1
         })
       })
     })
+
+    const lastFoodIndex = rows.reduce((last, row, index) => (row.type === 'food-item' ? index : last), -1)
+    if (lastFoodIndex >= 0) {
+      rows[lastFoodIndex] = { ...rows[lastFoodIndex], isLastFood: true }
+    }
 
     return rows
   }, [categories.length, updatedDeals])
@@ -421,12 +428,6 @@ function Restaurant(props) {
 
   const addToCart = useCallback(
     async (foodItem, clearFlag) => {
-      if (foodItem.variations.length === 1 && foodItem.variations[0].addons.length === 0) {
-        await setCartRestaurant(foodItem.restaurant)
-        await addCartItem(foodItem._id, foodItem.variations[0]._id, 1, [], clearFlag)
-        return
-      }
-
       if (clearFlag) await clearCart()
 
       navigation.navigate('ItemDetail', {
@@ -436,27 +437,7 @@ function Restaurant(props) {
         restaurant: restaurant._id
       })
     },
-    [addCartItem, clearCart, navigation, restaurant, setCartRestaurant]
-  )
-
-  const tagCart = useCallback(
-    (itemId) => {
-      if (checkItemCart) {
-        const cartValue = checkItemCart(itemId)
-        if (cartValue.exist) {
-          return (
-            <>
-              <View style={styles(currentTheme).triangleCorner} />
-              <TextDefault style={styles(currentTheme).tagText} numberOfLines={1} textColor={currentTheme.fontWhite} bold small center>
-                {cartValue.quantity}
-              </TextDefault>
-            </>
-          )
-        }
-      }
-      return null
-    },
-    [checkItemCart, currentTheme]
+    [clearCart, navigation, restaurant]
   )
 
   const handleScrollToIndexFailed = useCallback(
@@ -530,13 +511,12 @@ function Restaurant(props) {
           displayedDeliveryMinutes={displayedDeliveryMinutes}
           currentTheme={currentTheme}
           restaurant={restaurant}
-          tagCart={tagCart}
           onFoodPress={renderFoodPress}
           configuration={configuration}
         />
       )
     },
-    [aboutObject, activeCategoryIndex, categories, configuration, currentTheme, displayedDeliveryMinutes, handleCategoryPress, renderFoodPress, restaurant, tagCart]
+    [aboutObject, activeCategoryIndex, categories, configuration, currentTheme, displayedDeliveryMinutes, handleCategoryPress, renderFoodPress, restaurant]
   )
 
   if (loading) {
@@ -603,7 +583,11 @@ function Restaurant(props) {
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfigRef.current}
           onScrollToIndexFailed={handleScrollToIndexFailed}
-          contentContainerStyle={{ paddingBottom: LIST_BOTTOM_PADDING }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            backgroundColor: '#1C1C1E',
+            paddingBottom: 0
+          }}
           initialNumToRender={8}
           maxToRenderPerBatch={6}
           updateCellsBatchingPeriod={16}
@@ -658,7 +642,8 @@ const SectionTitleRow = React.memo(function SectionTitleRow({ currentTheme, titl
         styles(currentTheme).sectionHeader,
         {
           marginBottom: 0,
-          marginTop: scale(4),
+          marginTop: 0,
+          backgroundColor: '#121212',
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: '#2C2C2E'
         }
@@ -672,7 +657,7 @@ const SectionTitleRow = React.memo(function SectionTitleRow({ currentTheme, titl
 })
 
 const RestaurantRow = React.memo(
-  function RestaurantRow({ row, aboutObject, categories, activeCategoryIndex, onPressCategory, displayedDeliveryMinutes, currentTheme, restaurant, tagCart, onFoodPress, configuration }) {
+  function RestaurantRow({ row, aboutObject, categories, activeCategoryIndex, onPressCategory, displayedDeliveryMinutes, currentTheme, restaurant, onFoodPress, configuration }) {
     switch (row.type) {
       case 'hero':
         return <RestaurantHero aboutObject={aboutObject} displayedDeliveryMinutes={displayedDeliveryMinutes} />
@@ -681,11 +666,19 @@ const RestaurantRow = React.memo(
       case 'section-anchor':
         return <View style={{ height: 1, opacity: 0 }} />
       case 'popular-grid':
-        return <PopularGridRow currentTheme={currentTheme} items={row.items} onPressItem={onFoodPress} restaurant={restaurant} tagCart={tagCart} title={row.title} />
+        return <PopularGridRow currentTheme={currentTheme} items={row.items} onPressItem={onFoodPress} restaurant={restaurant} title={row.title} />
       case 'section-title':
         return <SectionTitleRow currentTheme={currentTheme} title={row.title} />
       case 'food-item':
-        return <FoodRow configuration={configuration} currentTheme={currentTheme} item={row.item} onPressItem={onFoodPress} tagCart={tagCart} />
+        return (
+          <FoodRow
+            configuration={configuration}
+            currentTheme={currentTheme}
+            item={row.item}
+            onPressItem={onFoodPress}
+            isLast={Boolean(row.isLastFood)}
+          />
+        )
       default:
         return null
     }
@@ -694,7 +687,6 @@ const RestaurantRow = React.memo(
     if (prevProps.row !== nextProps.row) return false
     if (prevProps.currentTheme !== nextProps.currentTheme) return false
     if (prevProps.restaurant !== nextProps.restaurant) return false
-    if (prevProps.tagCart !== nextProps.tagCart) return false
     if (prevProps.onFoodPress !== nextProps.onFoodPress) return false
     if (prevProps.configuration !== nextProps.configuration) return false
     if (prevProps.row.type === 'hero') {
@@ -707,7 +699,7 @@ const RestaurantRow = React.memo(
   }
 )
 
-const PopularGridRow = React.memo(function PopularGridRow({ currentTheme, items, onPressItem, restaurant, tagCart, title }) {
+const PopularGridRow = React.memo(function PopularGridRow({ currentTheme, items, onPressItem, restaurant, title }) {
   const { t } = useTranslation()
 
   return (
@@ -733,21 +725,31 @@ const PopularGridRow = React.memo(function PopularGridRow({ currentTheme, items,
       </TextDefault>
       <View style={styles(currentTheme).popularItemCards}>
         {items.map((item) => (
-          <ItemCard key={item?._id} item={item} onPressItem={onPressItem} restaurant={restaurant} tagCart={tagCart} />
+          <ItemCard key={item?._id} item={item} onPressItem={onPressItem} restaurant={restaurant} />
         ))}
       </View>
     </View>
   )
 })
 
-const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item, onPressItem, tagCart }) {
+const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item, onPressItem, isLast }) {
+  const { t } = useTranslation()
   const imageUrl = item?.image && item?.image.trim() !== '' ? item?.image : IMAGE_LINK
   const ACCENT = '#00A8FF'
+  const hasMultipleSizes = (item?.variations?.length || 0) > 1
+  const minPrice = hasMultipleSizes
+    ? Math.min(...(item.variations || []).map((v) => Number(v.price) || 0))
+    : parseFloat(item?.variations?.[0]?.price ?? 0)
+  const priceLabel = hasMultipleSizes
+    ? t('fromPrice', { price: formatMoney(minPrice, configuration.currencySymbol) })
+    : formatMoney(minPrice, configuration.currencySymbol)
 
   return (
     <Pressable
       android_disableSound
-      onPress={() => onPressItem(item)}
+      onPress={() => {
+        onPressItem(item)
+      }}
       style={({ pressed }) => ({
         paddingHorizontal: scale(14),
         paddingVertical: scale(12),
@@ -757,69 +759,73 @@ const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item,
         opacity: item?.isOutOfStock ? 0.5 : 1,
         overflow: 'hidden',
         backgroundColor: pressed ? '#2A2A2C' : '#1C1C1E',
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: '#2C2C2E'
       })}
     >
-      {({ pressed }) => (
-        <>
-          <View
+      <View
+        style={{
+          flexDirection: currentTheme?.isRTL ? 'row-reverse' : 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}
+      >
+        <View
+          style={[
+            styles(currentTheme).deal,
+            {
+              backgroundColor: 'transparent',
+              flex: 1,
+              gap: scale(14)
+            }
+          ]}
+        >
+          <ShimmerImage
+            imageUrl={imageUrl}
             style={{
-              flexDirection: currentTheme?.isRTL ? 'row-reverse' : 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center'
+              height: scale(64),
+              width: scale(64),
+              borderRadius: scale(12)
             }}
-          >
-            <View
-              style={[
-                styles(currentTheme).deal,
-                {
-                  backgroundColor: 'transparent',
-                  flex: 1,
-                  gap: scale(14)
-                }
-              ]}
-            >
-              <ShimmerImage
-                imageUrl={imageUrl}
-                style={{
-                  height: scale(64),
-                  width: scale(64),
-                  borderRadius: scale(12)
-                }}
-                resizeMode='cover'
-                defaultSource={require('../../assets/images/food_placeholder.png')}
-              />
-              <View style={[styles(currentTheme).flex, { backgroundColor: 'transparent' }]}>
-                <View style={[styles(currentTheme).dealDescription, { backgroundColor: 'transparent' }]}>
-                  <TextDefault textColor='#FFFFFF' style={[styles(currentTheme).headerText, { backgroundColor: 'transparent' }]} numberOfLines={1} bolder isRTL>
-                    {item?.title}
+            resizeMode='cover'
+            defaultSource={require('../../assets/images/food_placeholder.png')}
+          />
+          <View style={[styles(currentTheme).flex, { backgroundColor: 'transparent' }]}>
+            <View style={[styles(currentTheme).dealDescription, { backgroundColor: 'transparent' }]}>
+              <TextDefault textColor='#FFFFFF' style={[styles(currentTheme).headerText, { backgroundColor: 'transparent' }]} numberOfLines={1} bolder isRTL>
+                {item?.title}
+              </TextDefault>
+              {item?.description ? (
+                <TextDefault style={styles(currentTheme).priceText} textColor='#8E8E93' small isRTL numberOfLines={2}>
+                  {wrapContentAfterWords(item?.description, 8)}
+                </TextDefault>
+              ) : null}
+              <View style={styles(currentTheme).dealPrice}>
+                <TextDefault numberOfLines={1} textColor='#FFFFFF' style={styles(currentTheme).priceText} bolder small isRTL>
+                  {priceLabel}
+                </TextDefault>
+                {item?.variations?.[0]?.discounted > 0 && (
+                  <TextDefault numberOfLines={1} textColor='#8E8E93' style={styles(currentTheme).priceText} small lineOver isRTL>
+                    {formatMoney(item?.variations?.[0]?.price + item?.variations?.[0]?.discounted, configuration.currencySymbol)}
                   </TextDefault>
-                  {item?.description ? (
-                    <TextDefault style={styles(currentTheme).priceText} textColor='#8E8E93' small isRTL numberOfLines={2}>
-                      {wrapContentAfterWords(item?.description, 8)}
-                    </TextDefault>
-                  ) : null}
-                  <View style={styles(currentTheme).dealPrice}>
-                    <TextDefault numberOfLines={1} textColor='#FFFFFF' style={styles(currentTheme).priceText} bolder small isRTL>
-                      {formatMoney(parseFloat(item?.variations?.[0]?.price ?? 0), configuration.currencySymbol)}
-                    </TextDefault>
-                    {item?.variations?.[0]?.discounted > 0 && (
-                      <TextDefault numberOfLines={1} textColor='#8E8E93' style={styles(currentTheme).priceText} small lineOver isRTL>
-                        {formatMoney(item?.variations?.[0]?.price + item?.variations?.[0]?.discounted, configuration.currencySymbol)}
-                      </TextDefault>
-                    )}
-                  </View>
-                </View>
+                )}
               </View>
             </View>
-            <View style={[styles(currentTheme).addToCart, { backgroundColor: ACCENT }]}>
-              <MaterialIcons name='add' size={scale(20)} color='#FFFFFF' />
-            </View>
           </View>
-          {tagCart(item?._id)}
-        </>
-      )}
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={[styles(currentTheme).addToCart, { backgroundColor: ACCENT }]}
+          onPress={(e) => {
+            e?.stopPropagation?.()
+            onPressItem(item)
+          }}
+        >
+          <MaterialIcons name='add' size={scale(20)} color='#FFFFFF' />
+        </TouchableOpacity>
+      </View>
     </Pressable>
   )
 })

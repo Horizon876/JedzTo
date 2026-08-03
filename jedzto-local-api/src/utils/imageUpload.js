@@ -20,6 +20,10 @@ const EXT_BY_MIME = {
   'image/gif': 'gif'
 }
 
+// Max upload size: 5 MB (base64 encoded). A base64 string is ~1.37× the
+// original binary size, so 6.85 MB of base64 ≈ 5 MB of image data.
+const MAX_IMAGE_BYTES_BASE64 = Math.ceil(5 * 1024 * 1024 * 1.37)
+
 // Accepts a `data:<mime>;base64,<data>` string (what the admin/vendor panel's
 // upload widget sends via `uploadImageToS3`) and stores it under
 // jedzto-local-api/uploads/, serving it back via express.static (see
@@ -31,6 +35,12 @@ export const saveBase64Image = async (dataUrl, req) => {
   }
 
   const [, mime, base64Data] = match
+
+  // Reject oversized payloads before allocating any buffer — prevents DoS.
+  if (base64Data.length > MAX_IMAGE_BYTES_BASE64) {
+    throw new GraphQLError('Image too large — maximum size is 5 MB')
+  }
+
   const ext = EXT_BY_MIME[mime.toLowerCase()] || 'jpg'
   const filename = `${uuidv4()}.${ext}`
   const filePath = path.join(UPLOADS_DIR, filename)

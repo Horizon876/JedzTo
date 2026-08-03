@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useRef, useState, useCallback } from 'react'
+import React, { useContext, useEffect, useState, useCallback } from 'react'
 import { View, TouchableOpacity, StatusBar, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import ActiveOrders from '../../components/MyOrders/ActiveOrders'
 import PastOrders from '../../components/MyOrders/PastOrders'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
-import styles, { BG, ACCENT, MUTED } from './styles'
+import styles, { BG } from './styles'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import { MaterialIcons } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
@@ -13,13 +13,13 @@ import { scale } from '../../utils/scaling'
 import Analytics from '../../utils/analytics'
 import OrdersContext from '../../context/Orders'
 import { useTranslation } from 'react-i18next'
-import ReviewModal from '../../components/Review'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 
+const ACCENT_COLOR = '#00A8FF'
+const MUTED_ICON = '#9CA3AF'
+
 function MyOrders(props) {
-  const reviewModalRef = useRef()
-  const [reviewInfo, setReviewInfo] = useState()
   const analytics = Analytics()
   const { t, i18n } = useTranslation()
   const {
@@ -36,13 +36,7 @@ function MyOrders(props) {
   const [selectedTab, setSelectedTab] = useState('current')
   const inset = useSafeAreaInsets()
   const showBack = props?.route?.name === 'MyOrders'
-
-  const openReviewModal = () => {
-    reviewModalRef.current.open()
-  }
-  const closeReviewModal = () => {
-    reviewModalRef.current.close()
-  }
+  const { isConnected: connect } = useNetworkStatus()
 
   useEffect(() => {
     async function Track() {
@@ -70,86 +64,77 @@ function MyOrders(props) {
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
-      style={isSelected ? styles(currentTheme).activeTabStyles : styles(currentTheme).inactiveTabStyles}
+      accessibilityLabel={t(text)}
+      style={[
+        styles(currentTheme).toggleSegment,
+        isSelected && styles(currentTheme).toggleSegmentActive
+      ]}
     >
-      <TextDefault H5 bold textColor={isSelected ? ACCENT : MUTED}>
+      <TextDefault bolder small textColor={isSelected ? ACCENT_COLOR : MUTED_ICON} style={styles().toggleLabel}>
         {t(text)}
       </TextDefault>
     </TouchableOpacity>
   )
 
-  const onPressReview = (order, selectedRating) => {
-    setReviewInfo({ order, selectedRating })
-    openReviewModal()
-  }
-
-  const handleReviewSubmitted = () => {
-    props?.navigation?.navigate('Discovery')
-  }
-
-  const { isConnected: connect } = useNetworkStatus()
   if (!connect) return <ErrorView refetchFunctions={[reFetchOrders]} />
 
   return (
-    <>
-      <View style={styles(currentTheme).container}>
-        <View style={[styles(currentTheme).topSurface, { paddingTop: inset.top + scale(8) }]}>
-          <View style={styles(currentTheme).headerRow}>
-            {showBack ? (
-              <TouchableOpacity
-                style={styles().backButton}
-                onPress={() => props?.navigation.goBack()}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <MaterialIcons name='arrow-back' size={24} color='#FFFFFF' />
-              </TouchableOpacity>
-            ) : null}
-            <TextDefault bolder H4 textColor='#FFFFFF' style={styles().headerTitle}>
-              {t('titleOrders')}
-            </TextDefault>
-          </View>
-
-          <View style={styles(currentTheme).tabContainer}>
-            <TabButton text='current' onPress={() => setSelectedTab('current')} isSelected={selectedTab === 'current'} />
-            <TabButton text='past' onPress={() => setSelectedTab('past')} isSelected={selectedTab === 'past'} />
-          </View>
+    <View style={styles(currentTheme).container}>
+      <View style={[styles(currentTheme).topSurface, { paddingTop: inset.top + scale(8) }]}>
+        <View style={styles(currentTheme).headerRow}>
+          {showBack ? (
+            <TouchableOpacity
+              style={styles().backButton}
+              onPress={() => props?.navigation.goBack()}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialIcons name='arrow-back' size={24} color='#FFFFFF' />
+            </TouchableOpacity>
+          ) : null}
+          <TextDefault bolder H4 textColor='#FFFFFF' style={styles().headerTitle}>
+            {t('titleOrders')}
+          </TextDefault>
         </View>
 
-        <View style={styles(currentTheme).listContainer}>
-          <View
-            pointerEvents={selectedTab === 'current' ? 'auto' : 'none'}
-            style={selectedTab === 'current' ? styles(currentTheme).visibleTabContent : styles(currentTheme).hiddenTabContent}
-          >
-            <ActiveOrders
-              navigation={props?.navigation}
-              activeOrders={activeOrders}
-              loading={loadingActiveOrders}
-              error={errorActiveOrders}
-            />
-          </View>
-          <View
-            pointerEvents={selectedTab === 'past' ? 'auto' : 'none'}
-            style={selectedTab === 'past' ? styles(currentTheme).visibleTabContent : styles(currentTheme).hiddenTabContent}
-          >
-            <PastOrders
-              navigation={props?.navigation}
-              pastOrders={pastOrders}
-              loading={loadingPastOrders}
-              error={errorPastOrders}
-              onPressReview={onPressReview}
-            />
-          </View>
+        <View style={styles(currentTheme).tabContainer}>
+          <TabButton
+            text='current'
+            onPress={() => setSelectedTab('current')}
+            isSelected={selectedTab === 'current'}
+          />
+          <TabButton
+            text='past'
+            onPress={() => setSelectedTab('past')}
+            isSelected={selectedTab === 'past'}
+          />
         </View>
       </View>
-      <ReviewModal
-        ref={reviewModalRef}
-        onOverlayPress={closeReviewModal}
-        onSubmitted={handleReviewSubmitted}
-        theme={currentTheme}
-        orderId={reviewInfo?.order._id}
-        rating={reviewInfo?.selectedRating}
-      />
-    </>
+
+      <View style={styles(currentTheme).listContainer}>
+        <View
+          pointerEvents={selectedTab === 'current' ? 'auto' : 'none'}
+          style={selectedTab === 'current' ? styles(currentTheme).visibleTabContent : styles(currentTheme).hiddenTabContent}
+        >
+          <ActiveOrders
+            navigation={props?.navigation}
+            activeOrders={activeOrders}
+            loading={loadingActiveOrders}
+            error={errorActiveOrders}
+          />
+        </View>
+        <View
+          pointerEvents={selectedTab === 'past' ? 'auto' : 'none'}
+          style={selectedTab === 'past' ? styles(currentTheme).visibleTabContent : styles(currentTheme).hiddenTabContent}
+        >
+          <PastOrders
+            navigation={props?.navigation}
+            pastOrders={pastOrders}
+            loading={loadingPastOrders}
+            error={errorPastOrders}
+          />
+        </View>
+      </View>
+    </View>
   )
 }
 

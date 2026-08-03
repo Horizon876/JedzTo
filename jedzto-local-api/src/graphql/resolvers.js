@@ -1,4 +1,4 @@
-import { PubSub, withFilter } from 'graphql-subscriptions'
+import { withFilter } from 'graphql-subscriptions'
 import { GraphQLError } from 'graphql'
 import { User, Restaurant, Category, Food, Order, ShopType } from '../models/index.js'
 import {
@@ -13,12 +13,39 @@ import { generateTemporaryPassword } from '../utils/password.js'
 import { saveBase64Image } from '../utils/imageUpload.js'
 import { liveCategories, mapFood, publishRestaurantMenu, rewriteUploadUrlsDeep } from '../services/menu.js'
 import { rewriteUploadUrl } from '../utils/publicUrl.js'
+import { STRIPE_PUBLISHABLE_KEY } from '../config.js'
+import {
+  pubsub,
+  ORDER_CHANGED,
+  ORDER_STATUS,
+  RIDER_LOCATION,
+  CHAT_MESSAGE,
+  RESTAURANT_UPDATED
+} from './orderPubsub.js'
+import {
+  publishOrderChanged,
+  kitchenOrdersMongoFilter,
+  isOnlineCardMethod
+} from '../services/orderNotify.js'
+import {
+  withCurrentEta,
+  withCurrentEtas,
+  resolveDefaultEta,
+  computeCurrentEta
+} from '../services/eta.js'
+import {
+  canAcceptOrders,
+  isRestaurantPaused,
+  restaurantUnavailableReason
+} from '../services/restaurantAvailability.js'
+import {
+  currentPeriodKey,
+  listSettlementsForPeriod,
+  markSettlementSettled,
+  upsertSettlementPreview
+} from '../services/settlements.js'
 
-export const pubsub = new PubSub()
-const ORDER_STATUS = 'ORDER_STATUS'
-const ORDER_CHANGED = 'ORDER_CHANGED'
-const RIDER_LOCATION = 'RIDER_LOCATION'
-const CHAT_MESSAGE = 'CHAT_MESSAGE'
+export { pubsub }
 
 const ACTIVE = new Set(['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'])
 const TEST_OTP = '123456'
@@ -37,7 +64,8 @@ const CONFIG = {
   skipMobileVerification: true,
   skipEmailVerification: true,
   costType: 'fixed',
-  publishableKey: '',
+  // Publishable key only — never expose the secret key to clients.
+  publishableKey: STRIPE_PUBLISHABLE_KEY,
   secretKey: '',
   googlePlacesApiBaseUrl: 'https://maps.googleapis.com/maps/api',
   riderAppSentryUrl: ''
@@ -50,14 +78,105 @@ const toCoord = (value, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback
 }
 
-const toPreview = (r) => ({
+const clampEtaMinutes = (value, fallback = 20, { min = 5 } = {}) => {
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return fallback
+  return Math.max(min, Math.min(240, n))
+}
+
+/** Prep + delivery (0 allowed for delivery leg) → absolute expectedTime on the order. */
+const applyOrderEtaFields = (
+  order,
+  { preparationEtaMinutes, deliveryEtaMinutes } = {},
+  nowMs = Date.now()
+) => {
+  const isPickup = Boolean(order.isPickedUp)
+  if (preparationEtaMinutes != null) {
+    order.preparationEtaMinutes = clampEtaMinutes(preparationEtaMinutes)
+  }
+  if (deliveryEtaMinutes != null) {
+    // 0 is valid — kitchen often sends a single total ETA as prep + 0 delivery.
+    order.deliveryEtaMinutes = isPickup
+      ? 0
+      : clampEtaMinutes(deliveryEtaMinutes, 0, { min: 0 })
+  }
+
+  const prep = Number(order.preparationEtaMinutes ?? 0)
+  const delivery = isPickup ? 0 : Number(order.deliveryEtaMinutes ?? 0)
+  const total = Math.max(5, prep + delivery)
+
+  order.preparationTime = new Date(nowMs + prep * 60 * 1000)
+  order.expectedTime = new Date(nowMs + total * 60 * 1000)
+  if (!isPickup) {
+    order.deliveryExpectedTime = order.expectedTime
+  }
+  return { prep, delivery, total }
+}
+
+const publishRestaurantTimes = (restaurant) => {
+  if (!restaurant?._id) return
+  const plain = typeof restaurant.toObject === 'function' ? restaurant.toObject() : restaurant
+  Promise.resolve(withCurrentEta(plain))
+    .then((enriched) => {
+      const eta = Number(enriched.currentEta)
+      // Mirror toPreview: one total for legacy deliveryTime/pickupTime readers.
+      pubsub.publish(RESTAURANT_UPDATED, {
+        subscriptionRestaurantUpdated: {
+          _id: String(enriched._id),
+          deliveryTime: eta,
+          pickupTime: eta,
+          defaultEta: resolveDefaultEta(enriched),
+          isBusy: Boolean(enriched.isBusy),
+          currentEta: eta
+        }
+      })
+    })
+    .catch(() => {})
+}
+
+/** Last accepted ETA becomes the restaurant default customers (and kitchen bar) see. */
+const syncRestaurantTimesFromOrder = async (order) => {
+  const restaurant = await Restaurant.findById(order.restaurantId)
+  if (!restaurant) return null
+
+  const total =
+    order.acceptedEtaMinutes != null
+      ? clampEtaMinutes(order.acceptedEtaMinutes)
+      : clampEtaMinutes(
+          Number(order.preparationEtaMinutes ?? 0) +
+            (order.isPickedUp ? 0 : Number(order.deliveryEtaMinutes ?? 0))
+        )
+
+  restaurant.defaultEta = total
+  // Single total ETA — no prep/travel split for public display.
+  restaurant.pickupTime = total
+  restaurant.deliveryTime = 0
+  await restaurant.save()
+  publishRestaurantTimes(restaurant)
+  return restaurant
+}
+
+const toPreview = (r) => {
+  const currentEta =
+    r.currentEta == null ? resolveDefaultEta(r) : Number(r.currentEta)
+  return {
   _id: id(r),
   name: r.name,
   image: r.image,
   logo: r.logo,
-  deliveryTime: r.deliveryTime,
+  // Legacy field: expose total ETA so older UI that only reads deliveryTime
+  // still shows one combined number (not prep + travel).
+  deliveryTime: currentEta,
+  pickupTime: currentEta,
+  defaultEta: r.defaultEta == null ? resolveDefaultEta(r) : Number(r.defaultEta),
+  isBusy: Boolean(r.isBusy),
+  currentEta,
   minimumOrder: r.minimumOrder,
-  isAvailable: r.isAvailable,
+  isAvailable: canAcceptOrders(r),
+  isSuspended: Boolean(r.isSuspended),
+  pausedUntil: r.pausedUntil
+    ? new Date(r.pausedUntil).toISOString()
+    : null,
   tax: r.tax,
   shopType: r.shopType,
   cuisines: r.cuisines,
@@ -71,7 +190,8 @@ const toPreview = (r) => ({
   deliveryFee: r.deliveryFee ?? null,
   deliveryAreaName: r.deliveryAreaName ?? null,
   address: r.address ?? null
-})
+  }
+}
 
 const slugify = (text = '') =>
   text
@@ -181,34 +301,75 @@ async function buildRestaurantTree(restaurant, { audience = 'owner', latitude, l
       ? publishedCategories(restaurant)
       : await liveCategories(restaurant._id)
   const delivery = resolveDelivery(restaurant, latitude, longitude)
+  // listRestaurants already attaches currentEta via withCurrentEtas — don't
+  // re-query orders per restaurant in that path.
+  const withEta =
+    audience === 'customer' && restaurant.currentEta == null
+      ? await withCurrentEta(restaurant)
+      : restaurant
 
   return {
-    ...restaurant,
-    _id: id(restaurant),
-    orderId: id(restaurant),
-    ownerId: id(restaurant.ownerId) || String(restaurant.ownerId),
-    image: rewriteUploadUrl(restaurant.image),
-    logo: rewriteUploadUrl(restaurant.logo),
+    ...withEta,
+    _id: id(withEta),
+    orderId: id(withEta),
+    ownerId: id(withEta.ownerId) || String(withEta.ownerId),
+    image: rewriteUploadUrl(withEta.image),
+    logo: rewriteUploadUrl(withEta.logo),
+    defaultEta: resolveDefaultEta(withEta),
+    isBusy: Boolean(withEta.isBusy),
+    isSuspended: Boolean(withEta.isSuspended),
+    suspendedReason: withEta.suspendedReason || '',
+    pausedUntil: withEta.pausedUntil
+      ? new Date(withEta.pausedUntil).toISOString()
+      : null,
+    holidayExceptions: (withEta.holidayExceptions || []).map((h) => ({
+      _id: id(h),
+      date: h.date,
+      closed: h.closed !== false,
+      open: h.open || null,
+      close: h.close || null,
+      label: h.label || ''
+    })),
+    freeDeliveryFrom: Number(withEta.freeDeliveryFrom ?? 0),
+    commissionRate:
+      withEta.commissionRate == null ? 10 : Number(withEta.commissionRate),
+    isAvailable:
+      audience === 'customer'
+        ? canAcceptOrders(withEta)
+        : withEta.isAvailable !== false,
+    currentEta:
+      withEta.currentEta != null
+        ? Number(withEta.currentEta)
+        : computeCurrentEta(withEta, null),
+    // Public UI shows one total — mirror onto legacy fields.
+    deliveryTime:
+      withEta.currentEta != null
+        ? Number(withEta.currentEta)
+        : computeCurrentEta(withEta, null),
+    pickupTime:
+      withEta.currentEta != null
+        ? Number(withEta.currentEta)
+        : computeCurrentEta(withEta, null),
     reviewData: {
-      total: restaurant.reviewCount || 0,
-      ratings: restaurant.reviewAverage || 0,
+      total: withEta.reviewCount || 0,
+      ratings: withEta.reviewAverage || 0,
       reviews: []
     },
-    options: restaurant.options || [],
-    addons: restaurant.addons || [],
-    deliveryAreas: (restaurant.deliveryAreas || []).map(mapDeliveryArea),
+    options: withEta.options || [],
+    addons: withEta.addons || [],
+    deliveryAreas: (withEta.deliveryAreas || []).map(mapDeliveryArea),
     deliveryFee: delivery.fee,
     deliveryAreaName: delivery.areaName,
-    menuPublishedAt: restaurant.menuPublishedAt?.toISOString?.() || restaurant.menuPublishedAt || null,
-    hasUnpublishedMenuChanges: Boolean(restaurant.hasUnpublishedMenuChanges),
+    menuPublishedAt: withEta.menuPublishedAt?.toISOString?.() || withEta.menuPublishedAt || null,
+    hasUnpublishedMenuChanges: Boolean(withEta.hasUnpublishedMenuChanges),
     // Customers only see public company identifiers — never bank details.
     bussinessDetails:
       audience === 'customer'
         ? {
-            companyRegNo: restaurant.bussinessDetails?.companyRegNo || null,
-            bussinessRegNo: restaurant.bussinessDetails?.bussinessRegNo || null
+            companyRegNo: withEta.bussinessDetails?.companyRegNo || null,
+            bussinessRegNo: withEta.bussinessDetails?.bussinessRegNo || null
           }
-        : restaurant.bussinessDetails || null,
+        : withEta.bussinessDetails || null,
     categories
   }
 }
@@ -227,10 +388,14 @@ async function listRestaurants({ shopType, latitude, longitude } = {}) {
   if (shopType) filter.shopType = shopType
   const rows = await Restaurant.find(filter).lean()
   const deliverable = rows.filter(
-    (r) => resolveDelivery(r, latitude, longitude).available
+    (r) =>
+      canAcceptOrders(r) && resolveDelivery(r, latitude, longitude).available
   )
+  // Batch-compute currentEta once for the whole listing (1 aggregation), then
+  // build each restaurant tree without a per-restaurant order lookup.
+  const withEtas = await withCurrentEtas(deliverable)
   return Promise.all(
-    deliverable.map((r) =>
+    withEtas.map((r) =>
       buildRestaurantTree(r, { audience: 'customer', latitude, longitude })
     )
   )
@@ -540,7 +705,7 @@ const profileShape = (user) => ({
   }))
 })
 
-async function serializeOrder(order) {
+export async function serializeOrder(order) {
   const restaurant = await Restaurant.findById(order.restaurantId).lean()
   const user = await User.findById(order.customerId).lean()
   const iso = (d) => (d ? new Date(d).toISOString() : null)
@@ -551,13 +716,23 @@ async function serializeOrder(order) {
     id: id(order),
     restaurantId: id(order.restaurantId),
     restaurant: restaurant
-      ? {
-          _id: id(restaurant),
-          name: restaurant.name,
-          image: restaurant.image,
-          address: restaurant.address,
-          location: restaurant.location
-        }
+      ? (() => {
+          const eta = computeCurrentEta(restaurant)
+          return {
+            _id: id(restaurant),
+            name: restaurant.name,
+            image: restaurant.image,
+            address: restaurant.address,
+            location: restaurant.location,
+            // Fresh ETA so Apollo cache is not wiped with nulls by order polls
+            // (kitchen list query asks for these fields on nested restaurant).
+            defaultEta: resolveDefaultEta(restaurant),
+            isBusy: Boolean(restaurant.isBusy),
+            currentEta: eta,
+            deliveryTime: eta,
+            pickupTime: eta
+          }
+        })()
       : null,
     user: user
       ? { _id: id(user), name: user.name, phone: user.phone, email: user.email }
@@ -606,36 +781,27 @@ async function serializeOrder(order) {
     expectedTime: iso(order.expectedTime),
     preparationTime: iso(order.preparationTime),
     completionTime: iso(order.completionTime),
+    preparationEtaMinutes:
+      order.preparationEtaMinutes == null ? null : Number(order.preparationEtaMinutes),
+    deliveryEtaMinutes:
+      order.deliveryEtaMinutes == null ? null : Number(order.deliveryEtaMinutes),
+    deliveryExpectedTime: iso(order.deliveryExpectedTime),
+    acceptedEtaMinutes:
+      order.acceptedEtaMinutes == null ? null : Number(order.acceptedEtaMinutes),
+    platformCommissionRate:
+      order.platformCommissionRate == null
+        ? null
+        : Number(order.platformCommissionRate),
+    platformCommission:
+      order.platformCommission == null ? null : Number(order.platformCommission),
+    stripePaymentIntentId: order.stripePaymentIntentId || null,
+    refundedAt: iso(order.refundedAt),
+    refundAmount: order.refundAmount == null ? null : Number(order.refundAmount),
     acceptedAt: iso(order.acceptedAt),
     pickedAt: iso(order.pickedAt),
     deliveredAt: iso(order.deliveredAt),
     cancelledAt: iso(order.cancelledAt),
     assignedAt: iso(order.assignedAt)
-  }
-}
-
-// Notify every party that cares about this order:
-// - customer (mobile list + tracking)
-// - restaurant owner (kitchen / delivery tablet)
-async function publishOrderChanged(orderDoc, serialized, origin) {
-  const recipients = new Set()
-  const customerId = orderDoc?.customerId
-  if (customerId) recipients.add(String(customerId))
-
-  const restaurantId = orderDoc?.restaurantId
-  if (restaurantId) {
-    const restaurant = await Restaurant.findById(restaurantId).select('ownerId').lean()
-    if (restaurant?.ownerId) recipients.add(String(restaurant.ownerId))
-  }
-
-  for (const userId of recipients) {
-    pubsub.publish(ORDER_CHANGED, {
-      orderStatusChanged: {
-        userId,
-        origin,
-        order: serialized
-      }
-    })
   }
 }
 
@@ -1019,7 +1185,7 @@ export const resolvers = {
       const restaurants = await Restaurant.find({
         _id: { $in: user?.favourite || [] }
       }).lean()
-      return Promise.all(restaurants.map(buildRestaurantTree))
+      return restaurants.map(toPreview)
     },
     popularItems: async (_p, { restaurantId }, ctx) => {
       assertPublicAccess(ctx)
@@ -1144,7 +1310,11 @@ export const resolvers = {
       ) {
         throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
       }
-      const rows = await Order.find({ restaurantId }).sort({ createdAt: -1 }).lean()
+      // Cast ensures string IDs from GraphQL match ObjectId columns.
+      // Unpaid Stripe/PayPal checkouts stay hidden until payment succeeds.
+      const rows = await Order.find(kitchenOrdersMongoFilter(restaurant._id))
+        .sort({ createdAt: -1 })
+        .lean()
       return Promise.all(rows.map(serializeOrder))
     },
     // ---- Admin/vendor panel: order tables --------------------------------
@@ -1327,6 +1497,92 @@ export const resolvers = {
       const restaurant = await Restaurant.findById(restaurantId).lean()
       if (!restaurant) throw new GraphQLError('Restaurant not found')
       return menuPublishStatusOf(restaurant)
+    },
+    restaurantSettlements: async (_p, { periodKey }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN'])
+      const key = periodKey || currentPeriodKey()
+      const rows = await listSettlementsForPeriod(key)
+      return rows.map((row) => ({
+        ...row,
+        periodStart: row.periodStart?.toISOString?.() || row.periodStart,
+        periodEnd: row.periodEnd?.toISOString?.() || row.periodEnd,
+        settledAt: row.settledAt
+          ? new Date(row.settledAt).toISOString()
+          : null
+      }))
+    },
+    restaurantSettlement: async (_p, { restaurantId, periodKey }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+      const key = periodKey || currentPeriodKey()
+      const row = await upsertSettlementPreview(restaurantId, key)
+      if (!row) throw new GraphQLError('Restaurant not found')
+      return {
+        ...row,
+        periodStart: row.periodStart?.toISOString?.() || row.periodStart,
+        periodEnd: row.periodEnd?.toISOString?.() || row.periodEnd,
+        settledAt: row.settledAt
+          ? new Date(row.settledAt).toISOString()
+          : null
+      }
+    },
+    restaurantSalesReport: async (_p, { restaurantId, from, to }, ctx) => {
+      assertPublicAccess(ctx)
+      requireRestaurantOwner(ctx, restaurantId)
+      const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 864e5)
+      const toDate = to ? new Date(to) : new Date()
+      const orders = await Order.find({
+        restaurantId,
+        createdAt: { $gte: fromDate, $lte: toDate },
+        orderStatus: { $nin: ['CANCELLED', 'REJECTED'] },
+        paymentStatus: { $ne: 'REFUNDED' }
+      }).lean()
+
+      let onlineGross = 0
+      let cashGross = 0
+      const byWeekday = Array.from({ length: 7 }, (_, weekday) => ({
+        weekday,
+        label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][weekday],
+        gross: 0,
+        orderCount: 0
+      }))
+      const itemMap = new Map()
+
+      for (const o of orders) {
+        const amount = Number(o.orderAmount || 0)
+        const isCash = String(o.paymentMethod || 'COD').toUpperCase() === 'COD'
+        if (isCash) cashGross += amount
+        else onlineGross += amount
+        const wd = new Date(o.createdAt).getDay()
+        byWeekday[wd].gross += amount
+        byWeekday[wd].orderCount += 1
+        for (const item of o.items || []) {
+          const key = item.title || 'Item'
+          const prev = itemMap.get(key) || { id: key, title: key, count: 0 }
+          prev.count += Number(item.quantity || 1)
+          itemMap.set(key, prev)
+        }
+      }
+
+      const topItems = [...itemMap.values()]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+
+      return {
+        restaurantId: String(restaurantId),
+        from: fromDate.toISOString(),
+        to: toDate.toISOString(),
+        totalGross: Math.round((onlineGross + cashGross) * 100) / 100,
+        onlineGross: Math.round(onlineGross * 100) / 100,
+        cashGross: Math.round(cashGross * 100) / 100,
+        orderCount: orders.length,
+        topItems,
+        byWeekday: byWeekday.map((w) => ({
+          ...w,
+          gross: Math.round(w.gross * 100) / 100
+        }))
+      }
     },
     getDashboardUsers: async (_p, _a, ctx) => {
       assertPublicAccess(ctx)
@@ -1529,6 +1785,17 @@ export const resolvers = {
       const auth = requireUser(ctx)
       const restaurant = await Restaurant.findById(args.restaurant)
       if (!restaurant) throw new GraphQLError('Restaurant not found')
+      const unavailable = restaurantUnavailableReason(restaurant)
+      if (unavailable) {
+        throw new GraphQLError(
+          unavailable === 'SUSPENDED'
+            ? 'Restaurant is suspended'
+            : unavailable === 'HOLIDAY'
+              ? 'Restaurant is closed today'
+              : 'Restaurant is not accepting orders',
+          { extensions: { code: 'RESTAURANT_UNAVAILABLE', reason: unavailable } }
+        )
+      }
 
       const items = []
       for (const line of args.orderInput || []) {
@@ -1552,7 +1819,8 @@ export const resolvers = {
                 discounted: variation.discounted || 0
               }
             : { _id: line.variation, title: 'Standard', price: 0, discounted: 0 },
-          addons: []
+          addons: [],
+          specialInstructions: line.specialInstructions || ''
         })
       }
 
@@ -1566,23 +1834,44 @@ export const resolvers = {
         (args.tipping || 0) +
         (args.taxationAmount || 0)
 
+      const paymentMethod = (args.paymentMethod || 'COD').toUpperCase()
+      const isPickup = Boolean(args.isPickedUp)
+      const commissionRate = Number(restaurant.commissionRate ?? 10)
+      const platformCommission =
+        Math.round(((orderAmount * commissionRate) / 100) * 100) / 100
+      const prepMins = clampEtaMinutes(restaurant.pickupTime ?? 20, 20)
+      const deliveryMins = isPickup
+        ? 0
+        : restaurant.deliveryTime == null
+          ? 15
+          : clampEtaMinutes(restaurant.deliveryTime, 0, { min: 0 })
+      const totalMins = Math.max(5, prepMins + deliveryMins)
       const order = await Order.create({
         orderId: `JT${Date.now().toString().slice(-8)}`,
         restaurantId: restaurant._id,
         customerId: auth.userId,
         items,
-        paymentMethod: args.paymentMethod || 'COD',
-        paidAmount: args.paymentMethod === 'COD' ? 0 : orderAmount,
+        paymentMethod,
+        // Unpaid until Stripe success (or COD delivery). Online cards stay PENDING until paid.
+        paidAmount: 0,
         orderAmount,
+        platformCommissionRate: commissionRate,
+        platformCommission,
         orderStatus: 'PENDING',
-        paymentStatus: args.paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+        paymentStatus: 'PENDING',
         tipping: args.tipping || 0,
         taxationAmount: args.taxationAmount || 0,
         deliveryCharges: args.deliveryCharges || 0,
-        isPickedUp: Boolean(args.isPickedUp),
+        isPickedUp: isPickup,
         instructions: args.instructions || '',
         orderDate: args.orderDate ? new Date(args.orderDate) : new Date(),
-        expectedTime: new Date(Date.now() + 45 * 60 * 1000),
+        expectedTime: new Date(Date.now() + totalMins * 60 * 1000),
+        preparationTime: new Date(Date.now() + prepMins * 60 * 1000),
+        preparationEtaMinutes: prepMins,
+        deliveryEtaMinutes: deliveryMins,
+        deliveryExpectedTime: isPickup
+          ? null
+          : new Date(Date.now() + totalMins * 60 * 1000),
         deliveryAddress: {
           location: {
             coordinates: [
@@ -1597,7 +1886,10 @@ export const resolvers = {
       })
 
       const serialized = await serializeOrder(order.toObject())
-      await publishOrderChanged(order, serialized, 'placeOrder')
+      // Stripe/PayPal: notify customer only — kitchen sees the order after payment.
+      await publishOrderChanged(order, serialized, 'placeOrder', {
+        notifyKitchen: !isOnlineCardMethod(paymentMethod)
+      })
       // Kitchen tablet owns status transitions (accept / send / delivered).
       // Do not auto-advance — that raced the kitchen Accept/Reject UI.
       // scheduleOrderProgress(order._id, auth.userId)
@@ -1803,7 +2095,11 @@ export const resolvers = {
     },
     // Same operation as updateOrderStatus, under the name the admin panel's
     // order tables call.
-    updateStatus: async (_p, { id: orderId, orderStatus }, ctx) => {
+    updateStatus: async (
+      _p,
+      { id: orderId, orderStatus, preparationEtaMinutes, deliveryEtaMinutes },
+      ctx
+    ) => {
       assertPublicAccess(ctx)
       const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
       const order = await Order.findById(orderId)
@@ -1827,10 +2123,239 @@ export const resolvers = {
       if (orderStatus === 'CANCELLED' || orderStatus === 'REJECTED') {
         order.cancelledAt = now
       }
+
+      // Kitchen accept: set prep (+ delivery), stamp acceptedEtaMinutes, then sync.
+      if (
+        orderStatus === 'ACCEPTED' &&
+        (preparationEtaMinutes != null || deliveryEtaMinutes != null)
+      ) {
+        const { total } = applyOrderEtaFields(
+          order,
+          { preparationEtaMinutes, deliveryEtaMinutes },
+          now.getTime()
+        )
+        order.acceptedEtaMinutes = total
+      } else if (orderStatus === 'ACCEPTED' && order.acceptedEtaMinutes == null) {
+        // Accepted without explicit ETA — use kitchen timer (single total).
+        const restaurant = await Restaurant.findById(order.restaurantId).lean()
+        const fallback = resolveDefaultEta(restaurant)
+        const { total } = applyOrderEtaFields(
+          order,
+          {
+            preparationEtaMinutes: fallback,
+            deliveryEtaMinutes: 0
+          },
+          now.getTime()
+        )
+        order.acceptedEtaMinutes = total
+      }
+
       await order.save()
+
+      if (orderStatus === 'ACCEPTED' && order.acceptedEtaMinutes != null) {
+        await syncRestaurantTimesFromOrder(order)
+      }
+
       const serialized = await serializeOrder(order.toObject())
       pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
       await publishOrderChanged(order, serialized, 'updateStatus')
+      return serialized
+    },
+
+    updateOrderEta: async (_p, { id: orderId, preparationEtaMinutes, deliveryEtaMinutes }, ctx) => {
+      assertPublicAccess(ctx)
+      const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+      const order = await Order.findById(orderId)
+      if (!order) throw new GraphQLError('Order not found')
+      if (auth.role === 'RESTAURANT_OWNER') {
+        const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
+        if (String(restaurant?.ownerId) !== String(auth.userId)) {
+          throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+        }
+      }
+
+      const now = Date.now()
+      let shouldSyncRestaurantTimes = false
+      // Once out for delivery, rider ETA may replace the remaining delivery leg.
+      if (
+        deliveryEtaMinutes != null &&
+        ['ASSIGNED', 'PICKED'].includes(order.orderStatus)
+      ) {
+        const mins = clampEtaMinutes(deliveryEtaMinutes)
+        order.deliveryEtaMinutes = mins
+        order.deliveryExpectedTime = new Date(now + mins * 60 * 1000)
+        order.expectedTime = order.deliveryExpectedTime
+        const prep = Number(order.preparationEtaMinutes ?? 0)
+        order.acceptedEtaMinutes = Math.max(5, prep + mins)
+      } else {
+        const { total } = applyOrderEtaFields(
+          order,
+          { preparationEtaMinutes, deliveryEtaMinutes },
+          now
+        )
+        if (preparationEtaMinutes != null || deliveryEtaMinutes != null) {
+          order.acceptedEtaMinutes = total
+          shouldSyncRestaurantTimes = true
+        }
+      }
+
+      await order.save()
+      if (shouldSyncRestaurantTimes) {
+        await syncRestaurantTimesFromOrder(order)
+      }
+      const serialized = await serializeOrder(order.toObject())
+      pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
+      await publishOrderChanged(order, serialized, 'updateOrderEta')
+      return serialized
+    },
+
+    updateRestaurantOrderTimes: async (
+      _p,
+      { restaurantId, deliveryTime, pickupTime, defaultEta, isBusy },
+      ctx
+    ) => {
+      assertPublicAccess(ctx)
+      requireRestaurantOwner(ctx, restaurantId)
+      const restaurant = await Restaurant.findById(restaurantId)
+      if (!restaurant) throw new GraphQLError('Restaurant not found')
+
+      if (deliveryTime != null) {
+        restaurant.deliveryTime = Math.max(
+          0,
+          Math.min(240, Math.round(Number(deliveryTime)))
+        )
+      }
+      if (pickupTime != null) {
+        restaurant.pickupTime = Math.max(
+          5,
+          Math.min(240, Math.round(Number(pickupTime)))
+        )
+      }
+      if (defaultEta != null) {
+        restaurant.defaultEta = Math.max(
+          5,
+          Math.min(240, Math.round(Number(defaultEta)))
+        )
+      }
+      if (typeof isBusy === 'boolean') {
+        restaurant.isBusy = isBusy
+      }
+      // Keep single-total storage when kitchen timer is the source of truth.
+      if (defaultEta != null && pickupTime == null && deliveryTime == null) {
+        restaurant.pickupTime = restaurant.defaultEta
+        restaurant.deliveryTime = 0
+      }
+      await restaurant.save()
+      const fresh = await withCurrentEta(
+        await Restaurant.findById(restaurant._id).lean()
+      )
+      const updated = await buildRestaurantTree(fresh, { audience: 'owner' })
+      const eta = Number(updated.currentEta)
+      pubsub.publish(RESTAURANT_UPDATED, {
+        subscriptionRestaurantUpdated: {
+          _id: String(restaurant._id),
+          deliveryTime: eta,
+          pickupTime: eta,
+          defaultEta: resolveDefaultEta(restaurant),
+          isBusy: Boolean(restaurant.isBusy),
+          currentEta: eta
+        }
+      })
+      return updated
+    },
+
+    suspendRestaurant: async (_p, { restaurantId, isSuspended, reason }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN'])
+      const restaurant = await Restaurant.findById(restaurantId)
+      if (!restaurant) throw new GraphQLError('Restaurant not found')
+      restaurant.isSuspended = Boolean(isSuspended)
+      restaurant.suspendedReason = isSuspended ? reason || '' : ''
+      if (isSuspended) restaurant.isAvailable = false
+      await restaurant.save()
+      return buildRestaurantTree(restaurant.toObject(), { audience: 'owner' })
+    },
+
+    setRestaurantPause: async (_p, { restaurantId, paused, pausedUntil }, ctx) => {
+      assertPublicAccess(ctx)
+      requireRestaurantOwner(ctx, restaurantId)
+      const restaurant = await Restaurant.findById(restaurantId)
+      if (!restaurant) throw new GraphQLError('Restaurant not found')
+      if (paused) {
+        restaurant.isAvailable = false
+        restaurant.pausedUntil = pausedUntil
+          ? new Date(pausedUntil)
+          : new Date(Date.now() + 2 * 60 * 60 * 1000)
+      } else {
+        restaurant.isAvailable = true
+        restaurant.pausedUntil = null
+      }
+      await restaurant.save()
+      publishRestaurantTimes(restaurant)
+      return buildRestaurantTree(restaurant.toObject(), { audience: 'owner' })
+    },
+
+    setRestaurantHolidays: async (_p, { restaurantId, holidays }, ctx) => {
+      assertPublicAccess(ctx)
+      requireRestaurantOwner(ctx, restaurantId)
+      const restaurant = await Restaurant.findById(restaurantId)
+      if (!restaurant) throw new GraphQLError('Restaurant not found')
+      restaurant.holidayExceptions = (holidays || []).map((h) => ({
+        date: h.date,
+        closed: h.closed !== false,
+        open: h.open || null,
+        close: h.close || null,
+        label: h.label || ''
+      }))
+      await restaurant.save()
+      return buildRestaurantTree(restaurant.toObject(), { audience: 'owner' })
+    },
+
+    settleRestaurantPeriod: async (_p, { restaurantId, periodKey }, ctx) => {
+      assertPublicAccess(ctx)
+      const auth = requireUser(ctx, ['SUPER_ADMIN'])
+      const row = await markSettlementSettled(
+        restaurantId,
+        periodKey || currentPeriodKey(),
+        auth.userId
+      )
+      if (!row) throw new GraphQLError('Restaurant not found')
+      return {
+        ...row,
+        periodStart: row.periodStart?.toISOString?.() || row.periodStart,
+        periodEnd: row.periodEnd?.toISOString?.() || row.periodEnd,
+        settledAt: row.settledAt
+          ? new Date(row.settledAt).toISOString()
+          : null
+      }
+    },
+
+    refundOrder: async (_p, { orderId, amount }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN'])
+      const order = await Order.findById(orderId)
+      if (!order) throw new GraphQLError('Order not found')
+      const method = String(order.paymentMethod || '').toUpperCase()
+      if (method === 'COD') {
+        throw new GraphQLError('Cannot refund cash (COD) orders via Stripe')
+      }
+      if (order.paymentStatus === 'REFUNDED') {
+        throw new GraphQLError('Order already refunded')
+      }
+      const refundAmount =
+        amount != null ? Number(amount) : Number(order.orderAmount || 0)
+      // Local stub: mark refunded. Wire Stripe Refund API when keys are configured.
+      order.paymentStatus = 'REFUNDED'
+      order.refundedAt = new Date()
+      order.refundAmount = refundAmount
+      if (['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'].includes(order.orderStatus)) {
+        order.orderStatus = 'CANCELLED'
+        order.cancelledAt = new Date()
+      }
+      await order.save()
+      const serialized = await serializeOrder(order.toObject())
+      pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
+      await publishOrderChanged(order, serialized, 'refundOrder')
       return serialized
     },
 
@@ -1864,6 +2389,7 @@ export const resolvers = {
       assign('image', input.image)
       assign('logo', input.logo)
       assign('deliveryTime', input.deliveryTime)
+      assign('pickupTime', input.pickupTime)
       assign('minimumOrder', input.minimumOrder)
       assign('shopType', input.shopType)
       assign('tax', input.salesTax)
@@ -1871,6 +2397,19 @@ export const resolvers = {
       assign('cuisines', input.cuisines)
       assign('isAvailable', input.isAvailable)
       assign('openingTimes', input.openingTimes)
+      assign('commissionRate', input.commissionRate)
+      assign('isSuspended', input.isSuspended)
+      assign('suspendedReason', input.suspendedReason)
+      assign('freeDelivery', input.freeDelivery)
+      assign('freeDeliveryFrom', input.freeDeliveryFrom)
+      if (input.pausedUntil !== undefined) {
+        restaurant.pausedUntil = input.pausedUntil
+          ? new Date(input.pausedUntil)
+          : null
+      }
+      if (input.holidayExceptions != null) {
+        restaurant.holidayExceptions = input.holidayExceptions
+      }
       await restaurant.save()
 
       // The owner's login email doubles as the panel username, so a password
@@ -1881,6 +2420,16 @@ export const resolvers = {
           owner.password = input.password
           await owner.save()
         }
+      }
+
+      if (input.deliveryTime != null || input.pickupTime != null) {
+        pubsub.publish(RESTAURANT_UPDATED, {
+          subscriptionRestaurantUpdated: {
+            _id: String(restaurant._id),
+            deliveryTime: restaurant.deliveryTime,
+            pickupTime: restaurant.pickupTime
+          }
+        })
       }
 
       return buildRestaurantTreeById(restaurant._id)
@@ -1915,6 +2464,7 @@ export const resolvers = {
           image: restaurant.image || '',
           logo: restaurant.logo || '',
           deliveryTime: restaurant.deliveryTime ?? 30,
+          pickupTime: restaurant.pickupTime ?? 20,
           minimumOrder: restaurant.minimumOrder ?? 25,
           tax: restaurant.salesTax ?? 8,
           shopType: restaurant.shopType || 'restaurant',
@@ -2048,6 +2598,9 @@ export const resolvers = {
         subCategory: foodInput.subCategory || null,
         isOutOfStock: Boolean(foodInput.isOutOfStock),
         isActive: foodInput.isActive !== false,
+        ingredients: Array.isArray(foodInput.ingredients)
+          ? foodInput.ingredients.filter(Boolean)
+          : [],
         variations: (foodInput.variations || []).map((v) => ({
           title: v.title || 'Standard',
           price: v.price,
@@ -2078,6 +2631,11 @@ export const resolvers = {
       if (foodInput.subCategory != null) existing.subCategory = foodInput.subCategory
       if (foodInput.isOutOfStock != null) existing.isOutOfStock = foodInput.isOutOfStock
       if (foodInput.isActive != null) existing.isActive = foodInput.isActive
+      if (foodInput.ingredients != null) {
+        existing.ingredients = Array.isArray(foodInput.ingredients)
+          ? foodInput.ingredients.filter(Boolean)
+          : []
+      }
       if (foodInput.variations) {
         existing.variations = foodInput.variations.map((v) => ({
           title: v.title || 'Standard',
@@ -2206,6 +2764,9 @@ export const resolvers = {
         () => pubsub.asyncIterableIterator([CHAT_MESSAGE]),
         (payload, variables) => payload.orderId === variables.order
       )
+    },
+    subscriptionRestaurantUpdated: {
+      subscribe: () => pubsub.asyncIterableIterator([RESTAURANT_UPDATED])
     }
   }
 }

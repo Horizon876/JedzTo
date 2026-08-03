@@ -1,10 +1,11 @@
 import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native'
-import { Ionicons, SimpleLineIcons } from '@expo/vector-icons'
+import { Ionicons, MaterialCommunityIcons, SimpleLineIcons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import ThemeContext from '../../../ui/ThemeContext/ThemeContext'
+import UserContext from '../../../context/User'
 import { theme } from '../../../utils/themeColors'
 import { scale } from '../../../utils/scaling'
 import styles from './styles'
@@ -13,6 +14,7 @@ import { resolveLogoImage } from '../../../utils/resolveImageUrl'
 const CATEGORY_RAIL_HEIGHT = scale(48)
 const CATEGORY_ACCENT = '#00A8FF'
 const CATEGORY_MUTED = '#8E8E93'
+const HEADER_BG = '#222222'
 
 function normalizeCategories({ categories = [], topBarData = [], updatedDeals = [] }) {
   if (categories.length > 0) return categories
@@ -131,6 +133,55 @@ function resolveAboutObject({ aboutObject, restaurant, restaurantId, restaurantN
   }
 }
 
+function OrderTypeToggle({ isPickup, onToggleOrderType, isRTL, t }) {
+  return (
+    <View style={[styles().orderToggleContainer, isRTL && { flexDirection: 'row-reverse' }]}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        accessibilityLabel={t('orderTypeDelivery')}
+        style={[
+          styles().orderToggleSegment,
+          !isPickup && styles().orderToggleSegmentActive,
+          isRTL && { flexDirection: 'row-reverse' }
+        ]}
+        onPress={() => onToggleOrderType?.(false)}
+      >
+        {!isPickup ? (
+          <>
+            <MaterialCommunityIcons name='bicycle' size={16} color={CATEGORY_ACCENT} />
+            <TextDefault bolder small textColor={CATEGORY_ACCENT} style={styles().orderToggleLabel}>
+              {t('orderTypeDelivery')}
+            </TextDefault>
+          </>
+        ) : (
+          <MaterialCommunityIcons name='bicycle' size={16} color={CATEGORY_MUTED} />
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        accessibilityLabel={t('orderTypePickup')}
+        style={[
+          styles().orderToggleSegment,
+          isPickup && styles().orderToggleSegmentActive,
+          isRTL && { flexDirection: 'row-reverse' }
+        ]}
+        onPress={() => onToggleOrderType?.(true)}
+      >
+        {isPickup ? (
+          <>
+            <Ionicons name='bag-handle' size={15} color={CATEGORY_ACCENT} />
+            <TextDefault bolder small textColor={CATEGORY_ACCENT} style={styles().orderToggleLabel}>
+              {t('orderTypePickup')}
+            </TextDefault>
+          </>
+        ) : (
+          <Ionicons name='bag-handle-outline' size={15} color={CATEGORY_MUTED} />
+        )}
+      </TouchableOpacity>
+    </View>
+  )
+}
+
 function HeaderContent({
   aboutObject,
   categories,
@@ -142,6 +193,7 @@ function HeaderContent({
   const navigation = useNavigation()
   const { t, i18n } = useTranslation()
   const themeContext = useContext(ThemeContext)
+  const { isPickup, setIsPickup } = useContext(UserContext)
   const currentTheme = useMemo(
     () => ({
       isRTL: i18n.dir() === 'rtl',
@@ -154,15 +206,32 @@ function HeaderContent({
   const headerHeight = topBarHeight + (showCategories && categories.length > 0 ? CATEGORY_RAIL_HEIGHT : 0)
 
   return (
-    <View style={[styles(currentTheme).container, { height: headerHeight, backgroundColor: currentTheme.themeBackground, borderBottomColor: currentTheme.newBorderColor, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+    <View
+      style={[
+        styles(currentTheme).container,
+        {
+          height: headerHeight,
+          backgroundColor: HEADER_BG,
+          borderBottomColor: '#3A3A3A',
+          borderBottomWidth: StyleSheet.hairlineWidth
+        }
+      ]}
+    >
       <View style={[styles(currentTheme).topRow, { paddingTop: insetTop }]}>
         <View style={styles(currentTheme).leadingArea}>
           <TouchableOpacity activeOpacity={0.7} style={styles(currentTheme).touchArea} onPress={() => navigation.goBack()}>
-            <Ionicons name='arrow-back' color={currentTheme.newIconColor} size={scale(22)} />
+            <Ionicons name='arrow-back' color='#FFFFFF' size={scale(22)} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles(currentTheme).centerArea} />
+        <View style={styles(currentTheme).centerArea}>
+          <OrderTypeToggle
+            isPickup={!!isPickup}
+            onToggleOrderType={setIsPickup}
+            isRTL={currentTheme.isRTL}
+            t={t}
+          />
+        </View>
 
         <View style={styles(currentTheme).trailingArea}>
           <TouchableOpacity
@@ -175,12 +244,20 @@ function HeaderContent({
               })
             }}
           >
-            <SimpleLineIcons name='info' size={scale(17)} color={currentTheme.newIconColor} />
+            <SimpleLineIcons name='info' size={scale(17)} color='#FFFFFF' />
           </TouchableOpacity>
         </View>
       </View>
 
-      {showCategories && <CategoryTabsBase categories={categories} activeCategoryIndex={activeCategoryIndex} onPressCategory={onPressCategory} currentTheme={currentTheme} t={t} />}
+      {showCategories && (
+        <CategoryTabsBase
+          categories={categories}
+          activeCategoryIndex={activeCategoryIndex}
+          onPressCategory={onPressCategory}
+          currentTheme={currentTheme}
+          t={t}
+        />
+      )}
     </View>
   )
 }

@@ -15,10 +15,15 @@ const styles = (props = null) =>
     },
     mainContainer: {
       flex: 1,
-      backgroundColor: PAGE
+      backgroundColor: SURFACE
     },
     content: {
-      paddingBottom: scale(24)
+      flexGrow: 0,
+      paddingBottom: 0
+    },
+    scrollArea: {
+      flex: 1,
+      backgroundColor: PAGE
     },
     restaurantStrip: {
       width: '100%',
@@ -48,18 +53,22 @@ const styles = (props = null) =>
     },
     sectionHeader: {
       paddingHorizontal: scale(14),
-      paddingVertical: scale(12),
+      paddingTop: scale(10),
+      paddingBottom: scale(10),
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: HAIRLINE
+      borderBottomColor: HAIRLINE,
+      justifyContent: 'center'
     },
     sectionTitle: {
       color: '#FFFFFF',
+      marginTop: 0,
       marginBottom: 0,
-      marginTop: 0
-    },
-    sectionTitleInline: {
-      color: '#FFFFFF',
-      marginBottom: 0
+      paddingTop: 0,
+      paddingBottom: 0,
+      fontSize: scale(13),
+      lineHeight: scale(16),
+      includeFontPadding: false,
+      textAlignVertical: 'center'
     },
     surfaceRow: {
       width: '100%',
@@ -85,10 +94,6 @@ const styles = (props = null) =>
       color: '#FFFFFF',
       fontSize: scale(14),
       lineHeight: scale(19)
-    },
-    orderSection: {
-      marginTop: scale(8),
-      width: '100%'
     },
     menuItemRow: {
       width: '100%',
@@ -195,7 +200,8 @@ const styles = (props = null) =>
     },
     summaryInner: {
       paddingHorizontal: scale(14),
-      paddingTop: scale(14)
+      paddingTop: scale(14),
+      paddingBottom: scale(10)
     },
     summaryRow: {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
@@ -216,7 +222,51 @@ const styles = (props = null) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       marginTop: scale(6),
+      marginBottom: scale(12)
+    },
+    termsRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'flex-start',
+      gap: scale(10),
       marginBottom: scale(14)
+    },
+    termsCheckbox: {
+      width: scale(22),
+      height: scale(22),
+      borderRadius: scale(6),
+      borderWidth: 1.5,
+      borderColor: '#C7C7CC',
+      backgroundColor: SURFACE,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: scale(1)
+    },
+    termsCheckboxChecked: {
+      backgroundColor: ACCENT,
+      borderColor: ACCENT
+    },
+    termsCheckboxError: {
+      borderColor: '#FF453A',
+      backgroundColor: 'rgba(255, 69, 58, 0.12)'
+    },
+    termsText: {
+      flex: 1,
+      color: MUTED,
+      fontSize: scale(13),
+      lineHeight: scale(18),
+      textAlign: props?.isRTL ? 'right' : 'left'
+    },
+    termsTextError: {
+      color: '#FF453A'
+    },
+    termsLink: {
+      color: ACCENT,
+      fontSize: scale(13),
+      lineHeight: scale(18),
+      textDecorationLine: 'underline'
+    },
+    termsLinkError: {
+      color: '#FF453A'
     },
     button: {
       backgroundColor: ACCENT,

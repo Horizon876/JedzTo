@@ -56,6 +56,7 @@ export const ROUTES = [
 export const DEFAULT_ROUTES = {
   ADMIN: '/home',
   STAFF: '/home',
-  VENDOR: '/admin/vendor/dashboard',
+  // Vendor merged into restaurant panel (store picker when multi-store).
+  VENDOR: '/admin/store/dashboard',
   RESTAURANT: '/admin/store/dashboard',
 };

@@ -6,7 +6,7 @@ import * as Font from 'expo-font'
 import * as Notifications from 'expo-notifications'
 import * as Updates from 'expo-updates'
 import Constants from 'expo-constants'
-import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useReducer, useState } from 'react'
 import { ActivityIndicator, AppState, BackHandler, StatusBar, StyleSheet, View, useColorScheme } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import FlashMessage from 'react-native-flash-message'
@@ -14,12 +14,12 @@ import 'react-native-gesture-handler'
 import useEnvVars from './environment'
 import setupApolloClient from './src/apollo/index'
 import { MessageComponent } from './src/components/FlashMessage/MessageComponent'
-import ReviewModal from './src/components/Review'
 import { AuthProvider } from './src/context/Auth'
 import { ConfigurationProvider } from './src/context/Configuration'
 import { LocationProvider } from './src/context/Location'
 import { OrdersProvider } from './src/context/Orders'
 import { UserProvider } from './src/context/User'
+import { FavouritesProvider } from './src/context/Favourites'
 import AppContainer from './src/routes'
 import ThemeContext from './src/ui/ThemeContext/ThemeContext'
 import ThemeReducer from './src/ui/ThemeReducer/ThemeReducer'
@@ -33,6 +33,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import TextDefault from './src/components/Text/TextDefault/TextDefault'
 import { ErrorBoundary } from './src/components/ErrorBoundary'
 import SessionExpiredModal from './src/components/SessionExpiredModal/SessionExpiredModal'
+import RestaurantTimesSync from './src/components/RestaurantTimesSync/RestaurantTimesSync'
 import navigationService from './src/routes/navigationService'
 import {
   shouldShowSessionExpiredModal,
@@ -55,10 +56,8 @@ Notifications.setNotificationHandler({
 })
 
 export default function App() {
-  const reviewModalRef = useRef()
   const [appIsReady, setAppIsReady] = useState(false)
   const [location, setLocation] = useState(null)
-  const [orderId, setOrderId] = useState()
   const [isUpdating, setIsUpdating] = useState(false)
   const [sessionExpiredVisible, setSessionExpiredVisible] = useState(false)
   const [clarityInitialized, setClarityInitialized] = useState(false)
@@ -203,33 +202,6 @@ export default function App() {
     })()
   }, [])
 
-  // For Push Notification
-  useEffect(() => {
-    const notifSub  = Notifications.addNotificationReceivedListener((notification) => {
-      if (notification?.request?.content?.data?.type === NOTIFICATION_TYPES.REVIEW_ORDER) {
-        const id = notification?.request?.content?.data?._id
-        if (id) {
-          setOrderId(id)
-          reviewModalRef?.current?.open()
-        }
-      }
-    })
-
-    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (response?.notification?.request?.content?.data?.type === NOTIFICATION_TYPES.REVIEW_ORDER) {
-        const id = response?.notification?.request?.content?.data?._id
-        if (id) {
-          setOrderId(id)
-          reviewModalRef?.current?.open()
-        }
-      }
-    })
-    return () => {
-      notifSub.remove()
-      responseSub.remove()
-    }
-  }, [])
-
   // Handlers
   // get active location
   async function getActiveLocation() {
@@ -241,11 +213,6 @@ export default function App() {
     } catch (err) {
       console.log(err)
     }
-  }
-
-  // set modal close
-  const onOverlayPress = () => {
-    reviewModalRef?.current?.close()
   }
 
   const handleSessionExpiredLogin = () => {
@@ -277,19 +244,16 @@ export default function App() {
                 <LocationProvider>
                   <ConfigurationProvider>
                     <UserProvider>
-                      <OrdersProvider
-                        onOrderDelivered={(order) => {
-                          setOrderId(order._id)
-                          reviewModalRef?.current?.open()
-                        }}
-                      >
-                        <AppContainer />
-                        <ReviewModal ref={reviewModalRef} onOverlayPress={onOverlayPress} theme={Theme[theme]} orderId={orderId} />
-                        <SessionExpiredModal
-                          visible={sessionExpiredVisible}
-                          onLogin={handleSessionExpiredLogin}
-                        />
-                      </OrdersProvider>
+                      <FavouritesProvider>
+                        <OrdersProvider>
+                          <RestaurantTimesSync />
+                          <AppContainer />
+                          <SessionExpiredModal
+                            visible={sessionExpiredVisible}
+                            onLogin={handleSessionExpiredLogin}
+                          />
+                        </OrdersProvider>
+                      </FavouritesProvider>
                     </UserProvider>
                   </ConfigurationProvider>
                 </LocationProvider>

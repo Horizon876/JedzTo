@@ -86,8 +86,11 @@ const LoginScreen = () => {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text>{t("Loading...")}</Text>
+      <View
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: appTheme.themeBackground }}
+      >
+        <Text style={{ color: appTheme.fontMainColor }}>{t("Loading...")}</Text>
       </View>
     );
   }
@@ -139,7 +142,7 @@ const LoginScreen = () => {
                     className="flex-row items-center border rounded-lg px-3  mb-[-4]"
                     style={{
                       borderColor: appTheme.borderLineColor,
-                      backgroundColor: appTheme.themeBackground,
+                      backgroundColor: appTheme.cartContainer,
                     }}
                   >
                     <TextInput
@@ -164,7 +167,7 @@ const LoginScreen = () => {
                   <View
                     className="flex-row items-center border  rounded-lg px-3  mb-[-4]"
                     style={{
-                      backgroundColor: appTheme.themeBackground,
+                      backgroundColor: appTheme.cartContainer,
                       borderColor: appTheme.borderLineColor,
                     }}
                   >

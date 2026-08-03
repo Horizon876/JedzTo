@@ -103,17 +103,26 @@ export const FOODS_TABLE_COLUMNS = ({
         ),
     },
     {
-      headerName: t('Out of Stock'),
+      headerName: t('OutOfStock'),
       propertyName: 'isOutOfStock',
       body: (item: IFoodNew) => {
         return (
-          <CustomInputSwitch
-            loading={isFoodLoading === item._id}
-            isActive={item.isOutOfStock}
-            onChange={() =>
-              onUpdateFoodOutOfStock(item._id, item.category?.code ?? '')
-            }
-          />
+          <div className="flex flex-col items-start gap-1">
+            <span
+              className={`text-xs font-bold uppercase ${
+                item.isOutOfStock ? 'text-[#FF9F0A]' : 'text-[#30D158]'
+              }`}
+            >
+              {item.isOutOfStock ? t('OutOfStock') : 'OK'}
+            </span>
+            <CustomInputSwitch
+              loading={isFoodLoading === item._id}
+              isActive={item.isOutOfStock}
+              onChange={() =>
+                onUpdateFoodOutOfStock(item._id, item.category?.code ?? '')
+              }
+            />
+          </div>
         );
       },
     },

@@ -130,6 +130,7 @@ export const restaurantFragment = gql`
         title
         description
         subCategory
+        ingredients
         variations {
           _id
           title
@@ -290,6 +291,9 @@ export const restaurantFragment = gql`
           address
           username
           deliveryTime
+          pickupTime
+          defaultEta
+          currentEta
           minimumOrder
           sections
           rating
@@ -323,11 +327,21 @@ export const restaurantFragment = gql`
     }
     username
     deliveryTime
+    pickupTime
+    defaultEta
+    currentEta
     minimumOrder
     sections
     rating
     isActive
     isAvailable
+    pausedUntil
+    isSuspended
+    holidayExceptions {
+      date
+      closed
+      label
+    }
     openingTimes {
       day
       times {
@@ -365,6 +379,9 @@ export const restaurantCarouselPreviewFragment = gql`
     image
     logo
     deliveryTime
+    pickupTime
+    defaultEta
+    currentEta
     minimumOrder
     tax
     isAvailable
@@ -470,6 +487,10 @@ export const order = `query Order($id:String!){
     orderAmount
     orderDate
     expectedTime
+    preparationEtaMinutes
+    deliveryEtaMinutes
+    acceptedEtaMinutes
+    deliveryExpectedTime
     isPickedUp
     deliveryCharges
     acceptedAt
@@ -555,6 +576,10 @@ export const myOrders = `query Orders($offset:Int){
     preparationTime
     orderDate
     expectedTime
+    preparationEtaMinutes
+    deliveryEtaMinutes
+    acceptedEtaMinutes
+    deliveryExpectedTime
     isPickedUp
     deliveryCharges
     acceptedAt
@@ -646,6 +671,10 @@ const ordersFieldsBody = `
     preparationTime
     orderDate
     expectedTime
+    preparationEtaMinutes
+    deliveryEtaMinutes
+    acceptedEtaMinutes
+    deliveryExpectedTime
     isPickedUp
     deliveryCharges
     acceptedAt
@@ -709,6 +738,9 @@ export const restaurantList = `query Restaurants($latitude:Float,$longitude:Floa
       address
       location{coordinates}
       deliveryTime
+      pickupTime
+      defaultEta
+      currentEta
       minimumOrder
       tax
       shopType
@@ -797,6 +829,9 @@ export const restaurantListPreview = `query Restaurants($latitude:Float,$longitu
       image
       logo
       deliveryTime
+      pickupTime
+      defaultEta
+      currentEta
       minimumOrder
       isAvailable
       tax
@@ -837,6 +872,9 @@ export const topRatedVendorsInfoPreview = `query TopRatedVendors($latitude: Floa
     name
     image
     deliveryTime
+    pickupTime
+    defaultEta
+    currentEta
     tax
     shopType
     reviewData{
@@ -865,6 +903,9 @@ export const restaurant = `query Restaurant($id:String){
     address
     location{coordinates}
     deliveryTime
+    pickupTime
+    defaultEta
+    currentEta
     minimumOrder
     tax
     reviewCount
@@ -914,6 +955,13 @@ export const restaurant = `query Restaurant($id:String){
     }
     rating
     isAvailable
+    pausedUntil
+    isSuspended
+    holidayExceptions {
+      date
+      closed
+      label
+    }
     openingTimes{
       day
       times{
@@ -969,53 +1017,27 @@ export const getTipping = `query Tips{
 export const FavouriteRestaurant = `query UserFavourite ($latitude:Float,$longitude:Float){
     userFavourite(latitude:$latitude,longitude:$longitude) {
       _id
-      orderId
-      orderPrefix
       name
-      isActive
       image
-      address
-      location{coordinates}
+      logo
       deliveryTime
+      pickupTime
+      defaultEta
+      currentEta
       minimumOrder
-      shopType
-      tax
       isAvailable
+      tax
+      shopType
+      cuisines
+      tags
       reviewCount
       reviewAverage
-      categories{
-        _id
-        title
-        foods{
-          _id
-          title
-          image
-          description
-          subCategory
-          variations{
-            _id
-            title
-            price
-            discounted
-            addons
-          }
-        }
-      }
-      options{
-        _id
-        title
-        description
-        price
-      }
-      addons{
-        _id
-        options
-        title
-        description
-        quantityMinimum
-        quantityMaximum
-      }
-      rating
+      freeDelivery
+      acceptVouchers
+      deliveryFee
+      deliveryAreaName
+      address
+      location{coordinates}
       openingTimes{
         day
         times{
@@ -1085,6 +1107,10 @@ export const orderFragment = `fragment NewOrder on Order {
   orderStatus
   orderDate
   expectedTime
+  preparationEtaMinutes
+  deliveryEtaMinutes
+  acceptedEtaMinutes
+  deliveryExpectedTime
   isPickedUp
   tipping
   taxationAmount
@@ -1116,6 +1142,7 @@ export const popularFoodItems = `query popularFoodItems($restaurantId: String!) 
     description 
     image
     subCategory
+    ingredients
     isActive
     createdAt
     isOutOfStock
@@ -1159,6 +1186,9 @@ export const recentOrderRestaurantsPreviewQuery = gql`
       name
       image
       deliveryTime
+      pickupTime
+      defaultEta
+      currentEta
       tax
       shopType
       reviewData {
@@ -1193,6 +1223,9 @@ export const mostOrderedRestaurantsPreviewQuery = gql`
       name
       image
       deliveryTime
+      pickupTime
+      defaultEta
+      currentEta
       tax
       shopType
       reviewData {
@@ -1221,6 +1254,7 @@ export const food = `fragment FoodItem on Food{
   image
   description
   subCategory
+  ingredients
   variations{
     _id
     title

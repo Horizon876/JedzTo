@@ -128,6 +128,9 @@ export interface IRestaurantByOwner {
   password: string;
   deliveryTime: number;
   minimumOrder: number;
+  commissionRate: number;
+  isSuspended?: boolean;
+  suspendedReason?: string;
   deliveryInfo: IDeliveryInfo;
   location: {
     coordinates: number[];

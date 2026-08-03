@@ -14,6 +14,7 @@ import navigationService from '../routes/navigationService'
 import { dismissSessionExpiredModal, isLogoutInProgress, setLogoutInProgress, subscribeToSessionInvalidation } from '../utils/session'
 import { clearPublicToken } from '../utils/publicAccessToken'
 import { findMatchingCartIndex, mergeCartLines } from '../utils/populateCart'
+import { clearEphemeralGuestSession } from '../utils/customerDetailsStorage'
 
 const v1options = {
   random: [0x10, 0x91, 0x56, 0xbe, 0xc4, 0xfb, 0xc1, 0xea, 0x71, 0xb4, 0xef, 0xe1, 0x67, 0x1c, 0x58, 0x36]
@@ -253,16 +254,18 @@ export const UserProvider = (props) => {
     return mergeCartLines(cart).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
   }, [cart])
 
-  const addCartItem = useCallback(async (_id, variation, quantity = 1, addons = [], clearFlag, specialInstructions = '') => {
+  const addCartItem = useCallback(async (_id, variation, quantity = 1, addons = [], clearFlag, specialInstructions = '', removedIngredients = []) => {
     const qty = Number(quantity) || 1
     const safeAddons = addons || []
+    const instructions = specialInstructions || ''
 
     setCart((prev) => {
       const base = clearFlag ? [] : mergeCartLines(prev)
       const existingIndex = findMatchingCartIndex(base, {
         _id,
         variationId: variation,
-        addons: safeAddons
+        addons: safeAddons,
+        specialInstructions: instructions
       })
 
       let nextCart
@@ -281,7 +284,8 @@ export const UserProvider = (props) => {
             quantity: qty,
             variation: { _id: variation },
             addons: safeAddons,
-            specialInstructions: specialInstructions || ''
+            specialInstructions: instructions,
+            removedIngredients: removedIngredients || []
           }
         ]
       }
@@ -321,6 +325,7 @@ export const UserProvider = (props) => {
       await clearCart()
       await clearPublicToken()
       await AsyncStorage.removeItem('location')
+      await clearEphemeralGuestSession()
       setToken(null)
       setCoupon(null)
       setCart([])
@@ -344,7 +349,7 @@ export const UserProvider = (props) => {
       await dismissSessionExpiredModal()
 
       if (shouldNavigate) {
-        navigationService.navigate('Login')
+        navigationService.navigate('Main')
       }
     } catch (error) {
       console.log('error on logout', error)

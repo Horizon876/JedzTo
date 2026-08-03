@@ -13,12 +13,13 @@ export function sameCartAddons(left = [], right = []) {
   })
 }
 
-export function findMatchingCartIndex(cart = [], { _id, variationId, addons = [] }) {
+export function findMatchingCartIndex(cart = [], { _id, variationId, addons = [], specialInstructions = '' }) {
   return cart.findIndex(
     (item) =>
       item._id === _id &&
       item.variation?._id === variationId &&
-      sameCartAddons(item.addons, addons)
+      sameCartAddons(item.addons, addons) &&
+      (item.specialInstructions || '') === (specialInstructions || '')
   )
 }
 
@@ -33,7 +34,8 @@ export function mergeCartLines(cart = []) {
     const existingIndex = findMatchingCartIndex(merged, {
       _id: item._id,
       variationId: item.variation._id,
-      addons: item.addons || []
+      addons: item.addons || [],
+      specialInstructions: item.specialInstructions || ''
     })
 
     if (existingIndex >= 0) {
@@ -48,7 +50,8 @@ export function mergeCartLines(cart = []) {
         quantity,
         variation: { _id: item.variation._id },
         addons: item.addons || [],
-        specialInstructions: item.specialInstructions || ''
+        specialInstructions: item.specialInstructions || '',
+        removedIngredients: item.removedIngredients || []
       })
     }
   }
@@ -106,11 +109,15 @@ export function populateCart(restaurant, cart = []) {
       if (quantity <= 0) return null
 
       const unitPriceFixed = Number(unitPrice.toFixed(2))
+      const extras = [...optionsTitle]
+      if (cartItem.specialInstructions) {
+        extras.push(cartItem.specialInstructions)
+      }
 
       const updatedCartItem = {
         ...cartItem,
         quantity,
-        optionsTitle,
+        optionsTitle: extras,
         title: `${food.title}${variation.title ? ` (${variation.title})` : ''}`,
         price: unitPriceFixed
       }

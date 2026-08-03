@@ -33,7 +33,9 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({
 
     const hydrateAuth = async () => {
       try {
-        const storedToken = await getSecureItem(RIDER_TOKEN);
+        const storedToken =
+          (await getSecureItem(RIDER_TOKEN)) ||
+          (await AsyncStorage.getItem(RIDER_TOKEN));
 
         if (isMounted && storedToken) {
           setToken(storedToken);
@@ -54,6 +56,8 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({
 
   const setTokenAsync = async (token: string) => {
     await setSecureItem(RIDER_TOKEN, token);
+    // Mirror for Apollo header reads if SecureStore hiccups in Expo Go.
+    await AsyncStorage.setItem(RIDER_TOKEN, token);
     await client.clearStore();
     setToken(token);
   };
@@ -64,6 +68,7 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({
     try {
       await Promise.all([
         removeSecureItem(RIDER_TOKEN),
+        AsyncStorage.removeItem(RIDER_TOKEN),
         removeItem(RIDER_ID),
         removeItem("restaurant-id"),
         AsyncStorage.removeItem(WORK_MODE),

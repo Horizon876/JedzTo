@@ -1,5 +1,6 @@
 import { gql, useQuery } from '@apollo/client'
 import { useEffect, useMemo, useState } from 'react'
+import { DeviceEventEmitter } from 'react-native'
 import {
   mostOrderedRestaurantsQuery,
   recentOrderRestaurantsQuery,
@@ -10,6 +11,8 @@ import {
   getJedzToLocalRestaurantPreviews,
   jedzToLocalRestaurantsEnabled
 } from '../../utils/jedztoLocalRestaurants'
+import { restaurantMatchesCuisine } from '../../utils/cuisineMatch'
+import { RESTAURANT_TIMES_UPDATED_EVENT } from '../../components/RestaurantTimesSync/RestaurantTimesSync'
 
 const RESTAURANTS = gql`
   ${restaurantListPreview}
@@ -104,9 +107,9 @@ export const useRestaurantQueries = (queryType, location, selectedType) => {
     const all = getJedzToLocalRestaurantPreviews()
     if (selectedType && selectedType !== 'restaurant' && selectedType !== 'grocery') {
       // Cuisine / shop-type slug filters from discovery pills
-      return all.filter((r) =>
-        (r.cuisines || []).some((c) => c?.toLowerCase() === String(selectedType).toLowerCase()) ||
-        r.shopType === selectedType
+      return all.filter(
+        (r) =>
+          restaurantMatchesCuisine(r, selectedType) || r.shopType === selectedType
       )
     }
     if (selectedType === 'grocery') return []
@@ -192,6 +195,37 @@ export const useRestaurantQueries = (queryType, location, selectedType) => {
 
     getResult(queryType, data, setRestaurantData, setAllData, selectedType)
   }, [useLocal, currentPage, data, isNearbyPaginatedQuery, queryType, selectedType])
+
+  useEffect(() => {
+    const onTimesUpdated = (payload) => {
+      if (!payload?._id) return
+      const patch = (list = []) =>
+        list.map((r) =>
+          String(r?._id) === String(payload._id)
+            ? {
+                ...r,
+                deliveryTime:
+                  payload.deliveryTime != null
+                    ? payload.deliveryTime
+                    : r.deliveryTime,
+                pickupTime:
+                  payload.pickupTime != null ? payload.pickupTime : r.pickupTime,
+                defaultEta:
+                  payload.defaultEta != null ? payload.defaultEta : r.defaultEta,
+                currentEta:
+                  payload.currentEta != null ? payload.currentEta : r.currentEta
+              }
+            : r
+        )
+      setRestaurantData((prev) => patch(prev))
+      setAllData((prev) => patch(prev))
+    }
+    const sub = DeviceEventEmitter.addListener(
+      RESTAURANT_TIMES_UPDATED_EVENT,
+      onTimesUpdated
+    )
+    return () => sub.remove()
+  }, [])
 
   const handleRefresh = () => {
     if (useLocal) {

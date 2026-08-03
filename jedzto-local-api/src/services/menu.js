@@ -12,6 +12,7 @@ export const mapFood = (f) => ({
   subCategory: f.subCategory,
   isOutOfStock: f.isOutOfStock,
   isActive: f.isActive,
+  ingredients: Array.isArray(f.ingredients) ? f.ingredients.filter(Boolean) : [],
   restaurantId: id(f.restaurantId) || String(f.restaurantId),
   categoryId: id(f.categoryId) || String(f.categoryId),
   createdAt: f.createdAt?.toISOString?.() || f.createdAt,

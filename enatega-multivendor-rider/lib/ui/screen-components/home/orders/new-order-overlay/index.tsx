@@ -1,7 +1,9 @@
-import { useContext, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import {
   Modal,
   ScrollView,
+  StatusBar,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -11,26 +13,39 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 
 import UserContext, { KITCHEN_STATUS } from '@/lib/context/global/user.context'
-import { useApptheme } from '@/lib/context/global/theme.context'
 import { IOrder } from '@/lib/utils/interfaces/order.interface'
+import { getPaymentLabel } from '@/lib/utils/payment-label'
 import SpinnerComponent from '@/lib/ui/useable-components/spinner'
+import { EtaMinutesPicker } from '@/lib/ui/useable-components/eta-minutes-picker'
+import { useQuery } from '@apollo/client'
+import { KITCHEN_RESTAURANT_TIMES } from '@/lib/apollo/queries/kitchen.query'
+
+const ACCENT = '#00A8FF'
+const MUTED = '#8E8E93'
+const PAGE = '#121212'
+const SURFACE = '#1C1C1E'
+const HAIRLINE = '#2C2C2E'
+const DESTRUCTIVE = '#FF453A'
 
 function OrderItems({ order }: { order: IOrder }) {
+  const { t } = useTranslation()
   return (
-    <View className="gap-3">
+    <View style={{ gap: 10 }}>
       {(order.items || []).map((item, index) => (
-        <View
-          key={`${order._id}-${index}`}
-          className="rounded-xl border border-gray-200 bg-white p-3"
-        >
-          <Text className="text-xl font-bold text-black">
+        <View key={`${order._id}-${index}`} style={styles.itemCard}>
+          <Text style={styles.itemTitle}>
             {item.quantity}× {item.title}
           </Text>
           {!!item.variation?.title && (
-            <Text className="text-base text-gray-600">{item.variation.title}</Text>
+            <Text style={styles.itemMeta}>{item.variation.title}</Text>
           )}
           {!!item.description && (
-            <Text className="text-sm text-gray-500">{String(item.description)}</Text>
+            <Text style={styles.itemMeta}>{String(item.description)}</Text>
+          )}
+          {!!item.specialInstructions && (
+            <Text style={styles.itemNote}>
+              {t('Item note')}: {item.specialInstructions}
+            </Text>
           )}
         </View>
       ))}
@@ -40,25 +55,78 @@ function OrderItems({ order }: { order: IOrder }) {
 
 export default function NewOrderOverlay() {
   const { t } = useTranslation()
-  const { appTheme } = useApptheme()
   const insets = useSafeAreaInsets()
   const { height } = useWindowDimensions()
-  const { pendingOrders = [], setOrderStatus, updatingStatus } =
+  const { pendingOrders = [], setOrderStatus, updatingStatus, restaurantId } =
     useContext(UserContext)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [etaMins, setEtaMins] = useState(45)
 
   const current = useMemo(() => pendingOrders[0] ?? null, [pendingOrders])
+  const isPickup = Boolean(current?.isPickedUp)
+
+  const { data: timesData } = useQuery(KITCHEN_RESTAURANT_TIMES, {
+    variables: { id: restaurantId },
+    skip: !restaurantId || !current,
+    fetchPolicy: 'cache-first',
+  })
+
+  useEffect(() => {
+    if (!current) return
+    const restaurant = current.restaurant as
+      | {
+          pickupTime?: number
+          deliveryTime?: number
+          defaultEta?: number
+          currentEta?: number
+        }
+      | undefined
+    const live = timesData?.restaurant
+
+    const fromOrder =
+      current.preparationEtaMinutes != null || current.deliveryEtaMinutes != null
+        ? Number(current.preparationEtaMinutes ?? 0) +
+          (isPickup ? 0 : Number(current.deliveryEtaMinutes ?? 0))
+        : null
+
+    const pickup = Number(
+      live?.pickupTime ?? restaurant?.pickupTime ?? 0
+    )
+    const travel = Number(
+      live?.deliveryTime ?? restaurant?.deliveryTime ?? 0
+    )
+    const sum = pickup + travel
+
+    const fromRestaurant =
+      live?.defaultEta ??
+      live?.currentEta ??
+      restaurant?.defaultEta ??
+      restaurant?.currentEta ??
+      (sum > 0 ? sum : null)
+
+    const next = Number(fromOrder ?? fromRestaurant ?? 45) || 45
+    setEtaMins(Math.max(5, Math.min(240, next)))
+  }, [current?._id, isPickup, timesData?.restaurant])
 
   if (!current || !setOrderStatus) return null
 
   const address =
     current.deliveryAddress?.deliveryAddress ||
     (current.isPickedUp ? t('Pickup') : t('No address'))
+  const payment = getPaymentLabel(
+    current.paymentMethod,
+    current.paymentStatus,
+    t
+  )
 
   const onAccept = async () => {
     setBusyId(current._id)
     try {
-      await setOrderStatus(current._id, KITCHEN_STATUS.IN_PROGRESS)
+      // Single total ETA: store as prep, delivery leg 0 so acceptedEtaMinutes = etaMins.
+      await setOrderStatus(current._id, KITCHEN_STATUS.IN_PROGRESS, {
+        preparationEtaMinutes: etaMins,
+        deliveryEtaMinutes: 0,
+      })
     } finally {
       setBusyId(null)
     }
@@ -74,101 +142,287 @@ export default function NewOrderOverlay() {
   }
 
   const busy = updatingStatus || busyId === current._id
+  const isCash = payment.needsCash
+  const bannerLabel = isCash ? t('Cash payment') : t('Order paid')
+  const bannerBg = isCash ? '#FF9F0A' : '#30D158'
 
   return (
     <Modal visible animationType="fade" presentationStyle="fullScreen">
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#111827',
-          paddingTop: insets.top + 12,
-          paddingBottom: insets.bottom + 12,
-          paddingHorizontal: 20,
-          minHeight: height,
-        }}
-      >
-        <Text className="mb-2 text-center text-sm font-semibold uppercase tracking-widest text-amber-400">
-          {t('New order')}
-        </Text>
-        <Text className="mb-1 text-center text-4xl font-black text-white">
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={bannerBg}
+      />
+      <View style={{ flex: 1, backgroundColor: PAGE, minHeight: height }}>
+        <View
+          style={[
+            styles.paymentBanner,
+            { backgroundColor: bannerBg, paddingTop: insets.top + 10 },
+          ]}
+        >
+          <Text style={styles.paymentBannerText}>{bannerLabel}</Text>
+        </View>
+
+        <View
+          style={{
+            flex: 1,
+            paddingTop: 12,
+            paddingBottom: insets.bottom + 12,
+            paddingHorizontal: 20,
+          }}
+        >
+        <Text style={styles.eyebrow}>{t('New order')}</Text>
+        <Text style={styles.orderId}>
           #{current.orderId || current._id.slice(-6)}
         </Text>
-        <Text className="mb-6 text-center text-lg text-gray-300">
+        <Text style={styles.customer}>
           {current.user?.name || t('Customer')}
           {current.user?.phone ? ` · ${current.user.phone}` : ''}
         </Text>
 
-        <ScrollView className="flex-1" contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
-          <View className="rounded-2xl bg-amber-400 p-4">
-            <Text className="mb-1 text-sm font-semibold uppercase text-black/70">
-              {t('Delivery address')}
-            </Text>
-            <Text className="text-2xl font-bold text-black">{address}</Text>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ gap: 16, paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.addressCard}>
+            <Text style={styles.sectionLabel}>{t('Delivery address')}</Text>
+            <Text style={styles.addressText}>{address}</Text>
             {!!current.deliveryAddress?.details && (
-              <Text className="mt-1 text-base text-black/80">
+              <Text style={styles.addressDetails}>
                 {current.deliveryAddress.details}
               </Text>
             )}
           </View>
 
           <View>
-            <Text className="mb-3 text-lg font-semibold text-white">
-              {t('Ordered items')}
-            </Text>
+            <Text style={styles.sectionTitle}>{t('Ordered items')}</Text>
             <OrderItems order={current} />
           </View>
 
           {!!current.instructions && (
-            <View className="rounded-2xl border border-amber-400/40 bg-black/30 p-4">
-              <Text className="mb-1 text-sm font-semibold uppercase text-amber-300">
-                {t('Instructions')}
-              </Text>
-              <Text className="text-lg text-white">{current.instructions}</Text>
+            <View style={styles.instructionsCard}>
+              <Text style={styles.sectionLabel}>{t('Instructions')}</Text>
+              <Text style={styles.instructionsText}>{current.instructions}</Text>
             </View>
           )}
 
-          <View className="rounded-2xl bg-white/10 p-4">
-            <Text className="text-base text-gray-300">
-              {t('Payment')}: {current.paymentMethod || 'COD'} · {current.paymentStatus}
-            </Text>
-            <Text className="mt-1 text-3xl font-black text-white">
+          <View style={[styles.paymentCard, isCash && styles.paymentCash]}>
+            <Text style={styles.paymentMeta}>{payment.label}</Text>
+            {!!payment.hint && (
+              <Text style={styles.paymentHint}>{payment.hint}</Text>
+            )}
+            <Text style={styles.paymentAmount}>
               {Number(current.orderAmount || 0).toFixed(2)} zł
             </Text>
           </View>
+
+          <EtaMinutesPicker
+            title={t('Estimated delivery time')}
+            hint={t('Shown to the customer for this order')}
+            value={etaMins}
+            onChange={setEtaMins}
+          />
         </ScrollView>
 
-        <View className="mt-3 flex-row gap-3">
+        <View style={styles.actionsRow}>
           <TouchableOpacity
             disabled={busy}
             onPress={onReject}
-            className="flex-1 items-center justify-center rounded-2xl bg-red-600 py-5"
+            activeOpacity={0.85}
+            style={[styles.actionBtn, styles.rejectBtn]}
           >
             {busy ? (
               <SpinnerComponent />
             ) : (
-              <Text className="text-2xl font-black text-white">{t('Reject')}</Text>
+              <Text style={styles.actionText}>{t('Reject')}</Text>
             )}
           </TouchableOpacity>
           <TouchableOpacity
             disabled={busy}
             onPress={onAccept}
-            className="flex-1 items-center justify-center rounded-2xl py-5"
-            style={{ backgroundColor: appTheme.primary || '#16a34a' }}
+            activeOpacity={0.85}
+            style={[styles.actionBtn, styles.acceptBtn]}
           >
             {busy ? (
               <SpinnerComponent />
             ) : (
-              <Text className="text-2xl font-black text-white">{t('Accept')}</Text>
+              <Text style={styles.actionText}>{t('Accept')}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         {pendingOrders.length > 1 && (
-          <Text className="mt-3 text-center text-sm text-gray-400">
+          <Text style={styles.moreWaiting}>
             {t('More waiting')}: {pendingOrders.length - 1}
           </Text>
         )}
+        </View>
       </View>
     </Modal>
   )
 }
+
+const styles = StyleSheet.create({
+  paymentBanner: {
+    width: '100%',
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentBannerText: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  eyebrow: {
+    marginBottom: 8,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: ACCENT,
+  },
+  orderId: {
+    marginBottom: 4,
+    textAlign: 'center',
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  customer: {
+    marginBottom: 24,
+    textAlign: 'center',
+    fontSize: 16,
+    color: MUTED,
+  },
+  addressCard: {
+    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: HAIRLINE,
+    padding: 16,
+  },
+  sectionLabel: {
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: MUTED,
+  },
+  addressText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  addressDetails: {
+    marginTop: 6,
+    fontSize: 14,
+    color: MUTED,
+  },
+  sectionTitle: {
+    marginBottom: 10,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  itemCard: {
+    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: HAIRLINE,
+    padding: 14,
+  },
+  itemTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  itemMeta: {
+    marginTop: 4,
+    fontSize: 14,
+    color: MUTED,
+  },
+  itemNote: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#FF9F0A',
+  },
+  instructionsCard: {
+    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: HAIRLINE,
+    padding: 16,
+  },
+  instructionsText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  paymentCard: {
+    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: HAIRLINE,
+    padding: 16,
+  },
+  paymentCash: {
+    borderColor: '#FF9F0A',
+  },
+  paymentMeta: {
+    fontSize: 14,
+    color: MUTED,
+  },
+  paymentHint: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#FF9F0A',
+  },
+  paymentAmount: {
+    marginTop: 6,
+    fontSize: 28,
+    fontWeight: '900',
+    color: ACCENT,
+  },
+  totalEta: {
+    textAlign: 'center',
+    color: ACCENT,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  actionsRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 16,
+    minHeight: 54,
+  },
+  acceptBtn: {
+    backgroundColor: ACCENT,
+  },
+  rejectBtn: {
+    backgroundColor: DESTRUCTIVE,
+  },
+  actionText: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  moreWaiting: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: MUTED,
+    fontSize: 13,
+  },
+})

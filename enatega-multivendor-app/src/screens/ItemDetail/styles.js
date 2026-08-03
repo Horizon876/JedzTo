@@ -1,6 +1,12 @@
-import { StyleSheet } from 'react-native'
-import { alignment } from '../../utils/alignment'
+import { StyleSheet, Dimensions } from 'react-native'
 import { scale } from '../../utils/scaling'
+
+export const ACCENT = '#00A8FF'
+export const PAGE = '#121212'
+export const SURFACE = '#1C1C1E'
+export const CARD = '#2C2C2E'
+export const MUTED = '#8E8E93'
+export const HAIRLINE = '#3A3A3C'
 
 const styles = (props = null) =>
   StyleSheet.create({
@@ -8,27 +14,28 @@ const styles = (props = null) =>
       flex: 1
     },
     mainContainer: {
-      backgroundColor: props != null ? props?.themeBackground : '#fff'
+      backgroundColor: PAGE
     },
     scrollViewContainer: {
       width: '100%',
       height: '100%',
-      backgroundColor: props != null ? props?.themeBackground : '#fff'
+      backgroundColor: PAGE
     },
     subContainer: {
-      width: '90%',
-      backgroundColor: props != null ? props?.themeBackground : '#fff',
-      alignSelf: 'center'
+      width: '100%',
+      backgroundColor: PAGE,
+      alignSelf: 'center',
+      paddingHorizontal: scale(16)
     },
     scrollViewStyle: {
-      backgroundColor: props != null ? props?.themeBackground : '#fff'
+      backgroundColor: PAGE
     },
     headerContainer: {
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
-      backgroundColor: props != null ? props?.themeBackground : '#fff',
+      backgroundColor: PAGE,
       zIndex: 3
     },
     titleContainer: {
@@ -36,31 +43,35 @@ const styles = (props = null) =>
       top: 0,
       left: 0,
       right: 0,
-      backgroundColor: props != null ? props?.themeBackground : '#fff',
+      backgroundColor: PAGE,
       justifyContent: 'center',
       alignItems: 'center',
-      minHeight: scale(32)
+      minHeight: scale(32),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: HAIRLINE
     },
     line: {
-      marginLeft: scale(10),
-      width: '95%',
+      width: '100%',
       height: StyleSheet.hairlineWidth,
-      ...alignment.MBsmall,
-      backgroundColor: props !== null ? props?.black : 'black'
+      marginVertical: scale(14),
+      backgroundColor: HAIRLINE
     },
     input: {
-      backgroundColor: props !== null ? props?.themeBackground : 'black',
-      borderRadius: scale(10),
+      backgroundColor: CARD,
+      borderRadius: scale(14),
       height: scale(50),
-      paddingLeft: scale(10),
+      paddingHorizontal: scale(14),
       textAlignVertical: 'center',
-      borderWidth: 1,
-      borderColor: props != null ? props?.verticalLine : '#B8B8B8',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: HAIRLINE,
+      color: '#FFFFFF',
       textAlign: props?.isRTL ? 'right' : 'left'
     },
     inputContainer: {
+      width: '100%',
       alignSelf: 'center',
-      zIndex: scale(1)
+      zIndex: scale(1),
+      marginBottom: 0
     },
     backBtnContainer: {
       borderRadius: scale(50),
@@ -68,11 +79,31 @@ const styles = (props = null) =>
       alignItems: 'center'
     },
     descriptionText: {
-      color: props != null ? props?.darkBgFont : 'white',
-      fontSize: 13,
-      paddingTop: scale(10),
-      maxWidth: '100%',
-      ...alignment.MRxSmall
+      color: MUTED,
+      fontSize: scale(14),
+      lineHeight: scale(20),
+      paddingTop: scale(6),
+      maxWidth: '100%'
+    },
+    detailsBlock: {
+      width: '100%',
+      alignSelf: 'center',
+      paddingHorizontal: scale(16),
+      paddingTop: scale(16),
+      paddingBottom: scale(8),
+      backgroundColor: PAGE
+    },
+    sectionGap: {
+      marginTop: scale(4)
+    },
+    imageFallback: {
+      width: '100%',
+      height: Math.round(Dimensions.get('window').height * 0.28),
+      backgroundColor: SURFACE,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: scale(24)
     }
   })
+
 export default styles

@@ -95,6 +95,32 @@ const styles = (props = null) =>
       height: scale(50),
       borderRadius: scale(999)
     },
+    saveRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: scale(10),
+      marginTop: scale(6),
+      paddingVertical: scale(4)
+    },
+    checkbox: {
+      width: scale(22),
+      height: scale(22),
+      borderRadius: scale(6),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: HAIRLINE,
+      backgroundColor: SURFACE,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    checkboxChecked: {
+      backgroundColor: ACCENT,
+      borderColor: ACCENT
+    },
+    saveLabel: {
+      color: '#FFFFFF',
+      flex: 1,
+      fontSize: scale(14)
+    },
     headerLeftIcon: {
       ...alignment.PLsmall
     }

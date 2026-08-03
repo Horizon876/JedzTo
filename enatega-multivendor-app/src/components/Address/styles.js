@@ -57,7 +57,8 @@ const styles = (props = null) =>
     },
     searchInput: {
       flex: 1,
-      height: '100%',
+      minWidth: 0,
+      height: scale(48),
       paddingVertical: 0,
       textAlignVertical: 'center',
       fontSize: scale(15),

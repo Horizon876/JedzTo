@@ -142,6 +142,9 @@ const styles = () =>
       alignItems: 'center',
       justifyContent: 'center'
     },
+    addressIconActive: {
+      backgroundColor: 'rgba(0, 168, 255, 0.18)'
+    },
     addressTextWrap: {
       flex: 1
     },
@@ -169,28 +172,52 @@ const styles = () =>
       marginBottom: scale(14),
       lineHeight: scale(18)
     },
-    typeGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: scale(10),
-      marginBottom: scale(20)
-    },
-    typeChip: {
-      width: '47%',
-      minHeight: scale(48),
+    typeList: {
+      marginBottom: scale(20),
       borderRadius: scale(14),
-      borderWidth: scale(1.5),
-      borderColor: '#3A3A3C',
-      backgroundColor: 'transparent',
+      backgroundColor: '#2C2C2E',
+      overflow: 'hidden'
+    },
+    typeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: scale(8),
-      paddingHorizontal: scale(10)
+      paddingVertical: scale(14),
+      paddingHorizontal: scale(12),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#3A3A3C',
+      gap: scale(12)
     },
-    typeChipActive: {
-      borderColor: '#00A8FF',
-      backgroundColor: 'rgba(0, 168, 255, 0.12)'
+    typeRowLast: {
+      borderBottomWidth: 0
+    },
+    typeRowLabel: {
+      flex: 1
+    },
+    typeIcon: {
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(18),
+      backgroundColor: '#121212',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    radioOuter: {
+      width: scale(22),
+      height: scale(22),
+      borderRadius: scale(11),
+      borderWidth: scale(2),
+      borderColor: '#9CA3AF',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    radioOuterSelected: {
+      borderColor: '#00A8FF'
+    },
+    radioInner: {
+      width: scale(12),
+      height: scale(12),
+      borderRadius: scale(6),
+      backgroundColor: '#00A8FF'
     },
     addButton: {
       width: '100%',

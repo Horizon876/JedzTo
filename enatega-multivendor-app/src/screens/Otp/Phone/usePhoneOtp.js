@@ -110,7 +110,10 @@ const usePhoneOtp = () => {
         ]
       })
     } else if (!profile?.name) {
-      navigation.navigate('Profile', { editName: true })
+      navigation.navigate('EditName', {
+        name: profile?.name,
+        phone: profile?.phone
+      })
     } else if (screen === 'Checkout') {
       navigation.navigate('Checkout')
     } else {

@@ -14,7 +14,7 @@ import { Modalize } from 'react-native-modalize'
 import { ProgressBar, checkStatus } from './ProgressBar'
 import styles from './styles'
 import { ORDER_STATUS_ENUM } from '../../../utils/enums'
-import { calulateRemainingTime } from '../../../utils/customFunctions'
+import { getOrderEtaClockLabel } from '../../../utils/orderEtaClock'
 import { MaterialIcons } from '@expo/vector-icons'
 
 const SCREEN_HEIGHT = Dimensions.get('screen').height
@@ -52,34 +52,10 @@ const ActiveOrders = ({ onActiveOrdersChange }) => {
   const [isMinimized, setIsMinimized] = useState(false)
   const [justPlacedOrder, setJustPlacedOrder] = useState(false)
   const [showPulse, setShowPulse] = useState(false)
-  const [currentTime, setCurrentTime] = useState(new Date())
   const modalizeRef = useRef(null)
   const pulseAnim = useRef(new Animated.Value(1)).current
-  const timeUpdateInterval = useRef(null)
 
   const displayOrders = showAll ? activeOrders : activeOrders.slice(0, 2)
-
-  // Real-time timer update effect
-  useEffect(() => {
-    if (displayOrders.length > 0) {
-      // Update time every 60 seconds for real-time updates
-      timeUpdateInterval.current = setInterval(() => {
-        setCurrentTime(new Date())
-      }, 60000)
-    } else {
-      if (timeUpdateInterval.current) {
-        clearInterval(timeUpdateInterval.current)
-        timeUpdateInterval.current = null
-      }
-    }
-
-    return () => {
-      if (timeUpdateInterval.current) {
-        clearInterval(timeUpdateInterval.current)
-        timeUpdateInterval.current = null
-      }
-    }
-  }, [displayOrders.length])
 
   useEffect(() => {
     const hasActiveOrders = displayOrders.length > 0
@@ -89,10 +65,6 @@ const ActiveOrders = ({ onActiveOrdersChange }) => {
     if (!hasActiveOrders) {
       setIsMinimized(false)
       setJustPlacedOrder(false)
-      if (timeUpdateInterval.current) {
-        clearInterval(timeUpdateInterval.current)
-        timeUpdateInterval.current = null
-      }
       return
     }
     
@@ -132,37 +104,19 @@ const ActiveOrders = ({ onActiveOrdersChange }) => {
 
   const handleMinimize = () => {
     setIsMinimized(true)
-    // Update time immediately when minimizing
-    setCurrentTime(new Date())
   }
 
   const handleExpand = () => {
     setIsMinimized(false)
-    // Update time immediately when expanding
-    setCurrentTime(new Date())
   }
 
   if (loadingOrders) return null
   if (errorOrders && !orders) return <TextError text={errorOrders.message} />
   if (!displayOrders.length) return null
   const order = displayOrders[0]
-  
-  // Calculate real-time remaining time
-  const getRealTimeRemainingTime = (order) => {
-    if (!order?.createdAt || !order?.expectedTime) {
-      return calulateRemainingTime(order)
-    }
-    
-    const orderTime = new Date(order.createdAt)
-    const expectedDeliveryTime = new Date(orderTime.getTime() + (order.expectedTime * 60000)) // expectedTime in minutes
-    const now = currentTime
-    const timeDiff = expectedDeliveryTime.getTime() - now.getTime()
-    const minutesRemaining = Math.max(0, Math.ceil(timeDiff / (1000 * 60)))
-    
-    return minutesRemaining || calulateRemainingTime(order)
-  }
-  
-  const remainingTime = getRealTimeRemainingTime(order)
+
+  const outForDelivery = ['ASSIGNED', 'PICKED'].includes(order?.orderStatus)
+  const etaClock = getOrderEtaClockLabel(order, { outForDelivery })
   const modalStyle = {
     borderWidth: StyleSheet.hairlineWidth,
     backgroundColor: currentTheme.cardBackground
@@ -207,7 +161,7 @@ const ActiveOrders = ({ onActiveOrdersChange }) => {
                 H6 
                 bold
               >
-                {remainingTime > 0 ? `${remainingTime}m` : 'Soon'}
+                {etaClock || t('deliveringSoon')}
               </TextDefault>
             </View>
           </View>
@@ -255,10 +209,7 @@ const ActiveOrders = ({ onActiveOrdersChange }) => {
         </View>
         <View style={{ marginTop: scale(10) }}>
           <TextDefault Regular textColor={currentTheme.gray900} H1 bolder isRTL>
-            {remainingTime > 0 
-              ? `${remainingTime}-${remainingTime + 5} ${t('mins')}`
-              : `${t('deliveringSoon')}`
-            }
+            {etaClock || t('deliveringSoon')}
           </TextDefault>
         </View>
         <View>

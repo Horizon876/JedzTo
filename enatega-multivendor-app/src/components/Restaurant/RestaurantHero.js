@@ -106,7 +106,25 @@ function RestaurantHero({ aboutObject, displayedDeliveryMinutes }) {
             defaultSource={require('../../assets/images/food_placeholder.png')}
           />
           <View style={styles(currentTheme).favouriteOverlay}>
-            <FavoriteButton iconSize={scale(22)} restaurantId={aboutObject?.restaurantId} />
+            <FavoriteButton
+              iconSize={scale(22)}
+              restaurantId={aboutObject?.restaurantId}
+              restaurant={{
+                _id: aboutObject?.restaurantId,
+                name: aboutObject?.restaurantName,
+                image: aboutObject?.restaurantImage,
+                logo: aboutObject?.restaurantLogo,
+                cuisines: aboutObject?.restaurantCuisines,
+                openingTimes: aboutObject?.openingTimes,
+                minimumOrder: aboutObject?.minimumOrder,
+                tax: aboutObject?.tax,
+                reviewAverage: aboutObject?.reviewAverage,
+                reviewCount: aboutObject?.reviewCount,
+                address: aboutObject?.restaurantAddress,
+                deliveryTime: aboutObject?.deliveryTime,
+                isAvailable: aboutObject?.IsOpen !== false
+              }}
+            />
           </View>
         </View>
 
@@ -174,7 +192,7 @@ function RestaurantHero({ aboutObject, displayedDeliveryMinutes }) {
               </View>
             ) : null}
 
-            {!isPickup && displayedDeliveryMinutes != null ? (
+            {displayedDeliveryMinutes != null ? (
               <View style={styles(currentTheme).metaRow}>
                 <View style={styles().metaIconSlot}>
                   <MaterialCommunityIcons name='clock-outline' size={META_ICON_SIZE} color={MUTED} />

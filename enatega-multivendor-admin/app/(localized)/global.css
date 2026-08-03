@@ -16,15 +16,16 @@ layer(primereact);
 }
 
 :root {
-  --primary-color: #b1c748;
-  --primary-dark: #5ac12f;
-  --secondary-color: #bac973;
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 255, 255, 255;
-  --background-end-rgb: 255, 255, 255;
-  --dark-950: #030712;
-  --dark-900: #111827;
-  --dark-600: #4b5563;
+  --primary-color: #00a8ff;
+  --primary-dark: #0086cc;
+  --secondary-color: #30d158;
+  --cash-color: #ff9f0a;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 18, 18, 18;
+  --background-end-rgb: 18, 18, 18;
+  --dark-950: #121212;
+  --dark-900: #1c1c1e;
+  --dark-600: #3a3a3c;
 }
 
 html,

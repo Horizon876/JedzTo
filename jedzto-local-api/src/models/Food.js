@@ -32,6 +32,7 @@ const foodSchema = new mongoose.Schema(
     subCategory: { type: String, default: null },
     isOutOfStock: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    ingredients: { type: [String], default: [] },
     variations: { type: [variationSchema], default: [] }
   },
   { timestamps: true }

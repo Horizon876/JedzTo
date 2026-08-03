@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from 'react'
+import React, { useCallback, useContext } from 'react'
 import { View, TouchableOpacity, FlatList } from 'react-native'
 import { useSubscription } from '@apollo/client'
 import gql from 'graphql-tag'
@@ -7,21 +7,20 @@ import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import TextDefault from '../Text/TextDefault/TextDefault'
 import TextError from '../Text/TextError/TextError'
-import styles, { ACCENT, BG, MUTED } from './styles'
+import styles, { ACCENT, SURFACE, MUTED } from './styles'
 import Spinner from '../../components/Spinner/Spinner'
 import OrdersContext from '../../context/Orders'
 import { useTranslation } from 'react-i18next'
 import ConfigurationContext from '../../context/Configuration'
 import { formatMoney } from '../../utils/formatMoney'
-import StarIcon from '../../../src/assets/SVG/imageComponents/starIcon'
 import EmptyView from '../EmptyView/EmptyView'
 import { ORDER_STATUS_ENUM } from '../../utils/enums'
 import CachedImage from '../CachedImage'
 import { getOrderStatusLabelKey } from '../../utils/orderStatusLabel'
 
-function emptyViewPastOrders() {
+function EmptyViewPastOrders() {
   const { orders, loadingOrders, errorOrders } = useContext(OrdersContext)
-  if (loadingOrders) return <Spinner visible={loadingOrders} backColor={BG} spinnerColor={ACCENT} />
+  if (loadingOrders) return <Spinner visible={loadingOrders} backColor={SURFACE} spinnerColor={ACCENT} />
   if (errorOrders) return <TextError text={errorOrders.message} />
 
   const hasActiveOrders = orders.filter((o) =>
@@ -39,13 +38,13 @@ function emptyViewPastOrders() {
       buttonText={'emptyPastOrdersBtn'}
       navigateTo='Discovery'
       accentColor={ACCENT}
-      backgroundColor={BG}
+      backgroundColor={SURFACE}
       textColor='#FFFFFF'
     />
   )
 }
 
-const PastOrders = ({ navigation, loading, error, pastOrders, onPressReview }) => {
+const PastOrders = ({ navigation, loading, error, pastOrders }) => {
   const { i18n } = useTranslation()
   const themeContext = useContext(ThemeContext)
   const currentTheme = {
@@ -55,21 +54,20 @@ const PastOrders = ({ navigation, loading, error, pastOrders, onPressReview }) =
   const configuration = useContext(ConfigurationContext)
   const { reFetchOrders, fetchMoreOrdersFunc, networkStatusOrders } = useContext(OrdersContext)
   const renderItem = useCallback(
-    ({ item }) => (
+    ({ item, index }) => (
       <Item
         item={item}
         navigation={navigation}
         currentTheme={currentTheme}
         configuration={configuration}
-        onPressReview={onPressReview}
+        isLast={index === (pastOrders?.length ?? 0) - 1}
       />
     ),
-    [configuration, currentTheme, navigation, onPressReview]
+    [configuration, currentTheme, navigation, pastOrders?.length]
   )
-  const emptyState = useMemo(() => emptyViewPastOrders(), [])
 
   if (networkStatusOrders === 1) {
-    return <Spinner size={'small'} backColor={BG} spinnerColor={ACCENT} />
+    return <Spinner size={'small'} backColor={SURFACE} spinnerColor={ACCENT} />
   }
   if (error) return <TextError text={error.message} />
 
@@ -78,7 +76,8 @@ const PastOrders = ({ navigation, loading, error, pastOrders, onPressReview }) =
       data={pastOrders}
       renderItem={renderItem}
       keyExtractor={(item) => item._id}
-      ListEmptyComponent={emptyState}
+      ListEmptyComponent={EmptyViewPastOrders}
+      style={{ backgroundColor: SURFACE, flex: 1 }}
       contentContainerStyle={styles().listContent}
       refreshing={networkStatusOrders === 4}
       onRefresh={() => networkStatusOrders === 7 && reFetchOrders()}
@@ -91,29 +90,13 @@ const PastOrders = ({ navigation, loading, error, pastOrders, onPressReview }) =
   )
 }
 
-const formatDeliveredAt = (deliveredAt) => {
-  if (!deliveredAt) return 'N/A'
-  const deliveryDate = new Date(deliveredAt)
-  if (isNaN(deliveryDate.getTime())) return 'N/A'
-
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const day = deliveryDate.getDate()
-  const month = months[deliveryDate.getMonth()]
-  const hours = deliveryDate.getHours()
-  const minutes = deliveryDate.getMinutes()
-  const formattedDay = day < 10 ? '0' + day : day
-  const formattedHours = hours < 10 ? '0' + hours : hours
-  const formattedMinutes = minutes < 10 ? '0' + minutes : minutes
-  return `${formattedDay} ${month} ${formattedHours}:${formattedMinutes}`
-}
-
 const getItems = (items) => {
   return items
-    .map((item) => `${item.quantity}x ${item.title}${item.variation.title ? `(${item.variation.title})` : ''}`)
+    ?.map((item) => `${item.quantity}x ${item.title}${item.variation.title ? `(${item.variation.title})` : ''}`)
     .join(', ')
 }
 
-const Item = ({ item, navigation, currentTheme, configuration, onPressReview }) => {
+const Item = ({ item, navigation, currentTheme, configuration, isLast }) => {
   useSubscription(
     gql`
       ${subscriptionOrder}
@@ -124,87 +107,44 @@ const Item = ({ item, navigation, currentTheme, configuration, onPressReview }) 
     }
   )
   const { t } = useTranslation()
-  const isCancelled = item.orderStatus === 'CANCELLED' || item.orderStatus === 'CANCELLEDBYREST'
+  const isCancelled =
+    item.orderStatus === 'CANCELLED' ||
+    item.orderStatus === 'CANCELLEDBYREST' ||
+    item.orderStatus === 'REJECTED'
   const statusLabel = t(getOrderStatusLabelKey(item.orderStatus))
 
   return (
     <TouchableOpacity
       activeOpacity={0.75}
-      onPress={() =>
-        navigation.navigate('OrderDetail', {
-          _id: item._id,
-          currencySymbol: configuration.currencySymbol,
-          restaurant: item.restaurant,
-          user: item.user
-        })
-      }
-      style={styles(currentTheme).orderRow}
+      onPress={() => navigation.navigate('OrderDetail', { _id: item?._id })}
+      style={[styles(currentTheme).orderRow, isLast && styles().orderRowLast]}
     >
       <View style={styles().etaBlock}>
-        <TextDefault H5 bolder textColor={isCancelled ? '#FF8A80' : '#FFFFFF'} isRTL>
+        <TextDefault H5 bolder textColor={isCancelled ? '#FF453A' : '#FFFFFF'} isRTL>
           {statusLabel}
         </TextDefault>
       </View>
 
       <View style={styles(currentTheme).rowBody}>
         <CachedImage
-          style={styles(currentTheme).restaurantImage}
+          style={styles(currentTheme).restaurantImage1}
           resizeMode='cover'
           source={{ uri: item?.restaurant?.image }}
         />
         <View style={styles(currentTheme).textContainer2}>
-          <View style={styles(currentTheme).rowBody}>
-            <View style={[styles().subContainerLeft, { flex: 1 }]}>
-              <TextDefault textColor='#FFFFFF' bolder numberOfLines={1} isRTL>
-                {item.restaurant.name}
-              </TextDefault>
-            </View>
-            <View style={styles(currentTheme).subContainerRight}>
-              <TextDefault textColor='#FFFFFF' bolder isRTL>
-                {formatMoney(item.orderAmount, configuration.currencySymbol)}
-              </TextDefault>
-            </View>
-          </View>
-          <TextDefault numberOfLines={1} textColor={MUTED} small isRTL>
-            {isCancelled
-              ? `${t('cancelledOn')} ${formatDeliveredAt(item.cancelledAt || item.completionTime)}`
-              : `${t('deliveredOn')} ${formatDeliveredAt(item.deliveredAt)}`}
+          <TextDefault textColor='#FFFFFF' bolder numberOfLines={1} isRTL>
+            {item?.restaurant?.name}
           </TextDefault>
-          <TextDefault numberOfLines={1} textColor={MUTED} small isRTL>
+          <TextDefault numberOfLines={2} textColor={MUTED} small isRTL>
             {getItems(item.items)}
           </TextDefault>
         </View>
-      </View>
-
-      <View style={styles().rateOrderContainer}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles(currentTheme).subContainerButton}
-          onPress={() => navigation.navigate('Reorder', { item })}
-        >
-          <TextDefault textColor='#FFFFFF' H5 bolder center>
-            {t('reOrder')}
+        <View style={styles(currentTheme).subContainerRight}>
+          <TextDefault textColor='#FFFFFF' bolder isRTL>
+            {formatMoney(item.orderAmount, configuration.currencySymbol)}
           </TextDefault>
-        </TouchableOpacity>
-      </View>
-
-      {!isCancelled ? (
-        <View style={styles(currentTheme).starsContainer}>
-          <TextDefault small bolder textColor='#FFFFFF' isRTL>
-            {t('tapToRate')}
-          </TextDefault>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {[1, 2, 3, 4, 5].map((index) => (
-              <StarIcon
-                disabled={Boolean(item?.review)}
-                key={`star-icon-${index}`}
-                isFilled={index <= item?.review?.rating}
-                onPress={() => onPressReview(item, index)}
-              />
-            ))}
-          </View>
         </View>
-      ) : null}
+      </View>
     </TouchableOpacity>
   )
 }

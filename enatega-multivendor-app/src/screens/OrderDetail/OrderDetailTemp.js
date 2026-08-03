@@ -238,32 +238,6 @@ function OrderDetail(props) {
             </TextDefault>
           </View>
         </View>
-        {order.orderStatus === 'DELIVERED' && !order.review && (
-          <View style={styles().orderReceipt}>
-            <TextDefault textColor={currentTheme.fontMainColor} H4 bolder style={alignment.MBsmall}>
-              {t('anySuggestion')}
-            </TextDefault>
-            <TextDefault textColor={currentTheme.fontSecondColor} bold small style={[alignment.MBsmall, alignment.MTsmall]}>
-              {t('reviewRegardingOrder')}
-            </TextDefault>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles().floatView, { justifyContent: 'center' }]}
-              onPress={() =>
-                props?.navigation.navigate('RateAndReview', {
-                  _id: order._id,
-                  restaurant: restaurant,
-                  user: user
-                })
-              }
-            >
-              <MaterialIcons name='rate-review' size={scale(15)} color={currentTheme.iconColorPink} />
-              <TextDefault textColor={currentTheme.iconColorPink} style={[alignment.MBsmall, alignment.MTsmall, alignment.ML10]} bold center>
-                {t('writeAReview')}
-              </TextDefault>
-            </TouchableOpacity>
-          </View>
-        )}
       </ScrollView>
       <View
         style={{

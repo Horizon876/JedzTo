@@ -559,7 +559,7 @@ export default function ChangeAddress() {
           {gpsLoading && item.type === 'gps' ? (
             <ActivityIndicator size="small" color={ACCENT} />
           ) : (
-            <Ionicons name={iconName} size={scale(18)} color={MUTED} />
+            <Ionicons name={iconName} size={scale(18)} color={ACCENT} />
           )}
         </View>
         <View style={themedStyles.addressTextWrap}>
@@ -601,20 +601,28 @@ export default function ChangeAddress() {
         {t('locationTypeDetails')}
       </TextDefault>
 
-      <View style={themedStyles.typeGrid}>
-        {BUILDING_TYPES.map((type) => {
+      <View style={themedStyles.typeList}>
+        {BUILDING_TYPES.map((type, index) => {
           const active = selectedLabel === type.value
+          const isLast = index === BUILDING_TYPES.length - 1
           return (
             <TouchableOpacity
               key={type.value}
-              activeOpacity={0.8}
-              style={[themedStyles.typeChip, active && themedStyles.typeChipActive]}
+              activeOpacity={0.75}
+              style={[themedStyles.typeRow, isLast && themedStyles.typeRowLast]}
               onPress={() => setSelectedLabel(type.value)}
+              accessibilityRole='radio'
+              accessibilityState={{ selected: active }}
             >
-              <Ionicons name={type.icon} size={scale(18)} color={active ? ACCENT : MUTED} />
-              <TextDefault bolder textColor={active ? ACCENT : '#FFFFFF'}>
+              <View style={[themedStyles.typeIcon, active && themedStyles.addressIconActive]}>
+                <Ionicons name={type.icon} size={scale(18)} color={active ? ACCENT : MUTED} />
+              </View>
+              <TextDefault bolder textColor='#FFFFFF' style={themedStyles.typeRowLabel}>
                 {t(type.value)}
               </TextDefault>
+              <View style={[themedStyles.radioOuter, active && themedStyles.radioOuterSelected]}>
+                {active ? <View style={themedStyles.radioInner} /> : null}
+              </View>
             </TouchableOpacity>
           )
         })}
@@ -624,10 +632,10 @@ export default function ChangeAddress() {
         activeOpacity={0.85}
         style={themedStyles.confirmButton}
         onPress={handleContinueToDetails}
-        accessibilityRole="button"
+        accessibilityRole='button'
         accessibilityLabel={t('continueBtn')}
       >
-        <TextDefault bolder textColor="#FFFFFF">
+        <TextDefault bolder textColor='#FFFFFF'>
           {t('continueBtn')}
         </TextDefault>
       </TouchableOpacity>

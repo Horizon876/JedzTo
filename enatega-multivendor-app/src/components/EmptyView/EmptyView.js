@@ -34,30 +34,34 @@ const EmptyView = ({
           <TextDefault bolder center B700 textColor={resolvedText}>
             {t(title)}
           </TextDefault>
-          <TextDefault center textColor={resolvedText}>
-            {t(description)}
-          </TextDefault>
+          {description ? (
+            <TextDefault center textColor={resolvedText}>
+              {t(description)}
+            </TextDefault>
+          ) : null}
         </View>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={[styles(currentTheme).emptyButton, accentColor ? { backgroundColor: accentColor } : null]}
-          onPress={() =>
-            navigation.navigate({
-              name: navigateTo,
-              merge: true
-            })
-          }
-        >
-          <TextDefault
-            textColor={accentColor ? '#FFFFFF' : currentTheme.black}
-            bolder
-            B700
-            center
-            uppercase
+        {buttonText ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles(currentTheme).emptyButton, accentColor ? { backgroundColor: accentColor } : null]}
+            onPress={() =>
+              navigation.navigate({
+                name: navigateTo,
+                merge: true
+              })
+            }
           >
-            {t(buttonText)}
-          </TextDefault>
-        </TouchableOpacity>
+            <TextDefault
+              textColor={accentColor ? '#FFFFFF' : currentTheme.black}
+              bolder
+              B700
+              center
+              uppercase
+            >
+              {t(buttonText)}
+            </TextDefault>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   )

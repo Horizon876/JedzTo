@@ -15,7 +15,7 @@ export default function CustomContinueButton({
       className={`py-5 min-w-72 lg:px-52 rounded-[80] items-center justify-center my-auto mt-8 ${props.className}`}
       style={[{ backgroundColor: appTheme.primary }, style]}
     >
-      <Text className="text-[16px]">{title}</Text>
+      <Text className="text-[16px] font-bold text-white">{title}</Text>
     </TouchableOpacity>
   );
 }

@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   getNationalDigits,
   formatPhoneNumber,
-  isValidPhoneNumber,
-  getPhoneExample
+  isValidPhoneNumber
 } from '../utils/phone';
 
 const PhoneNumberInput = ({
@@ -40,8 +39,7 @@ const PhoneNumberInput = ({
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (digits && region && !isValidPhoneNumber(digits, region)) {
-        const example = getPhoneExample(region);
-        setError(example ? t('mobileErrFormat', { example }) : t('mobileErr2'));
+        setError(t('mobileErr2'));
       }
     }, 700);
   };

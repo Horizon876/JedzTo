@@ -26,7 +26,7 @@ const styles = (props = null) =>
     },
     emptyButton: {
       backgroundColor: props !== null ? props?.newheaderColor : 'transparent',
-      width: '70%',
+      width: '88%',
       height: scale(40),
       borderRadius: 50,
       justifyContent: 'center',

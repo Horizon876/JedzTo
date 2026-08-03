@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from 'react'
+import React, { useCallback, useContext } from 'react'
 import { View, TouchableOpacity, FlatList } from 'react-native'
 import { useSubscription } from '@apollo/client'
 import gql from 'graphql-tag'
@@ -7,7 +7,7 @@ import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import TextDefault from '../Text/TextDefault/TextDefault'
 import TextError from '../Text/TextError/TextError'
-import styles, { ACCENT, BG, MUTED } from './styles'
+import styles, { ACCENT, SURFACE, MUTED } from './styles'
 import { useTranslation } from 'react-i18next'
 import ConfigurationContext from '../../context/Configuration'
 import { formatMoney } from '../../utils/formatMoney'
@@ -34,21 +34,25 @@ const ActiveOrders = ({ navigation, loading, error, activeOrders }) => {
       buttonText={'emptyActiveOrdersBtn'}
       navigateTo='Discovery'
       accentColor={ACCENT}
-      backgroundColor={BG}
+      backgroundColor={SURFACE}
       textColor='#FFFFFF'
     />
   )
 
   const renderItem = useCallback(
-    ({ item }) => (
-      <Item item={item} navigation={navigation} currentTheme={currentTheme} configuration={configuration} />
+    ({ item, index }) => (
+      <Item
+        item={item}
+        navigation={navigation}
+        currentTheme={currentTheme}
+        configuration={configuration}
+        isLast={index === (activeOrders?.length ?? 0) - 1}
+      />
     ),
-    [configuration, currentTheme, navigation]
+    [activeOrders?.length, configuration, currentTheme, navigation]
   )
-  const emptyState = useMemo(() => emptyView(), [])
-
   if (networkStatusActiveOrders === 1) {
-    return <Spinner size={'small'} backColor={BG} spinnerColor={ACCENT} />
+    return <Spinner size={'small'} backColor={SURFACE} spinnerColor={ACCENT} />
   }
   if (error) return <TextError text={error.message} />
 
@@ -57,7 +61,8 @@ const ActiveOrders = ({ navigation, loading, error, activeOrders }) => {
       data={activeOrders}
       renderItem={renderItem}
       keyExtractor={(item) => item._id}
-      ListEmptyComponent={emptyState}
+      ListEmptyComponent={emptyView}
+      style={{ backgroundColor: SURFACE, flex: 1 }}
       contentContainerStyle={styles().listContent}
       refreshing={networkStatusActiveOrders === 4}
       onRefresh={() => networkStatusActiveOrders === 7 && reFetchOrders()}
@@ -75,7 +80,7 @@ const getItems = (items) => {
     .join(', ')
 }
 
-const Item = ({ item, navigation, currentTheme, configuration }) => {
+const Item = ({ item, navigation, currentTheme, configuration, isLast }) => {
   const { t } = useTranslation()
 
   useSubscription(
@@ -91,7 +96,7 @@ const Item = ({ item, navigation, currentTheme, configuration }) => {
     <TouchableOpacity
       activeOpacity={0.75}
       onPress={() => navigation.navigate('OrderDetail', { _id: item?._id })}
-      style={styles(currentTheme).orderRow}
+      style={[styles(currentTheme).orderRow, isLast && styles().orderRowLast]}
     >
       <View style={styles().etaBlock}>
         <TextDefault H5 bolder textColor='#FFFFFF' isRTL>

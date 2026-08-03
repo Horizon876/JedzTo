@@ -2,7 +2,7 @@ import { useState, useContext } from 'react'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import { emailRegex, passRegex, nameRegex } from '../../utils/regex'
-import { isValidPhoneNumber, getPhoneExample, toE164 } from '../../utils/phone'
+import { isValidPhoneNumber, toE164 } from '../../utils/phone'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import gql from 'graphql-tag'
@@ -86,8 +86,7 @@ const useRegister = () => {
       setPhoneError(t('mobileErr1'))
       result = false
     } else if (!isValidPhoneNumber(phone, country?.cca2)) {
-      const example = getPhoneExample(country?.cca2)
-      setPhoneError(example ? t('mobileErrFormat', { example }) : t('mobileErr2'))
+      setPhoneError(t('mobileErr2'))
       result = false
     }
 

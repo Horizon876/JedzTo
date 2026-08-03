@@ -76,6 +76,31 @@ const styles = (props = null) =>
       justifyContent: 'center',
       alignItems: 'center'
     },
+    orderToggleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#333333',
+      borderRadius: scale(16),
+      padding: scale(2),
+      borderWidth: 1,
+      borderColor: '#404040'
+    },
+    orderToggleSegment: {
+      minWidth: scale(52),
+      height: scale(28),
+      borderRadius: scale(14),
+      paddingHorizontal: scale(12),
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: scale(5)
+    },
+    orderToggleSegmentActive: {
+      backgroundColor: '#FFFFFF'
+    },
+    orderToggleLabel: {
+      marginTop: 1
+    },
     trailingArea: {
       flexDirection: 'row',
       alignItems: 'center',

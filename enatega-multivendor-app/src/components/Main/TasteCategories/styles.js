@@ -12,7 +12,6 @@ const styles = () =>
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       paddingHorizontal: scale(16)
     },
     scrollContent: {
@@ -31,7 +30,12 @@ const styles = () =>
       borderRadius: scale(34),
       overflow: 'hidden',
       justifyContent: 'center',
-      alignItems: 'center'
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent'
+    },
+    tileSelected: {
+      borderColor: '#00A8FF'
     },
     image: {
       width: '100%',

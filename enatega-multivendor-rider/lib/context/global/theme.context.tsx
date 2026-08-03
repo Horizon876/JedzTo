@@ -36,14 +36,8 @@ export default function AppThemeProvidor({
   const colorScheme = Appearance.getColorScheme();
 
   // States
-  const [currentTheme, setCurrentTheme] = useState<app_theme>("light");
-  const [appTheme, setAppTheme] = useState(
-    colorScheme === "dark"
-      ? Colors.dark
-      : colorScheme === "light"
-        ? Colors.light
-        : Colors.light,
-  );
+  const [currentTheme, setCurrentTheme] = useState<app_theme>("dark");
+  const [appTheme, setAppTheme] = useState(Colors.dark);
 
   // Methods
   async function getCurrentAppTheme() {

@@ -145,6 +145,9 @@ export const GET_RESTAURANTS_BY_OWNER = gql`
         image
         address
         isActive
+        isSuspended
+        suspendedReason
+        commissionRate
         deliveryTime
         minimumOrder
         username
@@ -219,6 +222,18 @@ export const GET_RESTAURANT_PROFILE = gql`
       minimumOrder
       tax
       isAvailable
+      pausedUntil
+      isSuspended
+      suspendedReason
+      commissionRate
+      holidayExceptions {
+        _id
+        date
+        closed
+        open
+        close
+        label
+      }
       stripeDetailsSubmitted
       openingTimes {
         day
@@ -251,7 +266,7 @@ export const GET_RESTAURANT_PROFILE = gql`
   }
 `;
 
-
+export const GET_RESTAURANT_BY_ID = GET_RESTAURANT_PROFILE;
 
 export const GET_CLONED_RESTAURANTS_PAGINATED = gql`
   query getClonedRestaurantsPaginated(

@@ -1,5 +1,16 @@
 import mongoose from 'mongoose'
 
+const holidayExceptionSchema = new mongoose.Schema(
+  {
+    date: { type: String, required: true }, // YYYY-MM-DD
+    closed: { type: Boolean, default: true },
+    open: { type: String, default: null },
+    close: { type: String, default: null },
+    label: { type: String, default: '' }
+  },
+  { _id: true }
+)
+
 const openingTimesSchema = new mongoose.Schema(
   {
     day: String,
@@ -13,10 +24,6 @@ const openingTimesSchema = new mongoose.Schema(
   { _id: false }
 )
 
-// A delivery area is a named circle (town / district) with its own fee, e.g.
-// "Myślenice 0 zł", "Jawornik 4 zł". An address that falls outside every area
-// of a restaurant means that restaurant simply does not deliver there and is
-// hidden from the customer's listing.
 const deliveryAreaSchema = new mongoose.Schema({
   name: { type: String, required: true },
   fee: { type: Number, default: 0, min: 0 },
@@ -44,6 +51,17 @@ const restaurantSchema = new mongoose.Schema(
       coordinates: { type: [Number], default: [19.9381, 49.8339] }
     },
     deliveryTime: { type: Number, default: 30 },
+    pickupTime: { type: Number, default: 20 },
+    defaultEta: { type: Number, default: 45 },
+    isBusy: { type: Boolean, default: false },
+    /** Platform commission % for this restaurant (e.g. 10 = 10%). */
+    commissionRate: { type: Number, default: 10, min: 0, max: 100 },
+    /** Kill-switch: suspended restaurants cannot receive orders. */
+    isSuspended: { type: Boolean, default: false },
+    suspendedReason: { type: String, default: '' },
+    /** When set in the future, restaurant is paused until this time. */
+    pausedUntil: { type: Date, default: null },
+    holidayExceptions: { type: [holidayExceptionSchema], default: [] },
     minimumOrder: { type: Number, default: 25 },
     tax: { type: Number, default: 8 },
     shopType: { type: String, default: 'restaurant' },
@@ -52,6 +70,8 @@ const restaurantSchema = new mongoose.Schema(
     reviewCount: { type: Number, default: 0 },
     reviewAverage: { type: Number, default: 4.5 },
     freeDelivery: { type: Boolean, default: false },
+    /** Free delivery when cart reaches this amount (0 = use freeDelivery flag only). */
+    freeDeliveryFrom: { type: Number, default: 0 },
     acceptVouchers: { type: Boolean, default: true },
     isAvailable: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
@@ -77,9 +97,6 @@ const restaurantSchema = new mongoose.Schema(
     },
     rating: { type: Number, default: 4.5 },
     deliveryAreas: { type: [deliveryAreaSchema], default: [] },
-    // Snapshot of the menu the customer app is served. The owner edits the live
-    // Category/Food collections freely and only pushes them here by hitting
-    // "publish", so half-finished edits never reach customers.
     publishedMenu: { type: mongoose.Schema.Types.Mixed, default: null },
     menuPublishedAt: { type: Date, default: null },
     hasUnpublishedMenuChanges: { type: Boolean, default: false }

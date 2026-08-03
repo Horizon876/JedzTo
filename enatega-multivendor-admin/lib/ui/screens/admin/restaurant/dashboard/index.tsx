@@ -7,6 +7,7 @@ import RestaurantStatesTable from '@/lib/ui/screen-components/protected/restaura
 import DashboardSubHeader from '@/lib/ui/screen-components/protected/restaurant/dashboard/sub-header';
 import DashboardDateFilter from '@/lib/ui/useable-components/date-filter';
 
+import RestaurantSalesReportCard from '@/lib/ui/screen-components/protected/restaurant/dashboard/sales-report';
 import { IDateFilter } from '@/lib/utils/interfaces';
 import { useState } from 'react';
 
@@ -35,6 +36,7 @@ export default function AdminRestaurantDashboard() {
         setDateFilter={setDateFilter}
       />
 
+      <RestaurantSalesReportCard />
       <OrderStats dateFilter={dateFilter} />
       <GrowthOverView />
       <RestaurantStatesTable dateFilter={dateFilter} />

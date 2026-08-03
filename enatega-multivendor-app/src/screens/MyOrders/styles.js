@@ -13,7 +13,7 @@ const styles = (props = null) =>
     },
     container: {
       flex: 1,
-      backgroundColor: BG
+      backgroundColor: SURFACE
     },
     topSurface: {
       backgroundColor: SURFACE,
@@ -41,7 +41,7 @@ const styles = (props = null) =>
     },
     listContainer: {
       flex: 1,
-      backgroundColor: BG
+      backgroundColor: SURFACE
     },
     visibleTabContent: {
       flex: 1
@@ -52,27 +52,30 @@ const styles = (props = null) =>
     },
     tabContainer: {
       width: '100%',
-      height: scale(42),
+      alignSelf: 'center',
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: '#333333',
+      borderRadius: scale(16),
+      padding: scale(2),
+      borderWidth: 1,
+      borderColor: '#404040',
+      marginBottom: scale(10)
+    },
+    toggleSegment: {
+      flex: 1,
+      height: scale(32),
+      borderRadius: scale(14),
+      paddingHorizontal: scale(14),
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
-      alignSelf: 'center',
-      backgroundColor: SURFACE,
-      borderRadius: scale(22),
-      padding: scale(3),
-      marginBottom: scale(8)
+      alignItems: 'center'
     },
-    activeTabStyles: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: '#2C2C2E',
-      borderRadius: scale(20)
+    toggleSegmentActive: {
+      backgroundColor: '#FFFFFF'
     },
-    inactiveTabStyles: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: scale(20)
+    toggleLabel: {
+      marginTop: 1
     },
     emptyButton: {
       width: '85%',

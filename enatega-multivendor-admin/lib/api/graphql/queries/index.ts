@@ -24,3 +24,4 @@ export * from './shop-types'
 export * from './audit';
 export * from './delivery-areas';
 export * from './menu-publishing';
+export * from './settlements';

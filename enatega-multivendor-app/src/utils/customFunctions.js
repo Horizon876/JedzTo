@@ -105,24 +105,40 @@ function calculateAmount(costType, deliveryRate, distance) {
 }
 
 const isOpen = (restaurant) => {
-  if (restaurant?.openingTimes?.length < 1 || !restaurant?.isAvailable) return false
-  const date = new Date()
-  const day = date.getDay()
-  const hours = date.getHours()
-  const minutes = date.getMinutes()
-  const todaysTimings = restaurant?.openingTimes?.find((o) => o.day === ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][day])
+  if (!restaurant?.isAvailable) return false
+  if (restaurant?.isSuspended) return false
+  if (restaurant?.pausedUntil) {
+    const until = new Date(restaurant.pausedUntil)
+    if (!Number.isNaN(until.getTime()) && until.getTime() > Date.now()) {
+      return false
+    }
+  }
+
+  const now = new Date()
+  const ymd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const holiday = (restaurant?.holidayExceptions || []).find(
+    (h) => String(h.date) === ymd
+  )
+  if (holiday?.closed) return false
+
+  if (restaurant?.openingTimes?.length < 1) return true
+  const day = now.getDay()
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+  const todaysTimings = restaurant?.openingTimes?.find(
+    (o) => o.day === ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][day]
+  )
   if (!todaysTimings) return false
 
-  // Check all time slots for today's timings
   return todaysTimings.times.some((t) => {
     const startHour = Number(t.startTime[0])
     const startMinute = Number(t.startTime[1])
     const endHour = Number(t.endTime[0])
     const endMinute = Number(t.endTime[1])
 
-    const startTime = startHour * 60 + startMinute // Convert to minutes
-    const endTime = endHour * 60 + endMinute // Convert to minutes
-    const currentTime = hours * 60 + minutes // Convert to minutes
+    const startTime = startHour * 60 + startMinute
+    const endTime = endHour * 60 + endMinute
+    const currentTime = hours * 60 + minutes
 
     return currentTime >= startTime && currentTime <= endTime
   })

@@ -2,7 +2,7 @@ import { AuthContext } from '@/lib/context/global/auth.context'
 import { useWorkMode } from '@/lib/context/global/work-mode.context'
 import SpinnerComponent from '@/lib/ui/useable-components/spinner'
 import { Redirect, Tabs } from 'expo-router'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { HapticTab } from '@/lib/ui/useable-components/HapticTab'
 import { HomeIcon, PersonIcon } from '@/lib/ui/useable-components/svg'
@@ -38,7 +38,7 @@ const RootLayout = () => {
       key={workMode}
       screenOptions={{
         tabBarActiveTintColor: appTheme.primary,
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarInactiveTintColor: '#8E8E93',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
@@ -48,8 +48,9 @@ const RootLayout = () => {
         },
         tabBarStyle: {
           position: 'relative',
-          backgroundColor: '#111827',
-          borderTopWidth: 0,
+          backgroundColor: '#121212',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: '#2C2C2E',
           height: tabBarHeight,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 8),
@@ -57,7 +58,7 @@ const RootLayout = () => {
             ios: {
               shadowColor: '#000',
               shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.12,
+              shadowOpacity: 0.2,
               shadowRadius: 6,
             },
             android: {

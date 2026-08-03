@@ -1,6 +1,6 @@
 /* eslint-disable indent */
 import React, { useState, useEffect, useContext, useRef, useCallback, useMemo } from 'react'
-import { View, ScrollView, TouchableOpacity, StatusBar, Platform, TextInput, Alert } from 'react-native'
+import { View, ScrollView, TouchableOpacity, StatusBar, Platform, TextInput, Alert, Linking, Text } from 'react-native'
 import { useMutation, useQuery } from '@apollo/client'
 import gql from 'graphql-tag'
 import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context'
@@ -42,6 +42,11 @@ import { IMAGE_LINK } from '../../utils/constants'
 
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
+import useEnvVars from '../../../environment'
+import { endEphemeralGuestAfterOrder } from '../../utils/customerDetailsStorage'
+
+const FALLBACK_TERMS_URL = 'https://multivendor.enatega.com/terms'
+const FALLBACK_PRIVACY_URL = 'https://multivendor.enatega.com/privacy'
 
 const PLACEORDER = gql`
   ${placeOrder}
@@ -63,20 +68,39 @@ function Checkout(props) {
   const themeContext = useContext(ThemeContext)
   const { location } = useContext(LocationContext)
   const { t, i18n } = useTranslation()
-  const currentTheme = {
-    isRTL: i18n.dir() === 'rtl',
-    ...theme[themeContext.ThemeValue]
-  }
+  const currentTheme = useMemo(
+    () => ({
+      isRTL: i18n.dir() === 'rtl',
+      ...theme[themeContext.ThemeValue]
+    }),
+    [i18n, themeContext.ThemeValue]
+  )
   const voucherModalRef = useRef(null)
+  const scrollRef = useRef(null)
+  const paymentSectionY = useRef(0)
   const [loadingData, setLoadingData] = useState(true)
   const [minimumOrder, setMinimumOrder] = useState('')
   const [orderDate] = useState(new Date())
   const [deliveryCharges, setDeliveryCharges] = useState(0)
   const [voucherCode, setVoucherCode] = useState('')
   const tip = null
-  const [paymentMode, setPaymentMode] = useState('COD')
+  const [paymentMode, setPaymentMode] = useState(null)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [termsError, setTermsError] = useState(false)
+  const COD_CASH_FEE = 2
+  const { TERMS_AND_CONDITIONS, PRIVACY_POLICY } = useEnvVars()
 
-  const { loading, data } = useRestaurant(cartRestaurant)
+  const openLegalUrl = useCallback(async (url, fallback) => {
+    const target = url || fallback
+    try {
+      const can = await Linking.canOpenURL(target)
+      if (can) await Linking.openURL(target)
+      else if (fallback && fallback !== target) await Linking.openURL(fallback)
+    } catch (_) {}
+  }, [])
+  const cashFee = paymentMode === 'COD' ? COD_CASH_FEE : 0
+
+  const { loading, data, error: restaurantError, refetch } = useRestaurant(cartRestaurant)
   const [loadingOrder, setLoadingOrder] = useState(false)
   const [isModalVisible, setisModalVisible] = useState(false)
   const [orderConfirmedTime, setOrderConfirmedTime] = useState(null)
@@ -185,8 +209,13 @@ function Checkout(props) {
         return
       }
 
-      const latOrigin = Number(data?.restaurant.location.coordinates[1])
-      const lonOrigin = Number(data?.restaurant.location.coordinates[0])
+      const coords = data?.restaurant?.location?.coordinates
+      if (!coords || location?.latitude == null || location?.longitude == null) {
+        return
+      }
+
+      const latOrigin = Number(coords[1])
+      const lonOrigin = Number(coords[0])
       const latDest = Number(location.latitude)
       const longDest = Number(location.longitude)
       const distance = calculateDistance(latOrigin, lonOrigin, latDest, longDest)
@@ -200,7 +229,16 @@ function Checkout(props) {
     return () => {
       isSubscribed = false
     }
-  }, [data, location, quoteData])
+  }, [
+    data?.restaurant?._id,
+    data?.restaurant?.location?.coordinates,
+    location?.latitude,
+    location?.longitude,
+    quoteData?.deliveryQuote?.available,
+    quoteData?.deliveryQuote?.fee,
+    configuration.costType,
+    configuration.deliveryRate
+  ])
 
   useFocusEffect(
     useCallback(() => {
@@ -212,6 +250,7 @@ function Checkout(props) {
   )
 
   useEffect(() => {
+    const title = t('titleCheckout')
     props?.navigation.setOptions({
       headerTitle: () => (
         <TextDefault
@@ -221,7 +260,7 @@ function Checkout(props) {
             ...textStyles.Bolder
           }}
         >
-          {t('titleCheckout')}
+          {title}
         </TextDefault>
       ),
       headerRight: null,
@@ -249,32 +288,25 @@ function Checkout(props) {
         />
       )
     })
-  }, [props?.navigation, t])
+  }, [i18n.language]) // eslint-disable-line react-hooks/exhaustive-deps -- setOptions must not depend on navigation identity
 
   useEffect(() => {
-    if (!data) return
+    if (!cartRestaurant) {
+      setLoadingData(false)
+      return
+    }
+    if (!data?.restaurant) return
     didFocus()
-  }, [data])
-  useEffect(() => {
-    async function Track() {
-      await Analytics.track(Analytics.events.NAVIGATE_TO_CART)
-    }
-    Track()
-  }, [])
-  useEffect(() => {
-    if (cart && cartCount > 0) {
-      if (data && data?.restaurant && (!data?.restaurant?.isAvailable || !isOpen(data?.restaurant))) {
-        showAvailablityMessage()
-      }
-    }
-  }, [data])
-
+    // Depend on restaurant id only — `data` from useRestaurant used to be a new
+    // object every render and this effect + updateCart caused an infinite loop.
+  }, [cartRestaurant, data?.restaurant?._id])
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
-  if (!connect) return <ErrorView refetchFunctions={[]} />
+  const populatedCart = useMemo(() => populateCart(restaurant, cart), [cart, restaurant])
+
   const showAvailablityMessage = () => {
     Alert.alert(
       '',
-      `${data?.restaurant.name} closed at the moment`,
+      `${data?.restaurant?.name || ''} closed at the moment`,
       [
         {
           text: 'Go back to restaurants',
@@ -293,6 +325,37 @@ function Checkout(props) {
         }
       ],
       { cancelable: true }
+    )
+  }
+
+  useEffect(() => {
+    async function Track() {
+      await Analytics.track(Analytics.events.NAVIGATE_TO_CART)
+    }
+    Track()
+  }, [])
+  useEffect(() => {
+    if (cart && cartCount > 0) {
+      if (data && data?.restaurant && (!data?.restaurant?.isAvailable || !isOpen(data?.restaurant))) {
+        showAvailablityMessage()
+      }
+    }
+  }, [data])
+
+  if (!connect) return <ErrorView refetchFunctions={[]} />
+
+  if (!loading && !loadingData && (restaurantError || !cartRestaurant || (data && !data?.restaurant))) {
+    return (
+      <ErrorView
+        errorMessage={t('restaurantClosed') || 'Restaurant unavailable. Clear the cart and choose again.'}
+        refetchFunctions={[
+          async () => {
+            await clearCart()
+            props?.navigation.navigate({ name: 'Main', merge: true })
+          },
+          refetch
+        ]}
+      />
     )
   }
 
@@ -328,6 +391,7 @@ function Checkout(props) {
         ]
       })
       clearCart()
+      void endEphemeralGuestAfterOrder()
     } else if (paymentMode === 'PAYPAL') {
       props?.navigation.replace('Paypal', {
         _id: data?.placeOrder.orderId,
@@ -336,6 +400,7 @@ function Checkout(props) {
     } else if (paymentMode === 'STRIPE') {
       props?.navigation.replace('StripeCheckout', {
         _id: data?.placeOrder.orderId,
+        orderMongoId: data?.placeOrder._id,
         amount: data?.placeOrder.orderAmount,
         email: data?.placeOrder.user.email,
         currency: configuration.currency
@@ -379,7 +444,7 @@ function Checkout(props) {
   }
 
   function calculateTotal() {
-    return pricing.total.toFixed(2)
+    return (pricing.total + cashFee).toFixed(2)
   }
 
   function validateOrder() {
@@ -417,6 +482,14 @@ function Checkout(props) {
       FlashMessage({
         message: t('setPaymentMethod')
       })
+      scrollRef.current?.scrollTo({
+        y: Math.max(paymentSectionY.current - scale(12), 0),
+        animated: true
+      })
+      return false
+    }
+    if (!acceptedTerms) {
+      setTermsError(true)
       return false
     }
     if (!profile?.phone?.length) {
@@ -474,7 +547,7 @@ function Checkout(props) {
           paymentMethod: paymentMode,
           couponCode: coupon ? coupon.title : null,
           tipping: +calculateTip(),
-          taxationAmount: 0,
+          taxationAmount: cashFee,
           orderDate: orderDate,
           isPickedUp: isPickup,
           deliveryCharges: isPickup ? 0 : deliveryCharges,
@@ -516,16 +589,46 @@ function Checkout(props) {
   }
 
   async function didFocus() {
-    const { restaurant } = data
-    setMinimumOrder(restaurant.minimumOrder)
+    const currentRestaurant = data?.restaurant
+    if (!currentRestaurant) {
+      setLoadingData(false)
+      return
+    }
+    setMinimumOrder(currentRestaurant.minimumOrder)
     try {
       if (cartCount && cart) {
-        const transformCart = populateCart(restaurant, cart)
+        const transformCart = populateCart(currentRestaurant, cart)
+        const updatedItems = transformCart.map((item) => {
+          const line = item.cartItem || item
+          return {
+            key: line.key,
+            _id: line._id,
+            quantity: Number(line.quantity) || 0,
+            variation: { _id: line.variation?._id },
+            addons: line.addons || [],
+            specialInstructions: line.specialInstructions || '',
+            removedIngredients: line.removedIngredients || []
+          }
+        })
+
+        const serialize = (items) =>
+          JSON.stringify(
+            (items || [])
+              .map((item) => ({
+                key: item.key,
+                id: item._id,
+                variation: item.variation?._id,
+                quantity: Number(item.quantity || 0)
+              }))
+              .sort((a, b) => String(a.key).localeCompare(String(b.key)))
+          )
 
         if (props?.navigation.isFocused()) {
-          const updatedItems = transformCart.map((item) => item.cartItem)
-          if (updatedItems.length === 0) await clearCart()
-          await updateCart(updatedItems)
+          if (updatedItems.length === 0) {
+            await clearCart()
+          } else if (serialize(updatedItems) !== serialize(cart)) {
+            await updateCart(updatedItems)
+          }
           setLoadingData(false)
           if (cart.length !== updatedItems.length) {
             FlashMessage({
@@ -539,6 +642,7 @@ function Checkout(props) {
         }
       }
     } catch (e) {
+      setLoadingData(false)
       FlashMessage({
         message: e.message
       })
@@ -568,7 +672,26 @@ function Checkout(props) {
     )
   }
 
-  const deliveryTime = restaurant?.deliveryTime || 0
+  const deliveryTime = (() => {
+    if (isPickup) {
+      return Number(
+        restaurant?.currentEta ||
+          restaurant?.pickupTime ||
+          restaurant?.deliveryTime ||
+          0
+      )
+    }
+    if (restaurant?.currentEta != null) {
+      return Number(restaurant.currentEta) || 0
+    }
+    if (restaurant?.defaultEta != null) {
+      return Number(restaurant.defaultEta) || 0
+    }
+    const prep = Number(restaurant?.pickupTime || 0)
+    const travel = Number(restaurant?.deliveryTime || 0)
+    const sum = prep + travel
+    return sum > 0 ? sum : Number(restaurant?.deliveryTime || 0)
+  })()
   const addressLabel =
     location?.deliveryAddress === 'Current Location'
       ? t('currentLocation')
@@ -577,10 +700,8 @@ function Checkout(props) {
     location?.label === 'Current Location'
       ? t('currentLocation')
       : location?.label
-        ? t(location.label)
+        ? t(String(location.label))
         : t('deliveryAddress')
-  const populatedCart = useMemo(() => populateCart(restaurant, cart), [cart, restaurant])
-
   if (loading || loadingData || mutateOrderLoading || loadingOrder) return loadginScreen()
 
   return (
@@ -589,8 +710,9 @@ function Checkout(props) {
         {!!cart.length && (
           <>
             <ScrollView
+              ref={scrollRef}
               showsVerticalScrollIndicator={false}
-              style={styles().flex}
+              style={styles().scrollArea}
               contentContainerStyle={styles().content}
             >
               <View style={styles().restaurantStrip}>
@@ -608,7 +730,7 @@ function Checkout(props) {
               {!isPickup && (
                 <View style={styles(currentTheme).section}>
                   <View style={styles(currentTheme).sectionHeader}>
-                    <TextDefault H5 bolder style={styles().sectionTitle} isRTL>
+                    <TextDefault bolder style={styles().sectionTitle} isRTL>
                       {t('deliveryAddress')}
                     </TextDefault>
                   </View>
@@ -635,9 +757,63 @@ function Checkout(props) {
                 </View>
               )}
 
-              <View style={styles().orderSection}>
+              {(profile?.name || profile?.phone) && (
+                <View style={styles(currentTheme).section}>
+                  <View style={styles(currentTheme).sectionHeader}>
+                    <TextDefault bolder style={styles().sectionTitle} isRTL>
+                      {t('customerDetailsSection')}
+                    </TextDefault>
+                  </View>
+                  {!!profile?.name && (
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => props?.navigation.navigate('GuestCheckout')}
+                      style={styles(currentTheme).surfaceRow}
+                    >
+                      <Ionicons name='person-outline' size={scale(22)} color='#00A8FF' />
+                      <View style={styles().surfaceRowBody}>
+                        <TextDefault style={styles().surfaceRowLabel} isRTL>
+                          {t('customerDetailsName')}
+                        </TextDefault>
+                        <TextDefault style={styles().surfaceRowValue} numberOfLines={1} isRTL>
+                          {profile.name}
+                        </TextDefault>
+                      </View>
+                      <Feather
+                        name={currentTheme?.isRTL ? 'chevron-left' : 'chevron-right'}
+                        size={20}
+                        color='#8E8E93'
+                      />
+                    </TouchableOpacity>
+                  )}
+                  {!!profile?.phone && (
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => props?.navigation.navigate('GuestCheckout')}
+                      style={styles(currentTheme).surfaceRow}
+                    >
+                      <Ionicons name='call-outline' size={scale(22)} color='#00A8FF' />
+                      <View style={styles().surfaceRowBody}>
+                        <TextDefault style={styles().surfaceRowLabel} isRTL>
+                          {t('customerDetailsPhone')}
+                        </TextDefault>
+                        <TextDefault style={styles().surfaceRowValue} numberOfLines={1} isRTL>
+                          {profile.phone}
+                        </TextDefault>
+                      </View>
+                      <Feather
+                        name={currentTheme?.isRTL ? 'chevron-left' : 'chevron-right'}
+                        size={20}
+                        color='#8E8E93'
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              <View style={styles(currentTheme).section}>
                 <View style={styles(currentTheme).sectionHeader}>
-                  <TextDefault H5 bolder style={styles().sectionTitleInline} isRTL>
+                  <TextDefault bolder style={styles().sectionTitle} isRTL>
                     {t('yourOrder')}
                   </TextDefault>
                 </View>
@@ -688,68 +864,98 @@ function Checkout(props) {
               </View>
 
               {(isLoggedIn || profile) && (
-                <View style={styles(currentTheme).section}>
+                <View
+                  style={styles(currentTheme).section}
+                  onLayout={(e) => {
+                    paymentSectionY.current = e.nativeEvent.layout.y
+                  }}
+                >
                   <View style={styles(currentTheme).sectionHeader}>
-                    <TextDefault H5 bolder style={styles().sectionTitle} isRTL>
+                    <TextDefault bolder style={styles().sectionTitle} isRTL>
                       {t('titlePayment')}
                     </TextDefault>
                   </View>
                   <View style={styles().paymentList}>
                     <PaymentModeOption
                       title={t('cod')}
+                      hint={`+${formatMoney(COD_CASH_FEE, configuration.currencySymbol)}`}
                       icon={'money'}
                       selected={paymentMode === 'COD'}
                       theme={currentTheme}
                       onSelect={() => setPaymentMode('COD')}
-                      isLast={!restaurant?.stripeDetailsSubmitted}
                     />
-                    {restaurant?.stripeDetailsSubmitted && (
-                      <PaymentModeOption
-                        title={t('Stripe')}
-                        icon={'credit-card'}
-                        selected={paymentMode === 'STRIPE'}
-                        theme={currentTheme}
-                        onSelect={() => setPaymentMode('STRIPE')}
-                        isLast
-                      />
-                    )}
+                    <PaymentModeOption
+                      title={t('payOnline')}
+                      hint={`+${formatMoney(0, configuration.currencySymbol)}`}
+                      icon={'credit-card'}
+                      selected={paymentMode === 'STRIPE'}
+                      theme={currentTheme}
+                      onSelect={() => setPaymentMode('STRIPE')}
+                      isLast
+                    />
                   </View>
                 </View>
               )}
 
               <View style={styles(currentTheme).section}>
+                <View style={styles(currentTheme).sectionHeader}>
+                  <TextDefault bolder style={styles().sectionTitle} isRTL>
+                    {t('voucher')}
+                  </TextDefault>
+                </View>
                 {!coupon ? (
                   <TouchableOpacity
                     activeOpacity={0.75}
-                    style={styles(currentTheme).voucherRow}
+                    style={styles(currentTheme).surfaceRow}
                     onPress={() => onModalOpen(voucherModalRef)}
                   >
                     <MaterialCommunityIcons
                       name='ticket-confirmation-outline'
-                      size={22}
+                      size={scale(22)}
                       color='#00A8FF'
                     />
-                    <TextDefault bold style={styles().voucherAction}>
-                      {t('applyVoucher')}
-                    </TextDefault>
+                    <View style={styles().surfaceRowBody}>
+                      <TextDefault style={styles().surfaceRowLabel} isRTL>
+                        {t('addVoucher')}
+                      </TextDefault>
+                      <TextDefault style={styles().surfaceRowValue} isRTL>
+                        {t('applyVoucher')}
+                      </TextDefault>
+                    </View>
+                    <Feather
+                      name={currentTheme?.isRTL ? 'chevron-left' : 'chevron-right'}
+                      size={20}
+                      color='#8E8E93'
+                    />
                   </TouchableOpacity>
                 ) : (
-                  <View style={styles(currentTheme).voucherRow}>
-                    <MaterialCommunityIcons name='ticket-confirmation' size={22} color='#00A8FF' />
-                    <TextDefault bold style={styles().voucherText} numberOfLines={1}>
-                      {coupon.title}
-                    </TextDefault>
-                    <TouchableOpacity onPress={() => setCoupon(null)}>
-                      <TextDefault bold style={styles().voucherAction}>
-                        {t('remove')}
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    style={styles(currentTheme).surfaceRow}
+                    onPress={() => setCoupon(null)}
+                  >
+                    <MaterialCommunityIcons
+                      name='ticket-confirmation'
+                      size={scale(22)}
+                      color='#00A8FF'
+                    />
+                    <View style={styles().surfaceRowBody}>
+                      <TextDefault style={styles().surfaceRowLabel} isRTL>
+                        {t('voucher')}
                       </TextDefault>
-                    </TouchableOpacity>
-                  </View>
+                      <TextDefault style={styles().surfaceRowValue} numberOfLines={1} isRTL>
+                        {coupon.title}
+                      </TextDefault>
+                    </View>
+                    <TextDefault bold style={styles().voucherAction}>
+                      {t('remove')}
+                    </TextDefault>
+                  </TouchableOpacity>
                 )}
               </View>
             </ScrollView>
 
-            <View style={[styles().footer, { paddingBottom: Math.max(footerPad, scale(10)) + scale(8) }]}>
+            <View style={[styles().footer, { paddingBottom: Math.max(footerPad, scale(8)) }]}>
               <View style={styles().summaryInner}>
                 <View style={styles(currentTheme).summaryRow}>
                   <TextDefault style={styles().summaryLabel} isRTL>
@@ -781,6 +987,16 @@ function Checkout(props) {
                     </TextDefault>
                   </View>
                 ) : null}
+                {paymentMode ? (
+                  <View style={styles(currentTheme).summaryRow}>
+                    <TextDefault style={styles().summaryLabel} isRTL>
+                      {t('cashPaymentFee')}
+                    </TextDefault>
+                    <TextDefault style={styles().summaryValue} bolder isRTL>
+                      {formatMoney(cashFee, configuration.currencySymbol)}
+                    </TextDefault>
+                  </View>
+                ) : null}
                 <View style={styles(currentTheme).totalRow}>
                   <TextDefault textColor='#FFFFFF' bolder H4 isRTL>
                     {t('total')}
@@ -790,24 +1006,83 @@ function Checkout(props) {
                   </TextDefault>
                 </View>
                 <TouchableOpacity
-                  disabled={loadingOrder}
                   activeOpacity={0.85}
                   onPress={() => {
-                    if (validateOrder()) {
-                      setLoadingOrder(true)
-                      onPayment()
-                    }
+                    setAcceptedTerms((v) => {
+                      const next = !v
+                      if (next) setTermsError(false)
+                      return next
+                    })
                   }}
-                  style={[styles().button, loadingOrder && styles().buttonDisabled]}
+                  style={styles(currentTheme).termsRow}
                 >
-                  {!loadingOrder ? (
-                    <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
-                      {t('placeOrder')}
-                    </TextDefault>
-                  ) : (
-                    <Spinner backColor={'transparent'} spinnerColor='#fff' />
-                  )}
+                  <View
+                    style={[
+                      styles().termsCheckbox,
+                      acceptedTerms && styles().termsCheckboxChecked,
+                      termsError && !acceptedTerms && styles().termsCheckboxError
+                    ]}
+                  >
+                    {acceptedTerms ? <Feather name='check' size={scale(14)} color='#FFFFFF' /> : null}
+                  </View>
+                  <Text
+                    style={[
+                      styles(currentTheme).termsText,
+                      termsError && !acceptedTerms && styles().termsTextError
+                    ]}
+                  >
+                    {t('acceptTermsPrivacyStart')}
+                    <Text
+                      style={[styles().termsLink, termsError && !acceptedTerms && styles().termsLinkError]}
+                      onPress={() => openLegalUrl(TERMS_AND_CONDITIONS, FALLBACK_TERMS_URL)}
+                    >
+                      {t('acceptTermsLinkTerms')}
+                    </Text>
+                    {t('acceptTermsPrivacyMiddle')}
+                    <Text
+                      style={[styles().termsLink, termsError && !acceptedTerms && styles().termsLinkError]}
+                      onPress={() => openLegalUrl(PRIVACY_POLICY, FALLBACK_PRIVACY_URL)}
+                    >
+                      {t('acceptTermsLinkPrivacy')}
+                    </Text>
+                  </Text>
                 </TouchableOpacity>
+                {!paymentMode ? (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      scrollRef.current?.scrollTo({
+                        y: Math.max(paymentSectionY.current - scale(12), 0),
+                        animated: true
+                      })
+                    }}
+                    style={styles().button}
+                  >
+                    <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
+                      {t('setPaymentMethod')}
+                    </TextDefault>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    disabled={loadingOrder}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      if (validateOrder()) {
+                        setLoadingOrder(true)
+                        onPayment()
+                      }
+                    }}
+                    style={[styles().button, loadingOrder && styles().buttonDisabled]}
+                  >
+                    {!loadingOrder ? (
+                      <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
+                        {t('placeOrder')}
+                      </TextDefault>
+                    ) : (
+                      <Spinner backColor={'transparent'} spinnerColor='#fff' />
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </>

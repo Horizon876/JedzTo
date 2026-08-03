@@ -35,12 +35,13 @@ import useNetworkStatus from '../../utils/useNetworkStatus'
 import ModalDropdown from '../../components/Picker/ModalDropdown'
 import { useRestaurantQueries } from '../../ui/hooks/useRestaurantQueries'
 import DiscoveryHero from '../../components/Main/DiscoveryHero/DiscoveryHero'
-import TasteCategories, { TASTE_CATEGORIES } from '../../components/Main/TasteCategories/TasteCategories'
+import TasteCategories from '../../components/Main/TasteCategories/TasteCategories'
 import NoDeliveryArea from '../../components/Main/NoDeliveryArea/NoDeliveryArea'
 import {
   getJedzToLocalRestaurantPreviews,
   jedzToLocalRestaurantsEnabled
 } from '../../utils/jedztoLocalRestaurants'
+import { restaurantMatchesCuisine } from '../../utils/cuisineMatch'
 
 const RESTAURANTS = gql`
   ${restaurantListPreview}
@@ -66,13 +67,17 @@ function Main(props) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   // Outside delivery area → user can still browse restaurants in pickup-only mode.
   const [pickupOnlyBrowsing, setPickupOnlyBrowsing] = useState(false)
+  const [selectedCuisine, setSelectedCuisine] = useState(null)
   const modalRef = useRef(null)
   const navigation = useNavigation()
   const themeContext = useContext(ThemeContext)
-  const currentTheme = {
-    isRTL: i18n.dir() === 'rtl',
-    ...theme[themeContext.ThemeValue]
-  }
+  const currentTheme = useMemo(
+    () => ({
+      isRTL: i18n.dir() === 'rtl',
+      ...theme[themeContext.ThemeValue]
+    }),
+    [i18n.language, themeContext.ThemeValue]
+  )
   const { getCurrentLocation } = useLocation()
   const { getAddress } = useGeocoding()
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
@@ -80,19 +85,21 @@ function Main(props) {
   const locationData = location
   const [citiesModalVisible, setCitiesModalVisible] = useState(false)
   const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
-  // Null coords skip delivery-area filtering on the API (pickup browsing).
+  // Pickup (and out-of-area pickup browsing) skips delivery-area filtering
+  // so restaurants outside the user's zone still appear for collection.
+  const skipDeliveryFilter = isPickup || pickupOnlyBrowsing
   const restaurantVariables = useMemo(() => ({
-    longitude: pickupOnlyBrowsing ? null : (location?.longitude || null),
-    latitude: pickupOnlyBrowsing ? null : (location?.latitude || null),
+    longitude: skipDeliveryFilter ? null : (location?.longitude || null),
+    latitude: skipDeliveryFilter ? null : (location?.latitude || null),
     shopType: null,
     ip: null
-  }), [location?.longitude, location?.latitude, pickupOnlyBrowsing])
+  }), [location?.longitude, location?.latitude, skipDeliveryFilter])
   const browseLocation = useMemo(
     () =>
-      pickupOnlyBrowsing
+      skipDeliveryFilter
         ? { ...location, latitude: null, longitude: null }
         : location,
-    [location, pickupOnlyBrowsing]
+    [location, skipDeliveryFilter]
   )
   const {
     data: remoteRestaurantData,
@@ -198,6 +205,13 @@ function Main(props) {
     }
     Track()
   }, [])
+  const onOpen = useCallback(() => {
+    const modal = modalRef.current
+    if (modal) {
+      modal.open()
+    }
+  }, [])
+
   useLayoutEffect(() => {
     navigation.setOptions(
       navigationOptions({
@@ -208,14 +222,12 @@ function Main(props) {
         navigation
       })
     )
-  }, [navigation, currentTheme])
-
-  const onOpen = () => {
-    const modal = modalRef.current
-    if (modal) {
-      modal.open()
-    }
-  }
+  }, [
+    onOpen,
+    currentTheme.themeBackground,
+    currentTheme.darkBgFont,
+    currentTheme.iconColor
+  ])
 
   const addressIcons = {
     House: CustomHomeIcon,
@@ -336,18 +348,12 @@ function Main(props) {
           activeOpacity={0.5}
           style={styles(currentTheme).addButton}
           onPress={() => {
-            if (isLoggedIn) {
-              navigation.navigate('AddNewAddress', {
-                prevScreen: 'Main',
-                ...locationData
-              })
-            } else {
-              const modal = modalRef.current
-              modal?.close()
-              props?.navigation.navigate({
-                name: 'CreateAccount'
-              })
-            }
+            const modal = modalRef.current
+            modal?.close()
+            navigation.navigate('AddNewAddress', {
+              prevScreen: 'Main',
+              ...locationData
+            })
           }}
         >
           <View style={styles(currentTheme).addressSubContainer}>
@@ -414,26 +420,15 @@ function Main(props) {
     navigation.navigate('Search')
   }, [navigation])
 
-  const handleTasteCuisinePress = useCallback(
-    (cuisine) => {
-      navigation.navigate('Menu', { collection: cuisine.name, selectedType: 'restaurant', queryType: 'restaurant' })
-    },
-    [navigation]
-  )
+  const handleTasteCuisinePress = useCallback((cuisine) => {
+    setSelectedCuisine(cuisine?.name || null)
+  }, [])
 
-  const handleTasteSeeAllPress = useCallback(() => {
-    navigation.navigate('Collection', {
-      collectionType: 'Restaurants',
-      title: t('findYourTaste'),
-      data: TASTE_CATEGORIES,
-      showHeader: false
-    })
-  }, [navigation, t])
-
-  const sortedRestaurantOrders = useMemo(
-    () => sortRestaurantsByOpenStatus(restaurantorders || []),
-    [restaurantorders]
-  )
+  const sortedRestaurantOrders = useMemo(() => {
+    const sorted = sortRestaurantsByOpenStatus(restaurantorders || [])
+    if (!selectedCuisine) return sorted
+    return sorted.filter((restaurant) => restaurantMatchesCuisine(restaurant, selectedCuisine))
+  }, [restaurantorders, selectedCuisine])
 
   const userFriendlyErrorMessage = getErrorMessage(error)
   // Keep the loading UI up while a transient failure is being auto-retried so
@@ -441,7 +436,7 @@ function Main(props) {
   const isAutoRetrying = !!error && isTransientNetworkError && !retriesExhausted
   const showErrorView = !!error && (!isTransientNetworkError || retriesExhausted)
   const showDiscoveryFeed =
-    loading || isAutoRetrying || restaurantordersLoading || restaurantorders?.length > 0 || pickupOnlyBrowsing
+    loading || isAutoRetrying || restaurantordersLoading || restaurantorders?.length > 0 || skipDeliveryFilter
   const showNoDeliveryArea = !showDiscoveryFeed && !!location
 
   const handleChangeAddressFromEmpty = useCallback(() => {
@@ -468,10 +463,7 @@ function Main(props) {
     navigation.setOptions({
       tabBarStyle: showNoDeliveryArea ? { display: 'none' } : visibleTabBar
     })
-    return () => {
-      navigation.setOptions({ tabBarStyle: visibleTabBar })
-    }
-  }, [navigation, showNoDeliveryArea])
+  }, [showNoDeliveryArea])
 
   if (showErrorView) return <ErrorView refetchFunctions={[refetchRestaurants, refetchBanners]} errorMessage={userFriendlyErrorMessage} />
   return (
@@ -505,17 +497,21 @@ function Main(props) {
                           onSearchPress={handleHeroSearchPress}
                         />
                         <TasteCategories
+                          selectedCuisine={selectedCuisine}
                           onCuisinePress={handleTasteCuisinePress}
-                          onSeeAllPress={handleTasteSeeAllPress}
                         />
                       </View>
                       <View style={{ gap: scale(16), backgroundColor: '#121212', paddingTop: scale(12), paddingHorizontal: scale(16) }}>
                         {restaurantordersLoading || isRefreshing ? (
                           <MainLoadingUI />
-                        ) : (
+                        ) : sortedRestaurantOrders.length > 0 ? (
                           sortedRestaurantOrders.map((item) => (
                             <NewRestaurantCard key={item._id} {...item} fullWidth isOpen={isOpen(item)} />
                           ))
+                        ) : (
+                          <TextDefault center textColor='#9CA3AF' style={{ paddingVertical: scale(24) }}>
+                            {t('noRestaurants')}
+                          </TextDefault>
                         )}
                       </View>
                     </ScrollView>

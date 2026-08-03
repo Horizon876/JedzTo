@@ -8,7 +8,7 @@ const buildStyles = (props = null) =>
   StyleSheet.create({
     flex: {
       flex: 1,
-      backgroundColor: props != null ? props.themeBackground : 'white'
+      backgroundColor: '#1C1C1E'
     },
     navbarContainer: {
       paddingBottom: 0,
@@ -24,7 +24,7 @@ const buildStyles = (props = null) =>
       zIndex: 1
     },
     sectionHeader: {
-      backgroundColor: props != null ? props.themeBackground : '#fff'
+      backgroundColor: '#121212'
     },
     sectionHeaderText: {
       textTransform: 'capitalize',
@@ -35,7 +35,7 @@ const buildStyles = (props = null) =>
       paddingHorizontal: scale(15)
     },
     restaurantItems: {
-      backgroundColor: props != null ? props.themeBackground : 'white'
+      backgroundColor: '#1C1C1E'
     },
     popularItemCards: {
       ...alignment.PTlarge,
@@ -54,19 +54,19 @@ const buildStyles = (props = null) =>
     deal: {
       width: '80%',
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      backgroundColor: props != null ? props.themeBackground : 'white',
+      backgroundColor: '#1C1C1E',
       alignItems: 'center',
       gap: scale(5)
     },
     searchDealSection: {
       // position: 'relative',
-      backgroundColor: props != null ? props.themeBackground : 'white',
+      backgroundColor: '#1C1C1E',
       paddingVertical: scale(10),
       ...alignment.PRmedium,
       ...alignment.PLsmall
     },
     dealDescription: {
-      backgroundColor: props != null ? props.themeBackground : 'white',
+      backgroundColor: '#1C1C1E',
       ...alignment.PBsmall,
       ...alignment.PRxSmall
     },
@@ -88,23 +88,46 @@ const buildStyles = (props = null) =>
       paddingTop: scale(5),
       maxWidth: '100%',
       ...alignment.MRxSmall,
-      backgroundColor: props != null ? props.themeBackground : 'white'
+      backgroundColor: '#1C1C1E'
     },
     addToCart: {
-      width: scale(25),
-      height: scale(25),
-      borderRadius: scale(12.5),
+      width: scale(32),
+      height: scale(32),
+      borderRadius: scale(16),
       backgroundColor: props !== null ? props.newFontcolor : '#f0f0f0',
-
       justifyContent: 'center',
+      alignItems: 'center'
+    },
+    qtyStepper: {
       alignItems: 'center',
-      ...alignment.MRxSmall
+      backgroundColor: '#2C2C2E',
+      borderRadius: scale(999),
+      padding: scale(3),
+      gap: scale(2)
+    },
+    qtyStepperBtn: {
+      width: scale(30),
+      height: scale(30),
+      borderRadius: scale(15),
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    qtyStepperMinus: {
+      backgroundColor: '#3A3A3A'
+    },
+    qtyStepperPlus: {
+      backgroundColor: '#00A8FF'
+    },
+    qtyStepperValue: {
+      minWidth: scale(24),
+      justifyContent: 'center',
+      alignItems: 'center'
     },
 
     sectionSeparator: {
       width: '100%',
       height: scale(15),
-      backgroundColor: props != null ? props.themeBackground : 'white'
+      backgroundColor: '#1C1C1E'
     },
 
     buttonContainer: {

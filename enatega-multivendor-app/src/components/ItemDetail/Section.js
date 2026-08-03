@@ -41,7 +41,9 @@ const Section = ({ itemId, restaurantId }) => {
   return (
     <View>
       <View style={{ marginBottom: scale(15) }}>
-        <TextDefault H4 bolder textColor={currentTheme.newFontcolor} isRTL>{t('frequentlyBoughtTogether')}</TextDefault>
+        <TextDefault H4 bolder textColor='#FFFFFF' isRTL>
+          {t('frequentlyBoughtTogether')}
+        </TextDefault>
       </View>
       {slicedItems.map((id) => (
         <Row key={id} id={id} restaurant={result?.restaurant} />
