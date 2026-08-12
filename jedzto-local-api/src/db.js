@@ -35,16 +35,22 @@ async function connectExternal(uri, timeoutMs) {
  * 2) In development, if unavailable and ALLOW_MEMORY_MONGO, start
  *    mongodb-memory-server with a **persistent on-disk dbPath** so
  *    restaurants/orders survive API restarts.
- * 3) In production, never fall back — exit with a clear error.
+ * 3) In production, never fall back — and never touch the local .data/
+ *    directory (the Docker image runs as a non-root `node` user, so
+ *    mkdir would otherwise crash the boot with EACCES).
  */
 export async function connectMongo() {
-  const dbPath = ensureDir(path.resolve(MONGO_MEMORY_DB_PATH))
-  const hasLocalData = dirHasData(dbPath)
+  const memoryFallbackAllowed = NODE_ENV !== 'production' && ALLOW_MEMORY_MONGO
+  const dbPath = path.resolve(MONGO_MEMORY_DB_PATH)
+  // Only inspect the local path when we might actually use it — creating
+  // the directory on Render (read-only / non-root) was the EACCES crash.
+  const hasLocalData = memoryFallbackAllowed ? dirHasData(dbPath) : false
   // Once we already have local data, don't wait long for a missing mongod.
-  const externalTimeoutMs = hasLocalData ? 800 : 2500
+  const externalTimeoutMs = hasLocalData ? 800 : 8000
 
   try {
-    console.log(`[mongo] connecting ${MONGODB_URI}`)
+    // Never log the full URI — it embeds credentials (mongodb+srv://user:pass@…).
+    console.log('[mongo] connecting (external)')
     await connectExternal(MONGODB_URI, externalTimeoutMs)
     console.log('[mongo] connected (external)')
     return { mode: 'external', uri: MONGODB_URI, persistent: true }
@@ -58,10 +64,10 @@ export async function connectMongo() {
       /* ignore */
     }
 
-    if (NODE_ENV === 'production' || !ALLOW_MEMORY_MONGO) {
+    if (!memoryFallbackAllowed) {
       console.error(
-        `[mongo] FATAL: cannot connect to ${MONGODB_URI} (${reason}).\n` +
-          '  Start MongoDB or set MONGODB_URI. Persistence fallback is disabled.'
+        `[mongo] FATAL: cannot connect to MongoDB (${reason}).\n` +
+          '  Check MONGODB_URI / Network Access in Atlas. Persistence fallback is disabled in production.'
       )
       throw err
     }
@@ -69,6 +75,8 @@ export async function connectMongo() {
     console.warn(
       `[mongo] external unavailable (${reason}) — starting persistent local Mongo`
     )
+
+    ensureDir(dbPath)
 
     const { MongoMemoryServer } = await import('mongodb-memory-server')
 

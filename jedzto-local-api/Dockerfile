@@ -21,7 +21,8 @@ COPY . .
 # Uploads only matter for the local-disk fallback (no Cloudinary configured).
 # Render's filesystem is ephemeral, but creating the dir keeps the app from
 # crashing if it's ever used before Cloudinary env vars are set.
-RUN mkdir -p uploads
+# chown is required because the process runs as the non-root `node` user.
+RUN mkdir -p uploads && chown -R node:node uploads
 
 # Runs as the (already low-privilege) `node` user baked into this base image.
 USER node
