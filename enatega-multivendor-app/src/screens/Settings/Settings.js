@@ -95,6 +95,10 @@ function Settings(props) {
   })
 
   useEffect(() => {
+    setDarkTheme(themeContext.ThemeValue === 'Dark')
+  }, [themeContext.ThemeValue])
+
+  useEffect(() => {
     async function Track() {
       await Analytics.track(Analytics.events.NAVIGATE_TO_SETTINGS)
     }
@@ -107,7 +111,7 @@ function Settings(props) {
     StatusBar.setBarStyle(
       themeContext.ThemeValue === 'Dark' ? 'light-content' : 'dark-content'
     )
-  }, [])
+  }, [currentTheme.menuBar, themeContext.ThemeValue])
 
   useEffect(() => {
     props?.navigation.setOptions({
@@ -187,10 +191,13 @@ function Settings(props) {
   }
 
   function toggleTheme() {
-    if (themeContext.ThemeValue === 'Pink') {
+    if (themeContext.ThemeValue === 'Dark') {
+      themeContext.dispatch({ type: 'Pink' })
+      setDarkTheme(false)
+    } else {
       themeContext.dispatch({ type: 'Dark' })
-    } else themeContext.dispatch({ type: 'Pink' })
-    setDarkTheme(!darkTheme)
+      setDarkTheme(true)
+    }
   }
 
   async function selectLanguage() {

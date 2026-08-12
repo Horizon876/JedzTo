@@ -5,7 +5,8 @@ import ActiveOrders from '../../components/MyOrders/ActiveOrders'
 import PastOrders from '../../components/MyOrders/PastOrders'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
-import styles, { BG } from './styles'
+import { statusBarStyleForTheme } from '../../utils/statusBar'
+import styles, { ACCENT } from './styles'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import { MaterialIcons } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
@@ -16,7 +17,6 @@ import { useTranslation } from 'react-i18next'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 
-const ACCENT_COLOR = '#00A8FF'
 const MUTED_ICON = '#9CA3AF'
 
 function MyOrders(props) {
@@ -32,7 +32,13 @@ function MyOrders(props) {
     reFetchOrders
   } = useContext(OrdersContext)
   const themeContext = useContext(ThemeContext)
-  const currentTheme = { isRTL: i18n.dir() === 'rtl', ...theme[themeContext.ThemeValue] }
+  const currentTheme = {
+    isRTL: i18n.dir() === 'rtl',
+    ThemeValue: themeContext.ThemeValue,
+    ...theme[themeContext.ThemeValue]
+  }
+  const themed = styles(currentTheme)
+  const { BG, text } = themed.colors
   const [selectedTab, setSelectedTab] = useState('current')
   const inset = useSafeAreaInsets()
   const showBack = props?.route?.name === 'MyOrders'
@@ -47,11 +53,11 @@ function MyOrders(props) {
 
   useFocusEffect(
     useCallback(() => {
-      StatusBar.setBarStyle('light-content')
+      StatusBar.setBarStyle(statusBarStyleForTheme(themeContext.ThemeValue))
       if (Platform.OS === 'android') {
         StatusBar.setBackgroundColor(BG)
       }
-    }, [])
+    }, [BG, themeContext.ThemeValue])
   )
 
   useEffect(() => {
@@ -60,18 +66,15 @@ function MyOrders(props) {
     })
   }, [props?.navigation])
 
-  const TabButton = ({ text, onPress, isSelected }) => (
+  const TabButton = ({ text: label, onPress, isSelected }) => (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
-      accessibilityLabel={t(text)}
-      style={[
-        styles(currentTheme).toggleSegment,
-        isSelected && styles(currentTheme).toggleSegmentActive
-      ]}
+      accessibilityLabel={t(label)}
+      style={[themed.toggleSegment, isSelected && themed.toggleSegmentActive]}
     >
-      <TextDefault bolder small textColor={isSelected ? ACCENT_COLOR : MUTED_ICON} style={styles().toggleLabel}>
-        {t(text)}
+      <TextDefault bolder small textColor={isSelected ? ACCENT : MUTED_ICON} style={themed.toggleLabel}>
+        {t(label)}
       </TextDefault>
     </TouchableOpacity>
   )
@@ -79,24 +82,24 @@ function MyOrders(props) {
   if (!connect) return <ErrorView refetchFunctions={[reFetchOrders]} />
 
   return (
-    <View style={styles(currentTheme).container}>
-      <View style={[styles(currentTheme).topSurface, { paddingTop: inset.top + scale(8) }]}>
-        <View style={styles(currentTheme).headerRow}>
+    <View style={themed.container}>
+      <View style={[themed.topSurface, { paddingTop: inset.top + scale(8) }]}>
+        <View style={themed.headerRow}>
           {showBack ? (
             <TouchableOpacity
-              style={styles().backButton}
+              style={themed.backButton}
               onPress={() => props?.navigation.goBack()}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MaterialIcons name='arrow-back' size={24} color='#FFFFFF' />
+              <MaterialIcons name='arrow-back' size={24} color={text} />
             </TouchableOpacity>
           ) : null}
-          <TextDefault bolder H4 textColor='#FFFFFF' style={styles().headerTitle}>
+          <TextDefault bolder H4 textColor={text} style={themed.headerTitle}>
             {t('titleOrders')}
           </TextDefault>
         </View>
 
-        <View style={styles(currentTheme).tabContainer}>
+        <View style={themed.tabContainer}>
           <TabButton
             text='current'
             onPress={() => setSelectedTab('current')}
@@ -110,10 +113,10 @@ function MyOrders(props) {
         </View>
       </View>
 
-      <View style={styles(currentTheme).listContainer}>
+      <View style={themed.listContainer}>
         <View
           pointerEvents={selectedTab === 'current' ? 'auto' : 'none'}
-          style={selectedTab === 'current' ? styles(currentTheme).visibleTabContent : styles(currentTheme).hiddenTabContent}
+          style={selectedTab === 'current' ? themed.visibleTabContent : themed.hiddenTabContent}
         >
           <ActiveOrders
             navigation={props?.navigation}
@@ -124,7 +127,7 @@ function MyOrders(props) {
         </View>
         <View
           pointerEvents={selectedTab === 'past' ? 'auto' : 'none'}
-          style={selectedTab === 'past' ? styles(currentTheme).visibleTabContent : styles(currentTheme).hiddenTabContent}
+          style={selectedTab === 'past' ? themed.visibleTabContent : themed.hiddenTabContent}
         >
           <PastOrders
             navigation={props?.navigation}

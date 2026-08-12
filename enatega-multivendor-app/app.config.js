@@ -33,7 +33,9 @@ module.exports = () => {
       buildCacheProvider: 'eas'
     },
     androidStatusBar: {
-      backgroundColor: '#000000'
+      backgroundColor: '#00000000',
+      translucent: true,
+      barStyle: 'dark-content'
     },
     splash: {
       image: './assets/splash.png',
@@ -159,9 +161,7 @@ module.exports = () => {
         projectId: '331d4e5b-b12a-434a-92ec-d6d283dc0e46'
       }
     },
-    runtimeVersion: {
-      policy: 'sdkVersion'
-    },
+    runtimeVersion: '1.1.27',
     updates: {
       url: 'https://u.expo.dev/331d4e5b-b12a-434a-92ec-d6d283dc0e46'
     }

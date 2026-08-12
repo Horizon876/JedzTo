@@ -1,13 +1,19 @@
 import { verticalScale, scale } from '../../utils/scaling'
 import { StyleSheet } from 'react-native'
 
-const BG = '#121212'
-const SURFACE = '#1C1C1E'
-const MUTED = '#8E8E93'
 const ACCENT = '#00A8FF'
 
-const styles = (props = null) =>
-  StyleSheet.create({
+const styles = (props = null) => {
+  const isDark = props?.ThemeValue === 'Dark'
+  const BG = isDark ? '#121212' : (props?.themeBackground || '#FFFFFF')
+  const SURFACE = isDark ? '#1C1C1E' : (props?.themeBackground || '#FFFFFF')
+  const MUTED = isDark ? '#8E8E93' : '#6B7280'
+  const hairline = isDark ? '#2C2C2E' : '#E5E7EB'
+  const chipBg = isDark ? '#333333' : '#F3F4F6'
+  const chipBorder = isDark ? '#404040' : '#E5E7EB'
+  const text = isDark ? '#FFFFFF' : (props?.newFontcolor || '#111827')
+
+  return StyleSheet.create({
     flex: {
       flex: 1
     },
@@ -20,7 +26,7 @@ const styles = (props = null) =>
       paddingHorizontal: scale(16),
       paddingBottom: scale(4),
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: '#2C2C2E'
+      borderBottomColor: hairline
     },
     headerRow: {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
@@ -55,11 +61,11 @@ const styles = (props = null) =>
       alignSelf: 'center',
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      backgroundColor: '#333333',
+      backgroundColor: chipBg,
       borderRadius: scale(16),
       padding: scale(2),
       borderWidth: 1,
-      borderColor: '#404040',
+      borderColor: chipBorder,
       marginBottom: scale(10)
     },
     toggleSegment: {
@@ -131,8 +137,16 @@ const styles = (props = null) =>
       height: verticalScale(25),
       alignItems: 'center',
       justifyContent: 'center'
+    },
+    colors: {
+      BG,
+      SURFACE,
+      MUTED,
+      text,
+      ACCENT
     }
   })
+}
 
 export default styles
-export { BG, SURFACE, MUTED, ACCENT }
+export { ACCENT }

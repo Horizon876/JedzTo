@@ -6,7 +6,8 @@ import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { scale } from '../../utils/scaling'
 import { theme } from '../../utils/themeColors'
-import styles, { PAGE, SURFACE, ACCENT } from './styles'
+import { statusBarStyleForTheme } from '../../utils/statusBar'
+import styles, { ACCENT } from './styles'
 import Analytics from '../../utils/analytics'
 import { HeaderBackButton } from '@react-navigation/elements'
 import { MaterialIcons } from '@expo/vector-icons'
@@ -30,8 +31,11 @@ function Favourite() {
   const themeContext = useContext(ThemeContext)
   const currentTheme = {
     isRTL: i18n.dir() === 'rtl',
+    ThemeValue: themeContext.ThemeValue,
     ...theme[themeContext.ThemeValue]
   }
+  const themed = styles(currentTheme)
+  const { PAGE, SURFACE, text } = themed.colors
   const isTabScreen = route?.name === 'Favourites'
   const { favourites, ready } = useFavourites()
 
@@ -49,7 +53,7 @@ function Favourite() {
 
   useFocusEffect(
     useCallback(() => {
-      StatusBar.setBarStyle('light-content')
+      StatusBar.setBarStyle(statusBarStyleForTheme(themeContext.ThemeValue))
       if (Platform.OS === 'android') {
         StatusBar.setBackgroundColor(PAGE)
       }
@@ -62,13 +66,13 @@ function Favourite() {
               headerTitleAlign: 'center',
               headerRight: null,
               headerStyle: { backgroundColor: SURFACE, elevation: 0 },
-              headerTitleStyle: { color: '#FFFFFF', fontWeight: 'bold' },
+              headerTitleStyle: { color: text, fontWeight: 'bold' },
               headerLeft: () => (
                 <HeaderBackButton
                   truncatedLabel=''
                   backImage={() => (
                     <View>
-                      <MaterialIcons name='arrow-back' size={25} color='#FFFFFF' />
+                      <MaterialIcons name='arrow-back' size={25} color={text} />
                     </View>
                   )}
                   onPress={() => navigationService.goBack()}
@@ -76,7 +80,7 @@ function Favourite() {
               )
             })
       })
-    }, [isTabScreen, navigation, t])
+    }, [PAGE, SURFACE, isTabScreen, navigation, t, text, themeContext.ThemeValue])
   )
 
   const { isConnected: connect } = useNetworkStatus()
@@ -87,11 +91,11 @@ function Favourite() {
   }
 
   return (
-    <View style={styles(currentTheme).screen}>
+    <View style={themed.screen}>
       {isTabScreen ? (
-        <View style={[styles(currentTheme).header, { paddingTop: insets.top + scale(8) }]}>
-          <View style={styles(currentTheme).headerTitleRow}>
-            <TextDefault bolder H4 textColor='#FFFFFF' isRTL>
+        <View style={[themed.header, { paddingTop: insets.top + scale(8) }]}>
+          <View style={themed.headerTitleRow}>
+            <TextDefault bolder H4 textColor={text} isRTL>
               {t('Favourite')}
             </TextDefault>
             {Icons.favourites({ color: ACCENT, size: scale(16) })}
@@ -103,9 +107,9 @@ function Favourite() {
         data={favouriteRestaurants}
         keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
-        style={styles(currentTheme).list}
+        style={themed.list}
         contentContainerStyle={[
-          styles(currentTheme).contentContainer,
+          themed.contentContainer,
           { paddingBottom: Math.max(insets.bottom, scale(12)) + (isTabScreen ? scale(72) : scale(16)) }
         ]}
         ListEmptyComponent={
@@ -116,7 +120,7 @@ function Favourite() {
             navigateTo='Discovery'
             accentColor={ACCENT}
             backgroundColor={PAGE}
-            textColor='#FFFFFF'
+            textColor={text}
           />
         }
         renderItem={({ item }) => (

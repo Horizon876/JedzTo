@@ -59,7 +59,7 @@ import { useTranslation } from 'react-i18next'
 import Collection from '../screens/Collection/Collection'
 import Account from '../screens/Account/Account'
 import EditName from '../components/Account/EditName/EditName'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
 // import HypCheckout from '../screens/Hyp/HypCheckout'
 import { SLIDE_RIGHT_WITH_CURVE_ANIM, SLIDE_UP_RIGHT_ANIMATION, AIMATE_FROM_CENTER } from '../utils/constants'
 
@@ -279,13 +279,14 @@ function BottomTabNavigator() {
           paddingVertical: 10,
           paddingBottom: Platform.OS === 'ios' ? 25 : 15,
           height: Platform.OS === 'ios' ? 90 : 70,
-          backgroundColor: '#1A1A1A',
-          borderTopWidth: 0,
+          backgroundColor: themeContext.ThemeValue === 'Dark' ? '#1A1A1A' : '#FFFFFF',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: themeContext.ThemeValue === 'Dark' ? '#2C2C2E' : '#E5E7EB',
           elevation: 0,
           shadowOpacity: 0
         },
         tabBarActiveTintColor: '#00A8FF',
-        tabBarInactiveTintColor: '#5B8FB8',
+        tabBarInactiveTintColor: themeContext.ThemeValue === 'Dark' ? '#5B8FB8' : '#6B7280',
         tabBarLabelStyle: { fontSize: 12 },
         headerRight: () => <RightButton icon='cart' iconColor={currentTheme.iconColor} menuHeader={false} t={t} />
       })}

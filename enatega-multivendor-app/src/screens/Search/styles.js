@@ -2,12 +2,16 @@ import { StyleSheet } from 'react-native'
 import { scale } from '../../utils/scaling'
 
 const ACCENT = '#00A8FF'
-const BG = '#1C1C1E'
-const SURFACE = '#2C2C2E'
-const MUTED = '#8E8E93'
 
-const styles = () =>
-  StyleSheet.create({
+const styles = (props = null) => {
+  const isDark = props?.ThemeValue === 'Dark'
+  const BG = isDark ? '#1C1C1E' : (props?.themeBackground || '#FFFFFF')
+  const SURFACE = isDark ? '#2C2C2E' : '#F3F4F6'
+  const MUTED = isDark ? '#8E8E93' : '#6B7280'
+  const text = isDark ? '#FFFFFF' : (props?.newFontcolor || '#111827')
+  const hairline = isDark ? '#2C2C2E' : '#E5E7EB'
+
+  return StyleSheet.create({
     fullScreen: {
       flex: 1,
       backgroundColor: BG
@@ -43,7 +47,7 @@ const styles = () =>
       paddingVertical: 0,
       textAlignVertical: 'center',
       fontSize: scale(15),
-      color: '#FFFFFF'
+      color: text
     },
     cancelButton: {
       paddingVertical: scale(8),
@@ -74,7 +78,7 @@ const styles = () =>
       paddingHorizontal: scale(2),
       gap: scale(12),
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: '#2C2C2E'
+      borderBottomColor: hairline
     },
     historyIcon: {
       width: scale(28),
@@ -97,7 +101,7 @@ const styles = () =>
       paddingHorizontal: scale(2),
       gap: scale(12),
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: '#2C2C2E'
+      borderBottomColor: hairline
     },
     resultMeta: {
       flex: 1,
@@ -120,8 +124,16 @@ const styles = () =>
     emptyState: {
       paddingVertical: scale(28),
       alignItems: 'center'
+    },
+    colors: {
+      BG,
+      SURFACE,
+      MUTED,
+      text,
+      ACCENT
     }
   })
+}
 
 export default styles
-export { ACCENT, MUTED, BG }
+export { ACCENT }

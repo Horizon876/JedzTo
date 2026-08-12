@@ -1,14 +1,18 @@
 import { StyleSheet } from 'react-native'
 import { scale } from '../../utils/scaling'
 
-const BG = '#121212'
-const SURFACE = '#1C1C1E'
-const HAIRLINE = '#2C2C2E'
-const MUTED = '#8E8E93'
 const ACCENT = '#00A8FF'
 
-const styles = () =>
-  StyleSheet.create({
+const styles = (props = null) => {
+  const isDark = props?.ThemeValue === 'Dark'
+  const BG = isDark ? '#121212' : '#F3F4F6'
+  const SURFACE = isDark ? '#1C1C1E' : (props?.themeBackground || '#FFFFFF')
+  const HAIRLINE = isDark ? '#2C2C2E' : '#E5E7EB'
+  const MUTED = isDark ? '#8E8E93' : '#6B7280'
+  const text = isDark ? '#FFFFFF' : (props?.newFontcolor || '#111827')
+  const iconBg = isDark ? '#2C2C2E' : '#F3F4F6'
+
+  return StyleSheet.create({
     flex: {
       flex: 1
     },
@@ -47,7 +51,7 @@ const styles = () =>
       borderBottomColor: HAIRLINE
     },
     sectionHeaderText: {
-      color: '#FFFFFF',
+      color: text,
       fontSize: scale(13),
       lineHeight: scale(16),
       includeFontPadding: false
@@ -71,7 +75,7 @@ const styles = () =>
       width: scale(40),
       height: scale(40),
       borderRadius: scale(12),
-      backgroundColor: HAIRLINE,
+      backgroundColor: iconBg,
       alignItems: 'center',
       justifyContent: 'center'
     },
@@ -89,8 +93,17 @@ const styles = () =>
       fontSize: scale(13),
       lineHeight: scale(17),
       includeFontPadding: false
+    },
+    colors: {
+      BG,
+      SURFACE,
+      MUTED,
+      text,
+      ACCENT,
+      HAIRLINE
     }
   })
+}
 
 export default styles
-export { BG, SURFACE, MUTED, ACCENT, HAIRLINE }
+export { ACCENT }

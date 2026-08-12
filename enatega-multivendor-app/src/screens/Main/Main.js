@@ -28,6 +28,7 @@ import Spinner from '../../components/Spinner/Spinner'
 import CustomApartmentIcon from '../../assets/SVG/imageComponents/CustomApartmentIcon'
 import MainModalize from '../../components/Main/Modalize/MainModalize'
 import { getErrorMessage, isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions'
+import { statusBarStyleForTheme } from '../../utils/statusBar'
 import useGeocoding from '../../ui/hooks/useGeocoding'
 import ForceUpdate from '../../components/Update/ForceUpdate'
 
@@ -74,6 +75,7 @@ function Main(props) {
   const currentTheme = useMemo(
     () => ({
       isRTL: i18n.dir() === 'rtl',
+      ThemeValue: themeContext.ThemeValue,
       ...theme[themeContext.ThemeValue]
     }),
     [i18n.language, themeContext.ThemeValue]
@@ -185,7 +187,7 @@ function Main(props) {
     useCallback(() => {
       // Edge-to-edge: content draws behind the status bar; DiscoveryHero pads
       // with safe-area insets so address/search never collide with the clock.
-      StatusBar.setBarStyle('light-content')
+      StatusBar.setBarStyle(statusBarStyleForTheme(themeContext.ThemeValue))
       if (Platform.OS === 'android') {
         StatusBar.setTranslucent(true)
         StatusBar.setBackgroundColor('transparent')
@@ -195,7 +197,7 @@ function Main(props) {
           StatusBar.setTranslucent(false)
           StatusBar.setBackgroundColor(currentTheme.menuBar)
         }
-        StatusBar.setBarStyle(themeContext.ThemeValue === 'Dark' ? 'light-content' : 'dark-content')
+        StatusBar.setBarStyle(statusBarStyleForTheme(themeContext.ThemeValue))
       }
     }, [currentTheme.menuBar, themeContext.ThemeValue])
   )

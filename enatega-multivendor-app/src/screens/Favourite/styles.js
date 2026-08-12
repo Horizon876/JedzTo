@@ -1,13 +1,16 @@
 import { scale } from '../../utils/scaling'
 import { StyleSheet } from 'react-native'
 
-const PAGE = '#121212'
-const SURFACE = '#1C1C1E'
 const ACCENT = '#00A8FF'
-const HAIRLINE = '#2C2C2E'
 
-const styles = (props = null) =>
-  StyleSheet.create({
+const styles = (props = null) => {
+  const isDark = props?.ThemeValue === 'Dark'
+  const PAGE = isDark ? '#121212' : (props?.themeBackground || '#FFFFFF')
+  const SURFACE = isDark ? '#1C1C1E' : (props?.themeBackground || '#FFFFFF')
+  const HAIRLINE = isDark ? '#2C2C2E' : '#E5E7EB'
+  const text = isDark ? '#FFFFFF' : (props?.newFontcolor || '#111827')
+
+  return StyleSheet.create({
     flex: {
       flex: 1
     },
@@ -37,8 +40,16 @@ const styles = (props = null) =>
       paddingHorizontal: scale(16),
       paddingTop: scale(12),
       gap: scale(16)
+    },
+    colors: {
+      PAGE,
+      SURFACE,
+      text,
+      ACCENT,
+      HAIRLINE
     }
   })
+}
 
 export default styles
-export { PAGE, SURFACE, ACCENT, HAIRLINE }
+export { ACCENT }

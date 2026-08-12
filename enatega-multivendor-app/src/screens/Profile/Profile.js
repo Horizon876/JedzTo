@@ -11,46 +11,49 @@ import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
 import UserContext from '../../context/User'
+import ThemeContext from '../../ui/ThemeContext/ThemeContext'
+import { theme } from '../../utils/themeColors'
+import { statusBarStyleForTheme } from '../../utils/statusBar'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import { scale } from '../../utils/scaling'
 import analytics from '../../utils/analytics'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 import useEnvVars from '../../../environment'
-import styles, { ACCENT, SURFACE, MUTED } from './styles'
+import styles, { ACCENT } from './styles'
 
 const FALLBACK_TERMS_URL = 'https://multivendor.enatega.com/terms'
 const FALLBACK_PRIVACY_URL = 'https://multivendor.enatega.com/privacy'
 
-const SectionHeader = ({ title }) => (
-  <View style={styles().sectionHeader}>
-    <TextDefault bolder style={styles().sectionHeaderText} isRTL>
+const SectionHeader = ({ title, themedStyles }) => (
+  <View style={themedStyles.sectionHeader}>
+    <TextDefault bolder style={themedStyles.sectionHeaderText} isRTL>
       {title}
     </TextDefault>
   </View>
 )
 
-const MenuRow = ({ icon, title, detail, onPress, last = false }) => {
+const MenuRow = ({ icon, title, detail, onPress, last = false, themedStyles, muted, text }) => {
   return (
     <TouchableOpacity
       activeOpacity={0.75}
-      style={[styles().menuRow, last && styles().menuRowLast]}
+      style={[themedStyles.menuRow, last && themedStyles.menuRowLast]}
       onPress={onPress}
     >
-      <View style={styles().menuIcon}>
+      <View style={themedStyles.menuIcon}>
         <Ionicons name={icon} size={scale(20)} color={ACCENT} />
       </View>
-      <View style={styles().menuContent}>
-        <TextDefault style={styles().menuTitle} textColor='#FFFFFF' bolder numberOfLines={1} isRTL>
+      <View style={themedStyles.menuContent}>
+        <TextDefault bolder textColor={text} style={themedStyles.menuTitle} numberOfLines={1} isRTL>
           {title}
         </TextDefault>
         {detail ? (
-          <TextDefault style={styles().menuDetail} textColor={MUTED} numberOfLines={1} isRTL>
+          <TextDefault textColor={muted} style={themedStyles.menuDetail} numberOfLines={1} isRTL>
             {detail}
           </TextDefault>
         ) : null}
       </View>
-      <Ionicons name='chevron-forward' size={scale(18)} color={MUTED} />
+      <Ionicons name='chevron-forward' size={scale(18)} color={muted} />
     </TouchableOpacity>
   )
 }
@@ -61,15 +64,22 @@ function Profile(props) {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const { profile } = useContext(UserContext)
+  const themeContext = useContext(ThemeContext)
+  const currentTheme = {
+    ThemeValue: themeContext.ThemeValue,
+    ...theme[themeContext.ThemeValue]
+  }
+  const themedStyles = styles(currentTheme)
+  const { SURFACE, MUTED, text } = themedStyles.colors
   const { TERMS_AND_CONDITIONS, PRIVACY_POLICY } = useEnvVars()
 
   useFocusEffect(
     useCallback(() => {
-      StatusBar.setBarStyle('light-content')
+      StatusBar.setBarStyle(statusBarStyleForTheme(themeContext.ThemeValue))
       if (Platform.OS === 'android') {
         StatusBar.setBackgroundColor(SURFACE)
       }
-    }, [])
+    }, [SURFACE, themeContext.ThemeValue])
   )
 
   useEffect(() => {
@@ -97,22 +107,25 @@ function Profile(props) {
   if (!connect) return <ErrorView />
 
   return (
-    <View style={[styles().container, { paddingBottom: Math.max(insets.bottom, scale(4)) }]}>
-      <View style={[styles().header, { paddingTop: insets.top + scale(8) }]}>
-        <TextDefault bolder textColor='#FFFFFF' style={styles().headerTitle} isRTL>
+    <View style={[themedStyles.container, { paddingBottom: Math.max(insets.bottom, scale(4)) }]}>
+      <View style={[themedStyles.header, { paddingTop: insets.top + scale(8) }]}>
+        <TextDefault bolder textColor={text} style={themedStyles.headerTitle} isRTL>
           {t('titleProfile')}
         </TextDefault>
-        <TextDefault textColor={MUTED} style={styles().greeting} numberOfLines={1} isRTL>
+        <TextDefault textColor={MUTED} style={themedStyles.greeting} numberOfLines={1} isRTL>
           {t('Hi')}{profile?.name ? ` ${profile.name}` : ''}
         </TextDefault>
       </View>
 
-      <View style={styles().listArea}>
-        <SectionHeader title={t('myAccount')} />
+      <View style={themedStyles.listArea}>
+        <SectionHeader title={t('myAccount')} themedStyles={themedStyles} />
         <MenuRow
           icon='person-outline'
           title={t('name')}
           detail={profile?.name || '—'}
+          themedStyles={themedStyles}
+          muted={MUTED}
+          text={text}
           onPress={() =>
             navigation.navigate('EditName', {
               name: profile?.name,
@@ -124,6 +137,9 @@ function Profile(props) {
           icon='call-outline'
           title={t('phone')}
           detail={profile?.phone || '—'}
+          themedStyles={themedStyles}
+          muted={MUTED}
+          text={text}
           onPress={() =>
             navigation.navigate('PhoneNumber', {
               prevScreen: 'Profile'
@@ -133,24 +149,36 @@ function Profile(props) {
         <MenuRow
           icon='location-outline'
           title={t('myAddresses')}
+          themedStyles={themedStyles}
+          muted={MUTED}
+          text={text}
           onPress={() => navigation.navigate('Addresses')}
         />
         <MenuRow
           icon='heart-outline'
           title={t('titleFavourite')}
+          themedStyles={themedStyles}
+          muted={MUTED}
+          text={text}
           onPress={() => navigation.navigate('Favourite')}
           last
         />
 
-        <SectionHeader title={t('legal')} />
+        <SectionHeader title={t('legal')} themedStyles={themedStyles} />
         <MenuRow
           icon='document-text-outline'
           title={t('serviceTerms')}
+          themedStyles={themedStyles}
+          muted={MUTED}
+          text={text}
           onPress={() => openUrl(TERMS_AND_CONDITIONS, FALLBACK_TERMS_URL)}
         />
         <MenuRow
           icon='shield-checkmark-outline'
           title={t('privacyPolicy')}
+          themedStyles={themedStyles}
+          muted={MUTED}
+          text={text}
           onPress={() => openUrl(PRIVACY_POLICY, FALLBACK_PRIVACY_URL)}
           last
         />

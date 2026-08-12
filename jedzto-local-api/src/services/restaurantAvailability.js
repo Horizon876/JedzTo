@@ -1,16 +1,44 @@
 /**
  * Restaurant availability for customer listing / placeOrder.
+ *
+ * Business hours are always evaluated in Europe/Warsaw — never in the host
+ * machine's local zone. On Render the process runs in UTC, so using
+ * `new Date().getHours()` would hide open restaurants after Polish midnight
+ * (or show them as open when they are already closed in Poland).
  */
 
+const BUSINESS_TZ = 'Europe/Warsaw'
+const DAY_KEYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+/** Calendar parts for `date` as seen on the wall clock in Warsaw. */
+function warsawParts(date = new Date()) {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  })
+  const parts = Object.fromEntries(
+    fmt.formatToParts(date).map((p) => [p.type, p.value])
+  )
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+  return {
+    ymd: `${parts.year}-${parts.month}-${parts.day}`,
+    dayIndex: weekdayMap[parts.weekday] ?? date.getUTCDay(),
+    minutes: Number(parts.hour) * 60 + Number(parts.minute)
+  }
+}
+
 function ymdLocal(date = new Date()) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  return warsawParts(date).ymd
 }
 
 function minutesNow(now = new Date()) {
-  return now.getHours() * 60 + now.getMinutes()
+  return warsawParts(now).minutes
 }
 
 /** Parse "HH:MM" or ["HH","MM"] into minutes from midnight. */
@@ -37,10 +65,8 @@ function isWithinWindow(nowMinutes, open, close) {
   return nowMinutes >= start || nowMinutes < end
 }
 
-const DAY_KEYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-
 function getWeeklyDay(restaurant, now = new Date()) {
-  const key = DAY_KEYS[now.getDay()]
+  const key = DAY_KEYS[warsawParts(now).dayIndex]
   const list = restaurant?.openingTimes || []
   return (
     list.find((d) => String(d.day || '').toUpperCase() === key) ||

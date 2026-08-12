@@ -8,6 +8,9 @@ import * as Updates from 'expo-updates'
 import Constants from 'expo-constants'
 import React, { useEffect, useMemo, useReducer, useState } from 'react'
 import { ActivityIndicator, AppState, BackHandler, StatusBar, StyleSheet, View, useColorScheme } from 'react-native'
+import { resolveThemeValue } from './src/ui/hooks/useTheme'
+import { THEME_PREFERENCE_KEY } from './src/ui/ThemeReducer/ThemeReducer'
+import { statusBarStyleForTheme } from './src/utils/statusBar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import FlashMessage from 'react-native-flash-message'
 import 'react-native-gesture-handler'
@@ -90,17 +93,26 @@ export default function App() {
 
   useKeepAwake()
 
-  // Use system theme
+  // Default: follow system appearance (light/dark). Settings can force Pink/Dark.
   const systemTheme = useColorScheme()
-  const [theme, themeSetter] = useReducer(ThemeReducer, systemTheme === 'dark' ? 'Dark' : 'Pink')
+  const [themePreference, themeSetter] = useReducer(ThemeReducer, 'System')
+  const theme = resolveThemeValue(themePreference, systemTheme)
+
   useEffect(() => {
-    try {
-      themeSetter({ type: systemTheme === 'dark' ? 'Dark' : 'Pink' })
-    } catch (error) {
-      // Error retrieving data
-      console.log('Theme Error : ', error.message)
-    }
-  }, [systemTheme])
+    AsyncStorage.getItem(THEME_PREFERENCE_KEY)
+      .then((stored) => {
+        if (stored === 'System' || stored === 'Pink' || stored === 'Dark') {
+          themeSetter({ type: stored })
+          return
+        }
+        // Legacy key wrote Pink/Dark on every launch — prefer system going forward.
+        themeSetter({ type: 'System' })
+        AsyncStorage.setItem(THEME_PREFERENCE_KEY, 'System')
+      })
+      .catch((error) => {
+        console.log('Theme Error : ', error.message)
+      })
+  }, [])
 
   // For Fonts, etc
   useEffect(() => {
@@ -239,9 +251,17 @@ export default function App() {
             <AnimatedSplashScreen>
           <ApolloProvider client={client}>
             <ThemeContext.Provider
-              value={{ ThemeValue: theme, dispatch: themeSetter }}
+              value={{
+                ThemeValue: theme,
+                ThemePreference: themePreference,
+                dispatch: themeSetter
+              }}
             >
-              <StatusBar translucent backgroundColor='transparent' barStyle={theme === 'Dark' ? 'light-content' : 'dark-content'} />
+              <StatusBar
+                translucent
+                backgroundColor='transparent'
+                barStyle={statusBarStyleForTheme(theme)}
+              />
               <AuthProvider>
                 <LocationProvider>
                   <ConfigurationProvider>

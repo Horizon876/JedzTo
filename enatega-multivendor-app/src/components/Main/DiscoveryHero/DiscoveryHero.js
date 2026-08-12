@@ -69,10 +69,10 @@ const DiscoveryHero = ({
     <View style={[themedStyles.hero, { paddingTop: insets.top + 2 }]}>
       <View style={themedStyles.topRow}>
         <TouchableOpacity activeOpacity={0.8} style={themedStyles.addressRow} onPress={onAddressPress}>
-          <TextDefault numberOfLines={1} textColor={currentTheme.white} bolder H5 style={themedStyles.addressText}>
+          <TextDefault numberOfLines={1} textColor={themedStyles.addressColor} bolder H5 style={themedStyles.addressText}>
             {addressLabel}
           </TextDefault>
-          <Ionicons name='chevron-down' size={16} color={currentTheme.white} />
+          <Ionicons name='chevron-down' size={16} color={themedStyles.addressColor} />
         </TouchableOpacity>
 
         <OrderTypeToggle
@@ -86,7 +86,7 @@ const DiscoveryHero = ({
 
       <TouchableOpacity activeOpacity={0.85} style={themedStyles.searchBar} onPress={onSearchPress}>
         <Ionicons name='search' size={20} color={ACCENT} />
-        <TextDefault numberOfLines={1} textColor='#D1D5DB' style={themedStyles.searchPlaceholder}>
+        <TextDefault numberOfLines={1} textColor={themedStyles.placeholderColor} style={themedStyles.searchPlaceholder}>
           {t('lookingForCategory')}
         </TextDefault>
       </TouchableOpacity>

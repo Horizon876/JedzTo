@@ -16,7 +16,10 @@ import { useTranslation } from 'react-i18next'
 import { restaurantListPreview } from '../../apollo/queries'
 import { LocationContext } from '../../context/Location'
 import UserContext from '../../context/User'
+import ThemeContext from '../../ui/ThemeContext/ThemeContext'
+import { theme } from '../../utils/themeColors'
 import { scale } from '../../utils/scaling'
+import { statusBarStyleForTheme } from '../../utils/statusBar'
 import { storeSearch, getRecentSearches, removeRecentSearch } from '../../utils/recentSearch'
 import {
   getJedzToLocalRestaurantPreviews,
@@ -25,7 +28,7 @@ import {
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
-import styles, { ACCENT, MUTED, BG } from './styles'
+import styles, { ACCENT } from './styles'
 
 const RESTAURANTS = gql`
   ${restaurantListPreview}
@@ -37,6 +40,11 @@ const SearchScreen = () => {
   const navigation = useNavigation()
   const { location } = useContext(LocationContext)
   const { isPickup } = useContext(UserContext)
+  const themeContext = useContext(ThemeContext)
+  const currentTheme = {
+    ThemeValue: themeContext.ThemeValue,
+    ...theme[themeContext.ThemeValue]
+  }
   const { isConnected: connect } = useNetworkStatus()
 
   const [searchText, setSearchText] = useState('')
@@ -44,14 +52,15 @@ const SearchScreen = () => {
   const [recentSearches, setRecentSearches] = useState([])
 
   const useLocalRestaurants = jedzToLocalRestaurantsEnabled()
-  const themedStyles = styles()
+  const themedStyles = styles(currentTheme)
+  const { BG, MUTED, text } = themedStyles.colors
 
   useFocusEffect(
     useCallback(() => {
-      StatusBar.setBarStyle('light-content')
+      StatusBar.setBarStyle(statusBarStyleForTheme(themeContext.ThemeValue))
       void getRecentSearches().then(setRecentSearches)
       return undefined
-    }, [])
+    }, [themeContext.ThemeValue])
   )
 
   useEffect(() => {
@@ -72,7 +81,6 @@ const SearchScreen = () => {
 
   const { data: remoteData, loading: remoteLoading } = useQuery(RESTAURANTS, {
     variables: {
-      // Pickup: null coords → API skips delivery-area filter.
       longitude: isPickup ? null : (location?.longitude || null),
       latitude: isPickup ? null : (location?.latitude || null),
       shopType: null,
@@ -98,45 +106,35 @@ const SearchScreen = () => {
       const restaurantName = restaurant?.name?.toLowerCase?.() || ''
       const cuisines = restaurant?.cuisines || []
       const matchesName = restaurantName.includes(normalizedSearch)
-      const matchesCuisine = cuisines.some((cuisine) =>
-        String(cuisine).toLowerCase().includes(normalizedSearch)
+      const matchesCuisine = cuisines.some((c) =>
+        String(c || '').toLowerCase().includes(normalizedSearch)
       )
-
-      if (matchesName) {
-        nameMatches.push(restaurant)
-        return
-      }
-      if (matchesCuisine) secondaryMatches.push(restaurant)
+      if (matchesName) nameMatches.push(restaurant)
+      else if (matchesCuisine) secondaryMatches.push(restaurant)
     })
 
     return [...nameMatches, ...secondaryMatches]
   }, [debouncedSearch, restaurants])
 
-  const handleCancel = useCallback(() => {
-    setSearchText('')
-    setDebouncedSearch('')
-    navigation.navigate('Discovery')
-  }, [navigation])
+  const clearSearch = () => setSearchText('')
 
-  const clearSearch = useCallback(() => {
-    setSearchText('')
-    setDebouncedSearch('')
-  }, [])
+  const handleCancel = () => {
+    if (navigation.canGoBack()) navigation.goBack()
+    else clearSearch()
+  }
 
-  const handleHistorySelect = useCallback((term) => {
-    setSearchText(term)
-  }, [])
+  const handleHistorySelect = (item) => {
+    setSearchText(item)
+  }
 
-  const handleRemoveHistory = useCallback(async (term) => {
-    const next = await removeRecentSearch(term)
-    setRecentSearches(next)
-  }, [])
+  const handleRemoveHistory = async (item) => {
+    await removeRecentSearch(item)
+    setRecentSearches(await getRecentSearches())
+  }
 
   const handleRestaurantSelect = useCallback(
     async (restaurant) => {
-      if (!restaurant?._id) return
-      const next = await storeSearch(restaurant.name)
-      setRecentSearches(next)
+      if (restaurant?.name) await storeSearch(restaurant.name)
       if (restaurant.shopType === 'grocery') {
         navigation.navigate('NewRestaurantDetailDesign', { ...restaurant })
       } else {
@@ -155,7 +153,7 @@ const SearchScreen = () => {
       <View style={themedStyles.historyIcon}>
         <Ionicons name='time-outline' size={scale(18)} color={MUTED} />
       </View>
-      <TextDefault numberOfLines={1} textColor='#FFFFFF' style={themedStyles.historyText}>
+      <TextDefault numberOfLines={1} textColor={text} style={themedStyles.historyText}>
         {item}
       </TextDefault>
       <TouchableOpacity
@@ -182,7 +180,7 @@ const SearchScreen = () => {
           <Ionicons name='restaurant-outline' size={scale(18)} color={MUTED} />
         </View>
         <View style={themedStyles.resultMeta}>
-          <TextDefault numberOfLines={1} textColor='#FFFFFF' bolder>
+          <TextDefault numberOfLines={1} textColor={text} bolder>
             {item?.name}
           </TextDefault>
           {cuisineLabel ? (
@@ -203,7 +201,7 @@ const SearchScreen = () => {
 
   return (
     <View style={themedStyles.fullScreen}>
-      <StatusBar barStyle='light-content' backgroundColor={BG} />
+      <StatusBar barStyle={statusBarStyleForTheme(themeContext.ThemeValue)} backgroundColor={BG} />
       <View style={themedStyles.content}>
         <View style={[themedStyles.topSurface, { paddingTop: insets.top + scale(8) }]}>
           <View style={themedStyles.topBar}>
@@ -245,7 +243,7 @@ const SearchScreen = () => {
 
         {showHistoryPanel ? (
           <View style={themedStyles.listArea}>
-            <TextDefault bolder H5 textColor='#FFFFFF' style={themedStyles.sectionTitle}>
+            <TextDefault bolder H5 textColor={text} style={themedStyles.sectionTitle}>
               {t('recentSearches')}
             </TextDefault>
             {recentSearches.length > 0 ? (

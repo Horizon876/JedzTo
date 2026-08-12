@@ -1,25 +1,35 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useEffect, useState } from 'react'
 import { useColorScheme } from 'react-native'
+import { THEME_PREFERENCE_KEY } from '../ThemeReducer/ThemeReducer'
+
+export const resolveThemeValue = (preference, systemScheme) => {
+  if (preference === 'Dark') return 'Dark'
+  if (preference === 'Pink') return 'Pink'
+  return systemScheme === 'dark' ? 'Dark' : 'Pink'
+}
 
 export const useTheme = () => {
-  const theme = useColorScheme()
-  const [defaultTheme, setDefaultTheme] = useState(
-    theme === 'dark' ? 'Dark' : 'Pink'
-  )
+  const systemScheme = useColorScheme()
+  const [preference, setPreference] = useState('System')
 
   useEffect(() => {
-    try {
-      AsyncStorage.getItem('theme').then((response) => {
-        if (!response) {
+    AsyncStorage.getItem(THEME_PREFERENCE_KEY)
+      .then((response) => {
+        if (response === 'System' || response === 'Pink' || response === 'Dark') {
+          setPreference(response)
           return
         }
-        setDefaultTheme(response)
+        // Ignore legacy auto-saved 'theme' values; default to system.
+        setPreference('System')
       })
-    } catch (error) {
-      console.log('Theme Error : ', error.message)
-    }
+      .catch((error) => {
+        console.log('Theme Error : ', error.message)
+      })
   }, [])
 
-  return defaultTheme
+  return {
+    preference,
+    ThemeValue: resolveThemeValue(preference, systemScheme)
+  }
 }
