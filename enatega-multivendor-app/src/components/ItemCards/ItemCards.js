@@ -3,7 +3,6 @@ import { Text, View } from 'react-native'
 import { scale } from '../../utils/scaling'
 import styles from './styles'
 import ConfigurationContext from '../../context/Configuration'
-import { IMAGE_LINK } from '../../utils/constants'
 import TextDefault from '../Text/TextDefault/TextDefault'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
@@ -25,7 +24,7 @@ const ItemCard = ({ item, onPressItem, restaurant, tagCart }) => {
     })
   }
 
-  const imageUrl = item?.image && item?.image?.trim() !== '' ? item?.image : IMAGE_LINK
+  const imageUrl = item?.image && item?.image?.trim() !== '' ? item?.image : null
 
   return (
     <RectButton onPress={handleAddToCart} rippleColor={currentTheme.rippleColor}>
@@ -43,12 +42,14 @@ const ItemCard = ({ item, onPressItem, restaurant, tagCart }) => {
           {item?.title}
         </TextDefault>
         <View style={{ alignItems: 'center', marginTop: 'auto' }}>
-          <ShimmerImage
-            imageUrl={imageUrl}
-            style={[{ width: 138, height: 120, borderRadius: 8 }, styles().popularMenuImg]}
-            resizeMode='cover'
-            defaultSource={require('../../assets/images/food_placeholder.png')}
-          />
+          {imageUrl ? (
+            <ShimmerImage
+              imageUrl={imageUrl}
+              style={[{ width: 138, height: 120, borderRadius: 8 }, styles().popularMenuImg]}
+              resizeMode='cover'
+              defaultSource={require('../../assets/images/food_placeholder.png')}
+            />
+          ) : null}
           <View style={styles().popularMenuPrice}>
             <Text style={{ color: '#1C1C1E', fontSize: scale(12) }}>{formatMoney(item?.variations[0].price, configuration.currencySymbol)}</Text>
             {item?.variations[0]?.discounted > 0 && (

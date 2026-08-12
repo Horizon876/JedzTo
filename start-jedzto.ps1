@@ -79,7 +79,6 @@ try {
 
     Ensure-Dependencies -Path (Join-Path $root "jedzto-local-api") -Label "API"
     Ensure-Dependencies -Path (Join-Path $root "enatega-multivendor-admin") -Label "Admin"
-    Ensure-Dependencies -Path (Join-Path $root "enatega-multivendor-web") -Label "Web"
     Ensure-Dependencies -Path (Join-Path $root "enatega-multivendor-app") -Label "App"
     Ensure-Dependencies -Path (Join-Path $root "enatega-multivendor-rider") -Label "Kuchnia"
 
@@ -112,11 +111,6 @@ try {
 
     Start-Sleep -Seconds 1
 
-    Write-Host "Uruchamiam Strone Web..." -ForegroundColor Green
-    Start-ServiceWindow -Title "JedzTo - Web" -WorkDir $root -Command "npm run web"
-
-    Start-Sleep -Seconds 1
-
     Write-Host "Uruchamiam Aplikacje Mobilna (Expo)..." -ForegroundColor Green
     Start-ServiceWindow -Title "JedzTo - App (Expo)" -WorkDir $root -Command "powershell -NoProfile -ExecutionPolicy Bypass -File '.\scripts\start-expo-lan.ps1' -Target app"
 
@@ -132,7 +126,6 @@ try {
     Write-Host "=====================================================" -ForegroundColor Cyan
     Write-Host " API (GraphQL) : http://localhost:8001/graphql"
     Write-Host " Admin         : http://localhost:3000"
-    Write-Host " Web           : http://localhost:3001"
     Write-Host " Mobile (Expo) : exp://$($localIp):8081"
     Write-Host " Kuchnia (Expo): exp://$($localIp):8082"
     Write-Host ""
@@ -145,7 +138,6 @@ try {
 
     Start-Sleep -Seconds 2
     Start-Process "http://localhost:3000"
-    Start-Process "http://localhost:3001"
 
     Write-Host "`nTo okno mozna zamknac - serwisy dzialaja we wlasnych oknach." -ForegroundColor Gray
     Pause-Exit -Code 0

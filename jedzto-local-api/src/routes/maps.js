@@ -19,13 +19,28 @@ const MAPBOX_GEOCODING_URL = 'https://api.mapbox.com/geocoding/v5/mapbox.places'
 const encodePlaceId = ({ lat, lng, name }) =>
   `mb:${Buffer.from(JSON.stringify({ lat, lng, name })).toString('base64url')}`
 
+/**
+ * Decodes a place id we issued. The payload round-trips through the client, so
+ * the coordinates are validated before they reach any caller.
+ */
 const decodePlaceId = (placeId) => {
-  if (!placeId || !placeId.startsWith('mb:')) return null
+  if (typeof placeId !== 'string' || !placeId.startsWith('mb:')) return null
   try {
-    return JSON.parse(Buffer.from(placeId.slice(3), 'base64url').toString('utf8'))
+    const decoded = JSON.parse(Buffer.from(placeId.slice(3), 'base64url').toString('utf8'))
+    const lat = Number(decoded?.lat)
+    const lng = Number(decoded?.lng)
+    if (!Number.isFinite(lat) || Math.abs(lat) > 90) return null
+    if (!Number.isFinite(lng) || Math.abs(lng) > 180) return null
+    return { lat, lng, name: String(decoded.name || '').slice(0, 300) }
   } catch {
     return null
   }
+}
+
+/** Whitelisted BCP-47-ish language tag — interpolated into the Mapbox URL. */
+const safeLanguage = (value) => {
+  const tag = String(value || 'pl')
+  return /^[a-z]{2}(-[A-Za-z]{2,4})?$/.test(tag) ? tag : 'pl'
 }
 
 const pickCity = (context = []) => {
@@ -34,14 +49,16 @@ const pickCity = (context = []) => {
 }
 
 mapsRouter.get('/autocomplete', async (req, res) => {
-  const { input } = req.query
-  if (!input || String(input).trim().length < 2) {
+  // `req.query.input` can be an array (?input=a&input=b) — force a scalar and
+  // bound its length before it becomes part of an outbound URL.
+  const input = String(req.query.input ?? '').trim().slice(0, 120)
+  if (input.length < 2) {
     return res.json({ data: { status: 'ZERO_RESULTS', predictions: [] } })
   }
 
   if (MAPBOX_ACCESS_TOKEN) {
     try {
-      const url = `${MAPBOX_GEOCODING_URL}/${encodeURIComponent(input)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&autocomplete=true&limit=8&language=${req.query.language || 'pl'}`
+      const url = `${MAPBOX_GEOCODING_URL}/${encodeURIComponent(input)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&autocomplete=true&limit=8&language=${safeLanguage(req.query.language)}`
       const response = await fetch(url)
       if (response.ok) {
         const json = await response.json()
@@ -117,13 +134,18 @@ mapsRouter.get('/reverse-geocode', async (req, res) => {
   const latitude = Number(req.query.latitude)
   const longitude = Number(req.query.longitude)
 
-  if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    Math.abs(latitude) > 90 ||
+    Math.abs(longitude) > 180
+  ) {
     return res.json({ data: { status: 'ZERO_RESULTS', errorMessage: 'Invalid coordinates' } })
   }
 
   if (MAPBOX_ACCESS_TOKEN) {
     try {
-      const url = `${MAPBOX_GEOCODING_URL}/${longitude},${latitude}.json?access_token=${MAPBOX_ACCESS_TOKEN}&language=${req.query.language || 'pl'}&types=address,poi,place`
+      const url = `${MAPBOX_GEOCODING_URL}/${longitude},${latitude}.json?access_token=${MAPBOX_ACCESS_TOKEN}&language=${safeLanguage(req.query.language)}&types=address,poi,place`
       const response = await fetch(url)
       if (response.ok) {
         const json = await response.json()

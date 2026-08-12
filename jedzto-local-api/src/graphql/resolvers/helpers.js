@@ -24,6 +24,17 @@ export const toCoord = (value, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback
 }
 
+/**
+ * Coordinate guards. Mongo happily stores 1e308 as a latitude, which then
+ * poisons every distance calculation, so values are validated at the edge.
+ */
+const clampCoord = (value, limit, fallback) => {
+  const n = Number(value)
+  return Number.isFinite(n) && Math.abs(n) <= limit ? n : fallback
+}
+export const toLatitude = (value, fallback = 0) => clampCoord(value, 90, fallback)
+export const toLongitude = (value, fallback = 0) => clampCoord(value, 180, fallback)
+
 /** Clamp an ETA value in minutes to a sane range [min, 240]. */
 export const clampEtaMinutes = (value, fallback = 20, { min = 5 } = {}) => {
   const n = Math.round(Number(value))
@@ -243,6 +254,17 @@ export const adminUserShape = (user) => ({
     location: a.location,
     selected: a.selected
   }))
+})
+
+export const couponShape = (doc) => ({
+  _id: String(doc._id),
+  title: doc.title,
+  discount: doc.discount,
+  enabled: doc.enabled,
+  restaurantId: doc.restaurantId ? String(doc.restaurantId) : null,
+  minOrderValue: doc.minOrderValue,
+  usageLimit: doc.usageLimit,
+  usedCount: doc.usedCount
 })
 
 export const profileShape = (user) => ({

@@ -9,6 +9,7 @@ import { GraphQLError } from 'graphql'
 import { Order, Restaurant, User } from '../../models/index.js'
 import { requireUser } from '../../auth/jwt.js'
 import { resolveDefaultEta, computeCurrentEta } from '../../services/eta.js'
+import { containsFilter, clampPageSize, clampNonNegative } from '../../utils/sanitize.js'
 import { id } from './helpers.js'
 
 // ---------------------------------------------------------------------------
@@ -18,13 +19,34 @@ import { id } from './helpers.js'
 export const ACTIVE = new Set(['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'])
 export const CANCELLED = new Set(['CANCELLED', 'REJECTED'])
 
+/** Upper bound for any client-controlled order page size. */
+export const MAX_ORDER_PAGE_SIZE = 100
+
 // ---------------------------------------------------------------------------
 // Order serialization (shared with Stripe route via named export)
 // ---------------------------------------------------------------------------
 
-export async function serializeOrder(order) {
-  const restaurant = await Restaurant.findById(order.restaurantId).lean()
-  const user = await User.findById(order.customerId).lean()
+/** Fields serializeOrder needs from the related documents — nothing more. */
+const RESTAURANT_FIELDS =
+  '_id name image address location zone defaultEta pickupTime deliveryTime isBusy currentEta acceptedEtaMinutes'
+const CUSTOMER_FIELDS = '_id name phone email'
+
+/**
+ * Serializes a single order. `related` lets callers inject already-loaded
+ * documents so batch serialization does not re-query per order.
+ *
+ * @param {object} order
+ * @param {{ restaurant?: object|null, user?: object|null }} [related]
+ */
+export async function serializeOrder(order, related = null) {
+  const restaurant =
+    related && 'restaurant' in related
+      ? related.restaurant
+      : await Restaurant.findById(order.restaurantId).select(RESTAURANT_FIELDS).lean()
+  const user =
+    related && 'user' in related
+      ? related.user
+      : await User.findById(order.customerId).select(CUSTOMER_FIELDS).lean()
   const iso = (d) => (d ? new Date(d).toISOString() : null)
 
   return {
@@ -68,7 +90,15 @@ export async function serializeOrder(order) {
             id: String(item.variation._id || '')
           }
         : null,
-      addons: []
+      addons: (item.addons || []).map((addon) => ({
+        ...addon,
+        _id: String(addon._id || ''),
+        options: (addon.options || []).map((opt) => ({
+          ...opt,
+          _id: String(opt._id || ''),
+          id: String(opt._id || '')
+        }))
+      }))
     })),
     review: order.review
       ? {
@@ -119,18 +149,51 @@ export async function serializeOrder(order) {
   }
 }
 
+/**
+ * Serializes a list of orders with a fixed number of queries (3 instead of
+ * 1 + 2N). A 200-order admin page used to fire 401 queries.
+ */
+export async function serializeOrders(orders) {
+  if (!orders?.length) return []
+
+  const restaurantIds = [...new Set(orders.map((o) => String(o.restaurantId || '')).filter(Boolean))]
+  const customerIds = [...new Set(orders.map((o) => String(o.customerId || '')).filter(Boolean))]
+
+  const [restaurants, users] = await Promise.all([
+    Restaurant.find({ _id: { $in: restaurantIds } }).select(RESTAURANT_FIELDS).lean(),
+    User.find({ _id: { $in: customerIds } }).select(CUSTOMER_FIELDS).lean()
+  ])
+
+  const restaurantById = new Map(restaurants.map((r) => [String(r._id), r]))
+  const userById = new Map(users.map((u) => [String(u._id), u]))
+
+  return Promise.all(
+    orders.map((order) =>
+      serializeOrder(order, {
+        restaurant: restaurantById.get(String(order.restaurantId)) || null,
+        user: userById.get(String(order.customerId)) || null
+      })
+    )
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Search / filter helpers
 // ---------------------------------------------------------------------------
 
+/** Caps how many ids a free-text search may expand into (memory guard). */
+const SEARCH_ID_LIMIT = 500
+
 export const orderSearchFilter = async (search) => {
   if (!search) return {}
-  const rx = { $regex: search, $options: 'i' }
+  // Escaped: an unescaped $regex is both a filter bypass and a ReDoS vector.
+  const rx = containsFilter(search)
   const [users, restaurants] = await Promise.all([
     User.find({ $or: [{ name: rx }, { email: rx }, { phone: rx }] })
       .select('_id')
+      .limit(SEARCH_ID_LIMIT)
       .lean(),
-    Restaurant.find({ name: rx }).select('_id').lean()
+    Restaurant.find({ name: rx }).select('_id').limit(SEARCH_ID_LIMIT).lean()
   ])
   return {
     $or: [
@@ -166,18 +229,22 @@ export function statsDateRange({ startingDate, endingDate, dateKeyword }) {
 // ---------------------------------------------------------------------------
 
 export async function paginateOrders(baseFilter, { page = 1, rows = 10 }) {
-  const limit = Math.max(1, rows)
-  const currentPage = Math.max(1, page)
-  const totalCount = await Order.countDocuments(baseFilter)
+  // Hard cap: `rows` comes straight from the client, so an unbounded value
+  // would let one request pull the whole orders collection.
+  const limit = clampPageSize(rows, 10, MAX_ORDER_PAGE_SIZE)
+  const currentPage = Math.max(1, clampNonNegative(page, 1))
+  const [totalCount, docs] = await Promise.all([
+    Order.countDocuments(baseFilter),
+    Order.find(baseFilter)
+      .sort({ createdAt: -1 })
+      .skip((currentPage - 1) * limit)
+      .limit(limit)
+      .lean()
+  ])
   const totalPages = Math.max(1, Math.ceil(totalCount / limit))
-  const docs = await Order.find(baseFilter)
-    .sort({ createdAt: -1 })
-    .skip((currentPage - 1) * limit)
-    .limit(limit)
-    .lean()
 
   return {
-    orders: await Promise.all(docs.map(serializeOrder)),
+    orders: await serializeOrders(docs),
     totalCount,
     currentPage,
     totalPages,
@@ -190,12 +257,52 @@ export async function paginateOrders(baseFilter, { page = 1, rows = 10 }) {
 // Authorization helper
 // ---------------------------------------------------------------------------
 
+const forbidden = (message = 'FORBIDDEN') =>
+  new GraphQLError(message, { extensions: { code: 'FORBIDDEN' } })
+
 export const assertCanReadRestaurantOrders = async (ctx, restaurantId) => {
   const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
   if (auth.role === 'SUPER_ADMIN') return auth
   const restaurant = await Restaurant.findById(restaurantId).select('ownerId').lean()
   if (!restaurant || String(restaurant.ownerId) !== String(auth.userId)) {
-    throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+    throw forbidden()
   }
   return auth
+}
+
+/**
+ * Loads an order the caller is allowed to touch, accepting either the Mongo
+ * _id or the human `orderId` ("JT12345678").
+ *
+ * Every order resolver must go through this: order ids are short and
+ * sequential, so "authenticated" alone is not an authorization decision — it
+ * used to be enough to read or cancel any stranger's order.
+ *
+ * @param {object} ctx
+ * @param {string} orderRef
+ * @param {{ lean?: boolean, roles?: string[]|null }} [options]
+ */
+export const loadAuthorizedOrder = async (ctx, orderRef, { lean = false, roles = null } = {}) => {
+  const auth = requireUser(ctx, roles)
+  const query = Order.findOne({
+    $or: [
+      { orderId: String(orderRef ?? '') },
+      ...(/^[0-9a-fA-F]{24}$/.test(String(orderRef ?? '')) ? [{ _id: orderRef }] : [])
+    ]
+  })
+  const order = await (lean ? query.lean() : query)
+  if (!order) throw new GraphQLError('Order not found', { extensions: { code: 'BAD_USER_INPUT' } })
+
+  if (auth.role === 'SUPER_ADMIN') return { auth, order }
+  if (String(order.customerId) === String(auth.userId)) return { auth, order }
+
+  if (auth.role === 'RESTAURANT_OWNER') {
+    const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
+    if (restaurant && String(restaurant.ownerId) === String(auth.userId)) {
+      return { auth, order }
+    }
+  }
+
+  // Same error for "missing" and "not yours" so ids cannot be probed.
+  throw forbidden()
 }

@@ -4,7 +4,8 @@ import {
   JWT_SECRET,
   LOCAL_API_OPEN,
   PUBLIC_TOKEN_TTL_HOURS,
-  USER_TOKEN_TTL_DAYS
+  USER_TOKEN_TTL_DAYS,
+  REFRESH_TOKEN_TTL_DAYS
 } from '../config.js'
 
 export const signPublicToken = () => {
@@ -16,6 +17,7 @@ export const signPublicToken = () => {
 
 export const signUserToken = (user) => {
   const expiresIn = USER_TOKEN_TTL_DAYS * 24 * 60 * 60
+  const refreshExpiresIn = REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60
   const token = jwt.sign(
     {
       typ: 'user',
@@ -28,7 +30,20 @@ export const signUserToken = (user) => {
     JWT_SECRET,
     { expiresIn }
   )
-  return { token, tokenExpiration: expiresIn, refreshToken: token, refreshTokenExpiration: expiresIn }
+  // The refresh token is a *separate* token carrying only the subject id, so a
+  // leaked access token cannot be replayed to mint fresh sessions and the
+  // refresh token itself grants no API access.
+  const refreshToken = jwt.sign(
+    { typ: 'refresh', userId: String(user._id) },
+    JWT_SECRET,
+    { expiresIn: refreshExpiresIn }
+  )
+  return {
+    token,
+    tokenExpiration: expiresIn,
+    refreshToken,
+    refreshTokenExpiration: refreshExpiresIn
+  }
 }
 
 export const verifyToken = (raw) => {

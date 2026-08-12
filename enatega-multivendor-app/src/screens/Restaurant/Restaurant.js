@@ -745,7 +745,7 @@ const PopularGridRow = React.memo(function PopularGridRow({ currentTheme, items,
 const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item, onPressItem, isLast }) {
   const { t } = useTranslation()
   const { cart, addQuantity, removeQuantity } = useContext(UserContext)
-  const imageUrl = item?.image && item?.image.trim() !== '' ? item?.image : IMAGE_LINK
+  const imageUrl = item?.image && String(item.image).trim() !== '' ? String(item.image).trim() : null
   const ACCENT = '#00A8FF'
   const hasMultipleSizes = (item?.variations?.length || 0) > 1
   const minPrice = hasMultipleSizes
@@ -814,16 +814,18 @@ const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item,
             }
           ]}
         >
-          <ShimmerImage
-            imageUrl={imageUrl}
-            style={{
-              height: scale(64),
-              width: scale(64),
-              borderRadius: scale(12)
-            }}
-            resizeMode='cover'
-            defaultSource={require('../../assets/images/food_placeholder.png')}
-          />
+          {imageUrl ? (
+            <ShimmerImage
+              imageUrl={imageUrl}
+              style={{
+                height: scale(64),
+                width: scale(64),
+                borderRadius: scale(12)
+              }}
+              resizeMode='cover'
+              defaultSource={require('../../assets/images/food_placeholder.png')}
+            />
+          ) : null}
           <View style={[styles(currentTheme).flex, { backgroundColor: 'transparent' }]}>
             <View style={[styles(currentTheme).dealDescription, { backgroundColor: 'transparent' }]}>
               <TextDefault textColor='#FFFFFF' style={[styles(currentTheme).headerText, { backgroundColor: 'transparent' }]} numberOfLines={1} bolder isRTL>

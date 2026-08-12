@@ -15,12 +15,14 @@ const FoodItem = ({ item, currentTheme, configuration, onPress }) => {
   const discountedPrice = variation?.discounted
   const isOutOfStock = item.isOutOfStock === true
   const { t, i18n } = useTranslation()
+  const hasImage = Boolean(item?.image && String(item.image).trim())
 
   const withoutDiscountPrice = calculateDiscountedPrice(price, discountedPrice)
 
 
   return (
     <TouchableOpacity style={[styles(currentTheme).foodItemContainer, isOutOfStock && styles(currentTheme).disabledItem]} activeOpacity={0.8} disabled={isOutOfStock} onPress={onPress} >
+      {hasImage ? (
       <View style={styles(currentTheme).imageContainer}>
         <ShimmerImage imageUrl={item.image} style={[styles(currentTheme).foodImage, isOutOfStock && styles(currentTheme).grayedImage]} resizeMode='cover' />
         {isOutOfStock && (
@@ -36,6 +38,7 @@ const FoodItem = ({ item, currentTheme, configuration, onPress }) => {
           </TouchableOpacity>
         )}
       </View>
+      ) : null}
 
       <View style={styles(currentTheme).detailsContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap:scale(5) }}>

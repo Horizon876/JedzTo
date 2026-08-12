@@ -5,6 +5,7 @@
  * Also contains the ownerResponse / authResponse shape helpers.
  */
 
+import crypto from 'crypto'
 import { GraphQLError } from 'graphql'
 import { User, Restaurant } from '../../models/index.js'
 import {
@@ -14,10 +15,35 @@ import {
   signUserToken,
   verifyToken
 } from '../../auth/jwt.js'
-import { id, mapUserType, profileShape } from './helpers.js'
-import { buildRestaurantTree } from './restaurant.js'
+import { MIN_PASSWORD_LENGTH } from '../../config.js'
+import { issueOtp, consumeOtp, OTP_PURPOSE } from '../../services/otp.js'
+import { verifySocialIdentity } from '../../services/socialAuth.js'
+import { id, mapUserType, profileShape, toLatitude, toLongitude } from './helpers.js'
 
-const TEST_OTP = '123456'
+const OWNER_ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER']
+
+const badInput = (message) =>
+  new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } })
+
+const unauthenticated = () =>
+  new GraphQLError('UNAUTHENTICATED', { extensions: { code: 'UNAUTHENTICATED' } })
+
+/** Same message for "no such user" and "wrong password" — no user enumeration. */
+const invalidCredentials = () =>
+  new GraphQLError('Invalid email or password', {
+    extensions: { code: 'UNAUTHENTICATED' }
+  })
+
+const assertPasswordStrength = (password) => {
+  if (String(password || '').length < MIN_PASSWORD_LENGTH) {
+    throw badInput(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
+  }
+}
+
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase()
+
+/** Digits only, so "+48 123" and "48123" cannot create two accounts. */
+const normalizePhone = (phone) => String(phone || '').replace(/\D/g, '')
 
 // ---------------------------------------------------------------------------
 // Response builders
@@ -40,7 +66,11 @@ const authResponse = (user, isNewUser = false) => {
 export async function ownerResponse(user) {
   const tokens = signUserToken(user)
   const isAdmin = user.role === 'SUPER_ADMIN'
-  const restaurants = await Restaurant.find(isAdmin ? {} : { ownerId: user._id }).lean()
+  // Projection only — the login response needs four fields, not whole documents
+  // (a super-admin owning 500 stores used to load 500 full trees on every login).
+  const restaurants = await Restaurant.find(isAdmin ? {} : { ownerId: user._id })
+    .select('_id name image address shopType')
+    .lean()
   const ownRestaurant = isAdmin
     ? null
     : restaurants.find((r) => String(r._id) === String(user.restaurantId)) || restaurants[0] || null
@@ -130,90 +160,125 @@ export const authMutations = {
     // If the caller supplied a bare login (no "@"), treat it as ownerLogin@jedzto.local
     // — that's the internal email format used when super-admin creates a restaurant.
     // Full email addresses (e.g. super-admin) continue to work unchanged.
-    const resolvedEmail = email.includes('@') ? email.toLowerCase() : `${email}@jedzto.local`
+    const normalized = normalizeEmail(email)
+    const resolvedEmail = normalized.includes('@') ? normalized : `${normalized}@jedzto.local`
 
     const user = await User.findOne({
       email: resolvedEmail,
-      role: { $in: ['SUPER_ADMIN', 'RESTAURANT_OWNER'] }
+      role: { $in: OWNER_ROLES }
     })
-    if (!user || !(await user.comparePassword(password))) {
-      throw new GraphQLError('Invalid login or password')
+    if (!user || !(await user.comparePassword(String(password || '')))) {
+      throw invalidCredentials()
     }
+    if (user.isActive === false) throw unauthenticated()
     return ownerResponse(user)
   },
 
   login: async (_p, args, ctx) => {
     assertPublicAccess(ctx)
-    const email = (args.email || '').toLowerCase()
-    let user = await User.findOne({ email })
+    const requestedEmail = normalizeEmail(args.email)
+    const isSocial = args.type && args.type !== 'default' && args.type !== 'email'
 
-    if (args.type && args.type !== 'default' && args.type !== 'email') {
-      if (!user) {
-        user = await User.create({
-          email: email || `${args.type}-${Date.now()}@jedzto.local`,
-          name: args.name || 'Użytkownik JedzTo',
-          password: `${Date.now()}`,
-          role: 'CUSTOMER',
-          emailIsVerified: true,
-          phoneIsVerified: true
-        })
-        return authResponse(user, true)
+    if (isSocial) {
+      // The provider identity is verified server-side; the client-supplied
+      // e-mail is only a hint and is ignored when the provider disagrees.
+      const verified = await verifySocialIdentity({
+        type: args.type,
+        idToken: args.idToken
+      })
+      const email = verified?.email || requestedEmail
+      if (!email) throw badInput('Email is required for social login')
+
+      let user = await User.findOne({ email })
+      if (user) {
+        // Privileged accounts must always go through password authentication,
+        // otherwise a social flow becomes an admin-takeover path.
+        if (OWNER_ROLES.includes(user.role)) throw invalidCredentials()
+        if (user.isActive === false) throw unauthenticated()
+        return authResponse(user, false)
       }
-      return authResponse(user, false)
+
+      user = await User.create({
+        email,
+        name: verified?.name || args.name || 'Użytkownik JedzTo',
+        // Random, unusable password: social accounts authenticate via provider.
+        password: crypto.randomUUID(),
+        role: 'CUSTOMER',
+        emailIsVerified: Boolean(verified),
+        phoneIsVerified: false,
+        notificationToken: args.notificationToken || null
+      })
+      return authResponse(user, true)
     }
 
-    if (!user || !(await user.comparePassword(args.password || ''))) {
-      throw new GraphQLError('Invalid email or password')
+    const user = await User.findOne({ email: requestedEmail })
+    if (!user || !(await user.comparePassword(String(args.password || '')))) {
+      throw invalidCredentials()
     }
+    if (user.isActive === false) throw unauthenticated()
     return authResponse(user, false)
   },
 
   createUser: async (_p, { userInput }, ctx) => {
     assertPublicAccess(ctx)
-    if (userInput.email && (await User.findOne({ email: userInput.email.toLowerCase() }))) {
-      throw new GraphQLError('Email already exists')
-    }
-    if (userInput.phone && (await User.findOne({ phone: userInput.phone }))) {
-      throw new GraphQLError('Phone already exists')
-    }
+    const email = normalizeEmail(userInput.email)
+    const phone = String(userInput.phone || '').trim()
+    if (!email) throw badInput('Email is required')
+    assertPasswordStrength(userInput.password)
+
+    if (await User.exists({ email })) throw badInput('Email already exists')
+    if (phone && (await User.exists({ phone }))) throw badInput('Phone already exists')
+
     const user = await User.create({
-      name: userInput.name || 'Gość',
-      email: (userInput.email || '').toLowerCase(),
-      phone: userInput.phone || '',
-      password: userInput.password || `${Date.now()}`,
+      name: String(userInput.name || '').trim() || 'Gość',
+      email,
+      phone,
+      password: userInput.password,
       role: 'CUSTOMER',
-      emailIsVerified: Boolean(userInput.emailIsVerified),
+      // Verification flags are server-owned: a client cannot declare itself verified.
+      emailIsVerified: false,
       phoneIsVerified: false,
       notificationToken: userInput.notificationToken || null
     })
     return authResponse(user, true)
   },
 
-  guestCheckout: async (_p, { name, phone }, ctx) => {
+  guestCheckout: async (_p, { name, phone, otp }, ctx) => {
     assertPublicAccess(ctx)
     const trimmedPhone = String(phone || '').trim()
     const trimmedName = String(name || '').trim() || 'Gość'
-    if (!trimmedPhone) throw new GraphQLError('Phone is required')
+    if (normalizePhone(trimmedPhone).length < 7) throw badInput('Valid phone is required')
 
-    let user = await User.findOne({ phone: trimmedPhone })
+    const user = await User.findOne({ phone: trimmedPhone })
     if (user) {
+      // A phone number is public knowledge, so it must not be enough to obtain
+      // a session for a *registered* account. Guest records (created by this
+      // very mutation) can be reused; anything else needs an OTP or a login.
+      const isGuestRecord = user.isGuest === true || /^guest\+\d+@jedzto\.local$/.test(user.email)
+      if (!isGuestRecord && !consumeOtp(OTP_PURPOSE.PHONE, trimmedPhone, otp)) {
+        throw new GraphQLError(
+          'Ten numer należy do konta użytkownika — zaloguj się lub potwierdź numer kodem SMS.',
+          { extensions: { code: 'OTP_REQUIRED' } }
+        )
+      }
       user.name = trimmedName
       user.phoneIsVerified = true
       await user.save()
       return authResponse(user, false)
     }
 
-    const syntheticEmail = `guest+${trimmedPhone.replace(/\D/g, '')}@jedzto.local`
-    user = await User.create({
+    const created = await User.create({
       name: trimmedName,
-      email: syntheticEmail,
+      email: `guest+${normalizePhone(trimmedPhone)}@jedzto.local`,
       phone: trimmedPhone,
-      password: `guest-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      password: crypto.randomUUID(),
       role: 'CUSTOMER',
+      isGuest: true,
       emailIsVerified: false,
-      phoneIsVerified: true
+      // The number is unverified until an OTP confirms it.
+      phoneIsVerified: false
     })
-    return authResponse(user, true)
+    return authResponse(created, true)
   },
 
   updateUser: async (_p, { updateUserInput }, ctx) => {
@@ -228,56 +293,80 @@ export const authMutations = {
         patch[field] = updateUserInput[field]
       }
     }
+    // Changing the phone number invalidates its verified state.
+    if (patch.phone !== undefined) patch.phoneIsVerified = false
     const user = await User.findByIdAndUpdate(auth.userId, patch, { new: true })
+    if (!user) throw unauthenticated()
     return profileShape(user)
   },
 
   emailExist: async (_p, { email }, ctx) => {
     assertPublicAccess(ctx)
-    return Boolean(await User.findOne({ email: email.toLowerCase() }))
+    return Boolean(await User.exists({ email: normalizeEmail(email) }))
   },
 
   phoneExist: async (_p, { phone }, ctx) => {
     assertPublicAccess(ctx)
-    return Boolean(await User.findOne({ phone }))
+    return Boolean(await User.exists({ phone: String(phone || '').trim() }))
   },
 
   sendOtpToEmail: (_p, { email }, ctx) => {
     assertPublicAccess(ctx)
-    // Dev stub: OTP is always 123456.
-    console.log(`[OTP email ${email}] => ${TEST_OTP}`)
+    const code = issueOtp(OTP_PURPOSE.EMAIL, normalizeEmail(email))
+    // TODO(production): send via the mail provider instead of logging.
+    if (code) console.log(`[OTP email ${email}] => ${code}`)
+    // Always "true": a failed/throttled send must not reveal whether the
+    // address exists or how often it was requested.
     return { result: true }
   },
 
   sendOtpToPhoneNumber: (_p, { phone }, ctx) => {
     assertPublicAccess(ctx)
-    console.log(`[OTP phone ${phone}] => ${TEST_OTP}`)
+    const code = issueOtp(OTP_PURPOSE.PHONE, String(phone || '').trim())
+    // TODO(production): send via the SMS provider instead of logging.
+    if (code) console.log(`[OTP phone ${phone}] => ${code}`)
     return { result: true }
   },
 
   verifyOtp: async (_p, { otp, email, phone }, ctx) => {
-    const ok = otp === TEST_OTP
-    if (ok && phone) {
-      await User.findOneAndUpdate({ phone }, { phoneIsVerified: true })
+    assertPublicAccess(ctx)
+    if (phone) {
+      const trimmed = String(phone).trim()
+      if (!consumeOtp(OTP_PURPOSE.PHONE, trimmed, otp)) return { result: false }
+      await User.updateOne({ phone: trimmed }, { phoneIsVerified: true })
+      return { result: true }
     }
-    if (ok && email) {
-      await User.findOneAndUpdate(
-        { email: email.toLowerCase() },
-        { emailIsVerified: true }
-      )
+    if (email) {
+      const normalized = normalizeEmail(email)
+      if (!consumeOtp(OTP_PURPOSE.EMAIL, normalized, otp)) return { result: false }
+      await User.updateOne({ email: normalized }, { emailIsVerified: true })
+      return { result: true }
     }
-    return { result: ok }
+    return { result: false }
   },
 
-  forgotPassword: (_p, { email }) => {
-    console.log(`[Forgot password OTP ${email}] => ${TEST_OTP}`)
+  forgotPassword: (_p, { email }, ctx) => {
+    assertPublicAccess(ctx)
+    const normalized = normalizeEmail(email)
+    const code = issueOtp(OTP_PURPOSE.PASSWORD_RESET, normalized)
+    // TODO(production): send via the mail provider instead of logging.
+    if (code) console.log(`[Forgot password OTP ${normalized}] => ${code}`)
+    // Constant response — never leak whether the account exists.
     return { result: true }
   },
 
-  resetPassword: async (_p, { password, email, otp }) => {
-    if (otp !== TEST_OTP) throw new GraphQLError('Invalid OTP')
-    const user = await User.findOne({ email: email.toLowerCase() })
-    if (!user) throw new GraphQLError('User not found')
+  resetPassword: async (_p, { password, email, otp }, ctx) => {
+    assertPublicAccess(ctx)
+    const normalized = normalizeEmail(email)
+    assertPasswordStrength(password)
+    if (!consumeOtp(OTP_PURPOSE.PASSWORD_RESET, normalized, otp)) {
+      throw new GraphQLError('Invalid or expired OTP', {
+        extensions: { code: 'BAD_USER_INPUT' }
+      })
+    }
+    const user = await User.findOne({ email: normalized })
+    // The code was already consumed, so a wrong address cannot be probed twice.
+    if (!user) return { result: true }
     user.password = password
     await user.save()
     return { result: true }
@@ -286,12 +375,13 @@ export const authMutations = {
   refreshToken: async (_p, { refreshToken: presented }, ctx) => {
     assertPublicAccess(ctx)
     const claims = verifyToken(presented)
-    if (!claims?.userId) {
-      throw new GraphQLError('UNAUTHENTICATED', { extensions: { code: 'UNAUTHENTICATED' } })
-    }
+    // Only a dedicated refresh token may mint a new session, and only for
+    // panel roles — this endpoint returns an *owner* session payload.
+    if (claims?.typ !== 'refresh' || !claims.userId) throw unauthenticated()
+
     const user = await User.findById(claims.userId).lean()
-    if (!user || user.isActive === false) {
-      throw new GraphQLError('UNAUTHENTICATED', { extensions: { code: 'UNAUTHENTICATED' } })
+    if (!user || user.isActive === false || !OWNER_ROLES.includes(user.role)) {
+      throw unauthenticated()
     }
     return ownerResponse(user)
   },
@@ -300,15 +390,18 @@ export const authMutations = {
   createAddress: async (_p, { addressInput }, ctx) => {
     assertPublicAccess(ctx)
     const auth = requireUser(ctx)
-    const { toCoord } = await import('./helpers.js')
     const user = await User.findById(auth.userId)
+    if (!user) throw unauthenticated()
     user.addresses = (user.addresses || []).map((a) => { a.selected = false; return a })
     user.addresses.push({
       label: addressInput.label || 'Other',
       deliveryAddress: addressInput.deliveryAddress || '',
       details: addressInput.details || '',
       location: {
-        coordinates: [toCoord(addressInput.longitude), toCoord(addressInput.latitude)]
+        coordinates: [
+          toLongitude(addressInput.longitude),
+          toLatitude(addressInput.latitude)
+        ]
       },
       selected: true
     })
@@ -319,8 +412,10 @@ export const authMutations = {
   editAddress: async (_p, { addressInput }, ctx) => {
     assertPublicAccess(ctx)
     const auth = requireUser(ctx)
-    const { toCoord } = await import('./helpers.js')
     const user = await User.findById(auth.userId)
+    if (!user) throw unauthenticated()
+    // Scoped to the caller's own subdocuments, so another user's address id
+    // simply does not resolve.
     const addr = user.addresses.id(addressInput._id)
     if (addr) {
       if (addressInput.label != null) addr.label = addressInput.label
@@ -329,10 +424,10 @@ export const authMutations = {
       if (addressInput.longitude != null || addressInput.latitude != null) {
         addr.location.coordinates = [
           addressInput.longitude != null
-            ? toCoord(addressInput.longitude, addr.location.coordinates[0])
+            ? toLongitude(addressInput.longitude, addr.location.coordinates[0])
             : addr.location.coordinates[0],
           addressInput.latitude != null
-            ? toCoord(addressInput.latitude, addr.location.coordinates[1])
+            ? toLatitude(addressInput.latitude, addr.location.coordinates[1])
             : addr.location.coordinates[1]
         ]
       }
@@ -345,7 +440,10 @@ export const authMutations = {
     assertPublicAccess(ctx)
     const auth = requireUser(ctx)
     const user = await User.findById(auth.userId)
-    user.addresses = user.addresses.filter((a) => String(a._id) !== String(addressId))
+    if (!user) throw unauthenticated()
+    user.addresses = (user.addresses || []).filter(
+      (a) => String(a._id) !== String(addressId)
+    )
     await user.save()
     return profileShape(user)
   },
@@ -353,9 +451,10 @@ export const authMutations = {
   deleteBulkAddresses: async (_p, { ids }, ctx) => {
     assertPublicAccess(ctx)
     const auth = requireUser(ctx)
-    const set = new Set(ids.map(String))
     const user = await User.findById(auth.userId)
-    user.addresses = user.addresses.filter((a) => !set.has(String(a._id)))
+    if (!user) throw unauthenticated()
+    const doomed = new Set((ids || []).map(String))
+    user.addresses = (user.addresses || []).filter((a) => !doomed.has(String(a._id)))
     await user.save()
     return profileShape(user)
   },
@@ -364,7 +463,10 @@ export const authMutations = {
     assertPublicAccess(ctx)
     const auth = requireUser(ctx)
     const user = await User.findById(auth.userId)
-    user.addresses.forEach((a) => { a.selected = String(a._id) === String(addressId) })
+    if (!user) throw unauthenticated()
+    for (const address of user.addresses || []) {
+      address.selected = String(address._id) === String(addressId)
+    }
     await user.save()
     return profileShape(user)
   },
@@ -372,9 +474,13 @@ export const authMutations = {
   changePassword: async (_p, { oldPassword, newPassword }, ctx) => {
     assertPublicAccess(ctx)
     const auth = requireUser(ctx)
+    assertPasswordStrength(newPassword)
     const user = await User.findById(auth.userId)
-    if (!(await user.comparePassword(oldPassword))) {
-      throw new GraphQLError('Invalid password')
+    if (!user) throw unauthenticated()
+    if (!(await user.comparePassword(String(oldPassword || '')))) {
+      throw new GraphQLError('Invalid password', {
+        extensions: { code: 'BAD_USER_INPUT' }
+      })
     }
     user.password = newPassword
     await user.save()
@@ -389,6 +495,7 @@ export const authMutations = {
       { notificationToken: token },
       { new: true }
     )
+    if (!user) throw unauthenticated()
     return profileShape(user)
   },
 
@@ -403,6 +510,7 @@ export const authMutations = {
       },
       { new: true }
     )
+    if (!user) throw unauthenticated()
     return profileShape(user)
   },
 
@@ -410,6 +518,7 @@ export const authMutations = {
     assertPublicAccess(ctx)
     const auth = requireUser(ctx)
     const user = await User.findById(auth.userId)
+    if (!user) throw unauthenticated()
     const fav = new Set((user.favourite || []).map(String))
     if (fav.has(String(restaurantId))) fav.delete(String(restaurantId))
     else fav.add(String(restaurantId))
@@ -422,7 +531,7 @@ export const authMutations = {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
     const user = await User.findOneAndUpdate(
-      { email: email.toLowerCase() },
+      { email: normalizeEmail(email) },
       { isActive },
       { new: true }
     )

@@ -10,7 +10,7 @@ import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHt
 import { makeExecutableSchema } from '@graphql-tools/schema'
 import { WebSocketServer } from 'ws'
 import { useServer } from 'graphql-ws/lib/use/ws'
-import { PORT, SEED_ON_START, ALLOWED_ORIGINS } from './src/config.js'
+import { PORT, SEED_ON_START, ALLOWED_ORIGINS, NODE_ENV } from './src/config.js'
 import { typeDefs } from './src/graphql/typeDefs.js'
 import { resolvers } from './src/graphql/resolvers/index.js'
 import { verifyToken } from './src/auth/jwt.js'
@@ -30,29 +30,29 @@ import { backfillUnpublishedMenus } from './src/services/menu.js'
 // config.  In production set ALLOWED_ORIGINS to a comma-separated list of the
 // exact origins that should be permitted (no wildcards).
 const corsOrigin = (origin, callback) => {
-  // Requests without an origin (e.g. server-to-server, curl) are always allowed.
+  // Requests without an origin (e.g. server-to-server, curl, native apps).
   if (!origin) return callback(null, true)
 
-  if (ALLOWED_ORIGINS.length === 0) {
-    // Development mode: permit localhost and local network addresses only.
-    const isLocal =
-      /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin) ||
-      /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
-      /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)
-
-    if (isLocal) return callback(null, true)
-
-    // Also allow ngrok/tunnel domains in dev (common for mobile testing).
-    if (/\.ngrok(-free)?\.app$/.test(origin) || /\.trycloudflare\.com$/.test(origin)) {
-      return callback(null, true)
-    }
-
-    return callback(null, true) // Fully open in dev
+  // Production must always run with an explicit whitelist.
+  if (ALLOWED_ORIGINS.length) {
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true)
+    return callback(new Error('CORS: origin not allowed'))
   }
 
-  // Production: strict whitelist.
-  if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true)
-  return callback(new Error(`CORS: origin ${origin} not allowed`))
+  if (NODE_ENV === 'production') {
+    return callback(new Error('CORS: ALLOWED_ORIGINS is not configured'))
+  }
+
+  // Development: localhost, the LAN (Expo on a phone) and dev tunnels.
+  const isDevOrigin =
+    /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin) ||
+    /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
+    /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin) ||
+    /^https:\/\/[\w-]+\.ngrok(-free)?\.app$/.test(origin) ||
+    /^https:\/\/[\w-]+\.trycloudflare\.com$/.test(origin)
+
+  if (isDevOrigin) return callback(null, true)
+  return callback(new Error('CORS: origin not allowed'))
 }
 
 const corsOptions = { origin: corsOrigin, credentials: true }
@@ -106,24 +106,43 @@ async function start() {
   // pure JSON API — CSP only matters for HTML responses.
   app.use(helmet({ contentSecurityPolicy: false }))
 
+  // Needed for correct client IPs (and therefore correct rate limiting) when
+  // running behind ngrok / a reverse proxy.
+  app.set('trust proxy', 1)
+
+  // ---------------------------------------------------------------------------
+  // Rate limiting
+  // ---------------------------------------------------------------------------
+  const limiter = (max, windowMs = 60 * 1000) =>
+    rateLimit({
+      windowMs,
+      max,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { errors: [{ message: 'Too many requests — slow down.' }] }
+    })
+
+  const graphqlLimiter = limiter(200)
+  // Geocoding proxies a billable third-party API — keep it on a short leash.
+  const mapsLimiter = limiter(60)
+  const paymentLimiter = limiter(30)
+
   // Static uploads can be served to any origin (images are public).
-  app.use('/uploads', cors({ origin: true }), express.static(UPLOADS_DIR))
+  // `dotfiles: deny` + no directory index keeps the folder from leaking anything
+  // other than the uploaded images themselves.
+  app.use(
+    '/uploads',
+    cors({ origin: true }),
+    express.static(UPLOADS_DIR, { dotfiles: 'deny', index: false, maxAge: '1h' })
+  )
 
-  // Maps and Stripe routes use the same strict CORS as the GraphQL endpoint.
-  app.use('/maps', cors(corsOptions), mapsRouter)
-  app.use('/stripe', stripeRouter)
+  // Stripe's webhook signature is computed over the raw body, so this route
+  // must keep the exact bytes — no JSON parsing before the router sees it.
+  app.use('/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }))
 
-  // ---------------------------------------------------------------------------
-  // Rate limiting — 200 requests per minute per IP for the GraphQL endpoint.
-  // Adjust windowMs/max as needed when deploying behind a load balancer.
-  // ---------------------------------------------------------------------------
-  const graphqlLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 200,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { errors: [{ message: 'Too many requests — slow down.' }] }
-  })
+  // Maps and Stripe redirects use the same strict CORS as the GraphQL endpoint.
+  app.use('/maps', cors(corsOptions), mapsLimiter, mapsRouter)
+  app.use('/stripe', paymentLimiter, stripeRouter)
 
   const httpServer = http.createServer(app)
 
@@ -162,6 +181,25 @@ async function start() {
 
   const server = new ApolloServer({
     schema,
+    // Schema introspection is a reconnaissance aid — dev only.
+    introspection: NODE_ENV !== 'production',
+    // Never ship stack traces or driver-level messages to clients.
+    formatError: (formatted, error) => {
+      if (NODE_ENV !== 'production') return formatted
+      const code = formatted.extensions?.code
+      const isExpected = [
+        'UNAUTHENTICATED',
+        'FORBIDDEN',
+        'BAD_USER_INPUT',
+        'OTP_REQUIRED',
+        'RESTAURANT_UNAVAILABLE'
+      ].includes(code)
+      if (isExpected) {
+        return { message: formatted.message, extensions: { code } }
+      }
+      console.error('[graphql]', error)
+      return { message: 'Internal server error', extensions: { code: 'INTERNAL_SERVER_ERROR' } }
+    },
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
@@ -178,10 +216,14 @@ async function start() {
 
   await server.start()
 
-  // Health / status endpoint — NO credentials in response.
+  // Health / status endpoint. In production it reveals nothing about the
+  // deployment (no counts, no internal URLs, no role list).
   app.get('/', async (_req, res) => {
+    if (NODE_ENV === 'production') {
+      return res.json({ name: 'JedzTo Multi-Vendor API', status: 'ok' })
+    }
     const restaurants = await Restaurant.countDocuments()
-    res.json({
+    return res.json({
       name: 'JedzTo Multi-Vendor API',
       status: 'ok',
       graphql: `http://localhost:${PORT}/graphql`,

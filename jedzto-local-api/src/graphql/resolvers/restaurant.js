@@ -6,7 +6,7 @@
  */
 
 import { GraphQLError } from 'graphql'
-import { Restaurant, Category, Food } from '../../models/index.js'
+import { Restaurant, Category, Food, User } from '../../models/index.js'
 import { assertPublicAccess } from '../../auth/jwt.js'
 import { liveCategories, mapFood } from '../../services/menu.js'
 import { rewriteUploadUrl } from '../../utils/publicUrl.js'
@@ -158,21 +158,31 @@ export async function listRestaurants({ shopType, latitude, longitude } = {}) {
 // Exported: resolver type field resolvers for Restaurant
 // ---------------------------------------------------------------------------
 
+/**
+ * Loads the owner once per restaurant object, even when both `owner` and
+ * `username` are selected (they used to fire one full-document query each).
+ */
+const ownerOf = (parent) => {
+  if (!parent.ownerId) return Promise.resolve(null)
+  if (!parent.__ownerPromise) {
+    parent.__ownerPromise = User.findById(parent.ownerId)
+      .select('email isActive')
+      .lean()
+  }
+  return parent.__ownerPromise
+}
+
 export const RestaurantFieldResolvers = {
   owner: async (parent) => {
-    if (!parent.ownerId) return null
-    const { User } = await import('../../models/index.js')
-    const owner = await User.findById(parent.ownerId).lean()
+    const owner = await ownerOf(parent)
     if (!owner) return null
     return { _id: id(owner), email: owner.email, isActive: owner.isActive !== false }
   },
   slug: (parent) => slugify(parent.name || ''),
-  username: async (parent) => {
-    if (!parent.ownerId) return null
-    const { User } = await import('../../models/index.js')
-    const owner = await User.findById(parent.ownerId).lean()
-    return owner?.email || null
-  },
-  commissionRate: () => 0,
+  username: async (parent) => (await ownerOf(parent))?.email || null,
+  // Was hardcoded to 0, which silently hid the real commission from the admin
+  // panel and from settlement previews.
+  commissionRate: (parent) =>
+    parent.commissionRate == null ? 10 : Number(parent.commissionRate),
   unique_restaurant_id: (parent) => parent._id
 }

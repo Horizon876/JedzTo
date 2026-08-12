@@ -3,17 +3,26 @@ import bcrypt from 'bcryptjs'
 
 const ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'CUSTOMER']
 
+// OWASP ASVS recommends >= 10 rounds; 12 keeps ~250 ms/hash on modern hardware.
+const BCRYPT_ROUNDS = 12
+
 const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     name: { type: String, required: true, trim: true },
-    phone: { type: String, default: '' },
+    // Indexed: guestCheckout / phoneExist / order search all query by phone.
+    phone: { type: String, default: '', index: true },
     role: { type: String, enum: ROLES, required: true, default: 'CUSTOMER' },
     restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', default: null, index: true },
     phoneIsVerified: { type: Boolean, default: false },
     emailIsVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    /**
+     * Marks records created by guestCheckout. Such a record may be re-claimed
+     * with just a phone number; a registered account may not.
+     */
+    isGuest: { type: Boolean, default: false },
     notificationToken: { type: String, default: null },
     isOrderNotification: { type: Boolean, default: true },
     isOfferNotification: { type: Boolean, default: true },
@@ -35,7 +44,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.pre('save', async function hashPassword(next) {
   if (!this.isModified('password')) return next()
-  this.password = await bcrypt.hash(this.password, 10)
+  this.password = await bcrypt.hash(this.password, BCRYPT_ROUNDS)
   return next()
 })
 

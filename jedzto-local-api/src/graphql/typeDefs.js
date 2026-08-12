@@ -1094,7 +1094,8 @@ export const typeDefs = `#graphql
     ownerLogin(email: String!, password: String!): OwnerAuthPayload
     login(email: String, password: String, type: String!, appleId: String, idToken: String, name: String, notificationToken: String): AuthPayload
     createUser(userInput: UserInput!): AuthPayload
-    guestCheckout(name: String!, phone: String!): AuthPayload
+    "Guest session for a phone number. otp is required when the number already belongs to a registered (non-guest) account."
+    guestCheckout(name: String!, phone: String!, otp: String): AuthPayload
     updateUser(updateUserInput: UpdateUserInput!): UserProfile
     emailExist(email: String!): Boolean
     phoneExist(phone: String!): Boolean

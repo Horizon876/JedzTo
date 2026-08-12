@@ -2,7 +2,7 @@ import { defineConfig } from 'cypress';
 
 export default defineConfig({
   e2e: {
-    baseUrl: 'http://localhost:3001',
+    baseUrl: 'http://localhost:3000',
     // `cypress/plugins/index.js` is required to load your plugins
   },
   retries: 3,

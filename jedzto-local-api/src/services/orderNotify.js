@@ -54,13 +54,40 @@ export async function publishOrderChanged(
   }
 }
 
-export async function markStripeOrderPaid(order, serializeOrder, paymentIntentId = null) {
+/**
+ * Records a settled Stripe payment.
+ *
+ * @param {object} order            Mongoose order document.
+ * @param {Function} serializeOrder Injected to avoid a circular import.
+ * @param {string|object|null} paymentIntentId
+ * @param {number|null} paidAmount  Amount Stripe actually captured (major
+ *   units). Required by callers that settle a payment: recording
+ *   `paidAmount = orderAmount` unconditionally would let an underpaid or
+ *   unverified session look fully paid.
+ */
+export async function markStripeOrderPaid(
+  order,
+  serializeOrder,
+  paymentIntentId = null,
+  paidAmount = null
+) {
   if (!order) return null
   if (String(order.paymentStatus || '').toUpperCase() === 'PAID') {
     return order
   }
+
+  const expected = Number(order.orderAmount || 0)
+  const captured = paidAmount == null ? expected : Number(paidAmount)
+  // Tolerate sub-grosz rounding only.
+  if (!Number.isFinite(captured) || captured + 0.01 < expected) {
+    console.warn(
+      `[payments] refusing to settle ${order.orderId}: captured ${captured} < expected ${expected}`
+    )
+    return order
+  }
+
   order.paymentStatus = 'PAID'
-  order.paidAmount = order.orderAmount
+  order.paidAmount = captured
   // Kitchen sees the order only after Stripe succeeds — start the tablet alarm.
   order.isRinged = true
   if (paymentIntentId) {

@@ -435,13 +435,7 @@ function ItemDetail(props) {
           }}
         >
           <View>
-            {food?.image ? (
-              <ImageHeader image={food?.image} />
-            ) : (
-              <View style={styles(currentTheme).imageFallback}>
-                <Text style={styles(currentTheme).descriptionText}>{food?.title}</Text>
-              </View>
-            )}
+            {food?.image ? <ImageHeader image={food?.image} /> : null}
             <View style={styles(currentTheme).detailsBlock}>
               <HeadingComponent
                 title={food?.title}

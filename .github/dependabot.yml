@@ -21,7 +21,3 @@ updates:
     directory: "/enatega-multivendor-rider" # Location of package manifests
     schedule:
       interval: "weekly"
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/enatega-multivendor-web" # Location of package manifests
-    schedule:
-      interval: "weekly"

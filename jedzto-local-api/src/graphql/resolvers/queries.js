@@ -5,18 +5,36 @@
  * auth modules for the actual logic.
  */
 
+import mongoose from 'mongoose'
 import { GraphQLError } from 'graphql'
-import { User, Restaurant, Category, Food, Order, ShopType } from '../../models/index.js'
+import {
+  User,
+  Restaurant,
+  Category,
+  Food,
+  Order,
+  ShopType,
+  Coupon
+} from '../../models/index.js'
 import { assertPublicAccess, requireUser, requireRestaurantOwner } from '../../auth/jwt.js'
 import { liveCategories, mapFood } from '../../services/menu.js'
+import { kitchenOrdersMongoFilter } from '../../services/orderNotify.js'
 import { resolveDefaultEta } from '../../services/eta.js'
 import {
   listSettlementsForPeriod,
   upsertSettlementPreview,
   currentPeriodKey
 } from '../../services/settlements.js'
-import { STRIPE_PUBLISHABLE_KEY } from '../../config.js'
-import { id, toPreview, adminUserShape, resolveDelivery } from './helpers.js'
+import { STRIPE_PUBLISHABLE_KEY, ALLOW_TEST_OTP, NODE_ENV } from '../../config.js'
+import { containsFilter, clampPageSize, clampNonNegative } from '../../utils/sanitize.js'
+import {
+  id,
+  toPreview,
+  adminUserShape,
+  resolveDelivery,
+  audienceFor,
+  couponShape
+} from './helpers.js'
 import {
   buildRestaurantTree,
   buildRestaurantTreeById,
@@ -24,15 +42,18 @@ import {
 } from './restaurant.js'
 import {
   serializeOrder,
+  serializeOrders,
   paginateOrders,
   orderSearchFilter,
   orderStatusFilter,
   statsDateRange,
   assertCanReadRestaurantOrders,
+  loadAuthorizedOrder,
   ACTIVE,
-  CANCELLED
+  CANCELLED,
+  MAX_ORDER_PAGE_SIZE
 } from './orders.js'
-import { authQueries, ownerResponse } from './auth.js'
+import { authQueries } from './auth.js'
 import { menuPublishStatusOf } from './menu.js'
 
 // ---------------------------------------------------------------------------
@@ -49,9 +70,11 @@ const CONFIG = {
   customerAppSentryUrl: '',
   termsAndConditions: 'https://jedzto.pl/terms',
   privacyPolicy: 'https://jedzto.pl/privacy',
-  testOtp: '123456',
-  skipMobileVerification: true,
-  skipEmailVerification: true,
+  // Only ever exposed while the dev OTP bypass is active; in production the
+  // client must not be told any code at all.
+  testOtp: ALLOW_TEST_OTP ? '123456' : '',
+  skipMobileVerification: NODE_ENV !== 'production',
+  skipEmailVerification: NODE_ENV !== 'production',
   costType: 'fixed',
   publishableKey: STRIPE_PUBLISHABLE_KEY,
   secretKey: '',
@@ -62,37 +85,41 @@ const CONFIG = {
 // ---------------------------------------------------------------------------
 // Coupons
 // ---------------------------------------------------------------------------
+// NOTE: these used CommonJS `require('../../models')` inside an ESM module,
+// which threw "require is not defined" on every call — the whole coupon
+// feature was dead code. Now a static ESM import, with access scoped by role.
+/**
+ * Restricts a coupon query to what the caller may see: a restaurant owner only
+ * gets their own and the platform-wide ones, a customer only enabled ones.
+ */
+const couponScopeFor = (ctx) => {
+  const user = ctx?.user
+  if (user?.role === 'SUPER_ADMIN') return {}
+  if (user?.role === 'RESTAURANT_OWNER') {
+    return { $or: [{ restaurantId: user.restaurantId || null }, { restaurantId: null }] }
+  }
+  return { enabled: true }
+}
+
 async function coupons(ctx) {
   assertPublicAccess(ctx)
-  const { Coupon } = require('../../models')
-  const docs = await Coupon.find().lean()
-  return docs.map(d => ({
-    _id: d._id.toString(),
-    title: d.title,
-    discount: d.discount,
-    enabled: d.enabled,
-    restaurantId: d.restaurantId ? d.restaurantId.toString() : null,
-    minOrderValue: d.minOrderValue,
-    usageLimit: d.usageLimit,
-    usedCount: d.usedCount
-  }))
+  const docs = await Coupon.find(couponScopeFor(ctx)).limit(200).lean()
+  return docs.map(couponShape)
 }
 
 async function couponsPaginated(ctx, args) {
   assertPublicAccess(ctx)
-  const { Coupon } = require('../../models')
-  
-  const { page = 1, limit = 10, search, enabled } = args
-  const filter = {}
-  if (search) {
-    filter.title = { $regex: search, $options: 'i' }
-  }
-  if (enabled !== undefined) {
-    filter.enabled = enabled
-  }
+  requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+
+  const page = Math.max(1, clampNonNegative(args.page, 1))
+  const limit = clampPageSize(args.limit, 10)
+  const filter = { ...couponScopeFor(ctx) }
+  if (args.search) filter.title = containsFilter(args.search)
+  if (args.enabled !== undefined && args.enabled !== null) filter.enabled = args.enabled
 
   const [docs, totalCount] = await Promise.all([
     Coupon.find(filter)
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),
@@ -100,19 +127,10 @@ async function couponsPaginated(ctx, args) {
   ])
 
   return {
-    data: docs.map(d => ({
-      _id: d._id.toString(),
-      title: d.title,
-      discount: d.discount,
-      enabled: d.enabled,
-      restaurantId: d.restaurantId ? d.restaurantId.toString() : null,
-      minOrderValue: d.minOrderValue,
-      usageLimit: d.usageLimit,
-      usedCount: d.usedCount
-    })),
+    data: docs.map(couponShape),
     totalCount,
     currentPage: page,
-    totalPages: Math.ceil(totalCount / limit)
+    totalPages: Math.max(1, Math.ceil(totalCount / limit))
   }
 }
 
@@ -159,43 +177,64 @@ async function dashboardCounts(year) {
   }
 }
 
+/**
+ * Aggregates order counts/sales per restaurant in the database instead of
+ * streaming every order document into Node just to sum a field.
+ */
 async function ordersGroupedByRestaurant(metric) {
-  const [restaurants, orders] = await Promise.all([
-    Restaurant.find().lean(),
-    Order.find({ orderStatus: { $nin: [...CANCELLED] } }).lean()
+  const rows = await Order.aggregate([
+    { $match: { orderStatus: { $nin: [...CANCELLED] } } },
+    {
+      $group: {
+        _id: '$restaurantId',
+        value: metric === 'sales' ? { $sum: '$orderAmount' } : { $sum: 1 }
+      }
+    },
+    { $sort: { value: -1 } },
+    {
+      $lookup: {
+        from: 'restaurants',
+        localField: '_id',
+        foreignField: '_id',
+        pipeline: [{ $project: { name: 1 } }],
+        as: 'restaurant'
+      }
+    }
   ])
-  const names = new Map(restaurants.map((r) => [String(r._id), r.name]))
-  const totals = new Map()
-  for (const order of orders) {
-    const key = String(order.restaurantId)
-    const add = metric === 'sales' ? order.orderAmount || 0 : 1
-    totals.set(key, (totals.get(key) || 0) + add)
-  }
-  return [...totals.entries()]
-    .map(([restaurantId, value]) => ({
-      label: names.get(restaurantId) || 'Nieznana restauracja',
-      value: Number(value.toFixed(2))
-    }))
-    .sort((a, b) => b.value - a.value)
+
+  return rows.map((row) => ({
+    label: row.restaurant?.[0]?.name || 'Nieznana restauracja',
+    value: Number((row.value || 0).toFixed(2))
+  }))
 }
 
 async function monthlySalesAndOrders(restaurantId, year) {
-  const orders = await Order.find({
-    restaurantId,
-    orderStatus: { $nin: [...CANCELLED] },
-    createdAt: { $gte: new Date(year, 0, 1), $lt: new Date(year + 1, 0, 1) }
-  }).lean()
+  const rows = await Order.aggregate([
+    {
+      $match: {
+        restaurantId: new mongoose.Types.ObjectId(String(restaurantId)),
+        orderStatus: { $nin: [...CANCELLED] },
+        createdAt: { $gte: new Date(year, 0, 1), $lt: new Date(year + 1, 0, 1) }
+      }
+    },
+    {
+      $group: {
+        _id: { $month: '$createdAt' },
+        sales: { $sum: '$orderAmount' },
+        count: { $sum: 1 }
+      }
+    }
+  ])
 
   const salesAmount = Array(12).fill(0)
   const ordersCount = Array(12).fill(0)
-
-  for (const order of orders) {
-    const month = new Date(order.createdAt).getMonth()
-    salesAmount[month] += order.orderAmount || 0
-    ordersCount[month] += 1
+  for (const row of rows) {
+    const index = row._id - 1
+    salesAmount[index] = Number((row.sales || 0).toFixed(2))
+    ordersCount[index] = row.count
   }
 
-  return { salesAmount: salesAmount.map((v) => Number(v.toFixed(2))), ordersCount }
+  return { salesAmount, ordersCount }
 }
 
 async function paymentMethodStats(restaurantId, options) {
@@ -203,21 +242,30 @@ async function paymentMethodStats(restaurantId, options) {
     restaurantId,
     orderStatus: { $nin: [...CANCELLED] },
     ...statsDateRange(options)
-  }).lean()
-
-  const bucket = (rows, type) => ({
-    _type: type,
-    data: {
-      total_orders: rows.length,
-      total_sales: Number(rows.reduce((s, o) => s + (o.orderAmount || 0), 0).toFixed(2)),
-      total_sales_without_delivery: Number(
-        rows.reduce((s, o) => s + ((o.orderAmount || 0) - (o.deliveryCharges || 0)), 0).toFixed(2)
-      ),
-      total_delivery_fee: Number(
-        rows.reduce((s, o) => s + (o.deliveryCharges || 0), 0).toFixed(2)
-      )
-    }
   })
+    // Projection: this report only sums four numeric fields, so there is no
+    // reason to hydrate item arrays and addresses for every order.
+    .select('orderAmount deliveryCharges paymentMethod isPickedUp')
+    .lean()
+
+  // Single pass per bucket instead of four independent reduce() traversals.
+  const bucket = (rows, type) => {
+    let sales = 0
+    let delivery = 0
+    for (const order of rows) {
+      sales += order.orderAmount || 0
+      delivery += order.deliveryCharges || 0
+    }
+    return {
+      _type: type,
+      data: {
+        total_orders: rows.length,
+        total_sales: Number(sales.toFixed(2)),
+        total_sales_without_delivery: Number((sales - delivery).toFixed(2)),
+        total_delivery_fee: Number(delivery.toFixed(2))
+      }
+    }
+  }
 
   const methodBuckets = (rows) => [
     bucket(rows, 'all'),
@@ -225,18 +273,36 @@ async function paymentMethodStats(restaurantId, options) {
     bucket(rows.filter((o) => !o.isPickedUp), 'isNotPickedUp')
   ]
 
-  const cod = orders.filter((o) => (o.paymentMethod || 'COD').toUpperCase() === 'COD')
-  const card = orders.filter((o) => (o.paymentMethod || '').toUpperCase() !== 'COD')
-  const pickup = orders.filter((o) => o.isPickedUp)
-  const delivery = orders.filter((o) => !o.isPickedUp)
+  // One traversal splits the orders into every bucket the report needs
+  // (previously eight separate .filter() passes over the same array).
+  const cod = []
+  const card = []
+  const pickup = []
+  const delivery = []
+  let pickupSales = 0
+  let deliverySales = 0
+
+  for (const order of orders) {
+    if ((order.paymentMethod || 'COD').toUpperCase() === 'COD') cod.push(order)
+    else card.push(order)
+
+    if (order.isPickedUp) {
+      pickup.push(order)
+      pickupSales += order.orderAmount || 0
+    } else {
+      delivery.push(order)
+      deliverySales += order.orderAmount || 0
+    }
+  }
+
   const allTotals = bucket(orders, 'all').data
 
   return {
     ...allTotals,
     pickup_total_orders: pickup.length,
     delivery_total_orders: delivery.length,
-    pickup_orders: Number(pickup.reduce((s, o) => s + (o.orderAmount || 0), 0).toFixed(2)),
-    delivery_orders: Number(delivery.reduce((s, o) => s + (o.orderAmount || 0), 0).toFixed(2)),
+    pickup_orders: Number(pickupSales.toFixed(2)),
+    delivery_orders: Number(deliverySales.toFixed(2)),
     pickup: { total_orders: pickup.length },
     delivery: { total_orders: delivery.length },
     all: methodBuckets(orders),
@@ -287,9 +353,9 @@ export const queries = {
   restaurantsPaginated: async (_p, { page = 1, limit = 10, search }, ctx) => {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
-    const filter = search ? { name: { $regex: search, $options: 'i' } } : {}
-    const safePage = Math.max(1, page || 1)
-    const safeLimit = Math.max(1, limit || 10)
+    const filter = search ? { name: containsFilter(search) } : {}
+    const safePage = Math.max(1, clampNonNegative(page, 1))
+    const safeLimit = clampPageSize(limit, 10)
     const totalCount = await Restaurant.countDocuments(filter)
     const rows = await Restaurant.find(filter)
       .sort({ createdAt: -1 })
@@ -341,13 +407,15 @@ export const queries = {
   ) => {
     assertPublicAccess(ctx)
     requireRestaurantOwner(ctx, restaurantId)
+    const safePage = Math.max(1, clampNonNegative(page, 1))
+    const safeLimit = clampPageSize(limit, 10)
     const filter = { restaurantId }
-    if (search) filter.title = { $regex: search, $options: 'i' }
+    if (search) filter.title = containsFilter(search)
     const totalCount = await Category.countDocuments(filter)
     const rows = await Category.find(filter)
       .sort({ createdAt: 1 })
-      .skip(Math.max(0, (page - 1) * limit))
-      .limit(limit)
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
       .lean()
     return {
       data: rows.map((c) => ({
@@ -358,8 +426,8 @@ export const queries = {
         foods: []
       })),
       totalCount,
-      currentPage: page,
-      totalPages: Math.max(1, Math.ceil(totalCount / limit))
+      currentPage: safePage,
+      totalPages: Math.max(1, Math.ceil(totalCount / safeLimit))
     }
   },
 
@@ -399,12 +467,14 @@ export const queries = {
     assertPublicAccess(ctx)
     const r = await Restaurant.findById(restaurantId).lean()
     if (!r) return null
-    return buildRestaurantTree(r, { audience: (await import('./helpers.js')).audienceFor(ctx, r) })
+    return buildRestaurantTree(r, { audience: audienceFor(ctx, r) })
   },
 
   cuisines: async (_p, _a, ctx) => {
     assertPublicAccess(ctx)
-    const restaurants = await Restaurant.find({ isActive: true }).lean()
+    const restaurants = await Restaurant.find({ isActive: true })
+      .select('cuisines image')
+      .lean()
     const names = [...new Set(restaurants.flatMap((r) => r.cuisines || []))]
     return names.map((name, i) => ({
       _id: `c-${i}`,
@@ -461,18 +531,21 @@ export const queries = {
     const auth = requireUser(ctx)
     const rows = await Order.find({ customerId: auth.userId })
       .sort({ createdAt: -1 })
-      .skip(offset)
+      .skip(clampNonNegative(offset))
+      // Was unbounded: a long-standing customer could pull their whole history
+      // (and 2 extra queries per order) in a single request.
+      .limit(MAX_ORDER_PAGE_SIZE)
       .lean()
-    return Promise.all(rows.map(serializeOrder))
+    return serializeOrders(rows)
   },
 
+  // Order ids are short and guessable, so ownership — not just authentication —
+  // decides access. Previously any logged-in user could read any order,
+  // including the customer's name, phone and delivery address.
   order: async (_p, { id: orderId }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx)
-    const order =
-      (await Order.findById(orderId).lean()) ||
-      (await Order.findOne({ orderId }).lean())
-    return order ? serializeOrder(order) : null
+    const { order } = await loadAuthorizedOrder(ctx, orderId, { lean: true })
+    return serializeOrder(order)
   },
 
   getUsersActiveOrders: async (_p, { offset = 0, limit = 20 }, ctx) => {
@@ -483,10 +556,10 @@ export const queries = {
       orderStatus: { $in: [...ACTIVE] }
     })
       .sort({ createdAt: -1 })
-      .skip(offset)
-      .limit(limit)
+      .skip(clampNonNegative(offset))
+      .limit(clampPageSize(limit, 20))
       .lean()
-    return Promise.all(rows.map(serializeOrder))
+    return serializeOrders(rows)
   },
 
   getUsersPastOrders: async (_p, { offset = 0, limit = 20 }, ctx) => {
@@ -497,10 +570,10 @@ export const queries = {
       orderStatus: { $nin: [...ACTIVE] }
     })
       .sort({ createdAt: -1 })
-      .skip(offset)
-      .limit(limit)
+      .skip(clampNonNegative(offset))
+      .limit(clampPageSize(limit, 20))
       .lean()
-    return Promise.all(rows.map(serializeOrder))
+    return serializeOrders(rows)
   },
 
   topRatedVendors: async (_p, { latitude, longitude }, ctx) => {
@@ -599,10 +672,10 @@ export const queries = {
       query.isActive = filter.isActive
     }
     if (filter?.search) {
-      query.name = { $regex: filter.search, $options: 'i' }
+      query.name = containsFilter(filter.search)
     }
-    const page = Math.max(1, pagination?.page || 1)
-    const pageSize = Math.max(1, pagination?.limit || 50)
+    const page = Math.max(1, clampNonNegative(pagination?.page, 1))
+    const pageSize = clampPageSize(pagination?.limit, 50)
     const total = await ShopType.countDocuments(query)
     const rows = await ShopType.find(query)
       .sort({ name: 1 })
@@ -671,11 +744,11 @@ export const queries = {
     ) {
       throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
     }
-    const { kitchenOrdersMongoFilter } = await import('../../services/orderNotify.js')
     const rows = await Order.find(kitchenOrdersMongoFilter(restaurant._id))
       .sort({ createdAt: -1 })
+      .limit(MAX_ORDER_PAGE_SIZE)
       .lean()
-    return Promise.all(rows.map(serializeOrder))
+    return serializeOrders(rows)
   },
 
   ordersByRestId: async (_p, { restaurant, page = 1, rows = 10, search, orderStatus }, ctx) => {
@@ -699,8 +772,9 @@ export const queries = {
       ...(await orderSearchFilter(search))
     })
       .sort({ createdAt: -1 })
+      .limit(MAX_ORDER_PAGE_SIZE)
       .lean()
-    return Promise.all(docs.map(serializeOrder))
+    return serializeOrders(docs)
   },
 
   allOrders: async (_p, { page = 1 }, ctx) => {
@@ -734,8 +808,9 @@ export const queries = {
       statsDateRange({ startingDate: starting_date, endingDate: ending_date, dateKeyword })
     )
       .sort({ createdAt: -1 })
+      .limit(MAX_ORDER_PAGE_SIZE)
       .lean()
-    return Promise.all(docs.map(serializeOrder))
+    return serializeOrders(docs)
   },
 
   getActiveOrders: async (_p, { restaurantId, page = 1, rowsPerPage = 10, search }, ctx) => {
@@ -802,9 +877,11 @@ export const queries = {
   usersPaginated: async (_p, { page = 1, limit = 10, search, status }, ctx) => {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
+    const safePage = Math.max(1, clampNonNegative(page, 1))
+    const safeLimit = clampPageSize(limit, 10)
     const filter = { role: 'CUSTOMER' }
     if (search) {
-      const rx = { $regex: search, $options: 'i' }
+      const rx = containsFilter(search)
       filter.$or = [{ name: rx }, { email: rx }, { phone: rx }]
     }
     if (status === 'active') filter.isActive = true
@@ -812,14 +889,14 @@ export const queries = {
     const totalCount = await User.countDocuments(filter)
     const rows = await User.find(filter)
       .sort({ createdAt: -1 })
-      .skip(Math.max(0, (page - 1) * limit))
-      .limit(limit)
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
       .lean()
     return {
       data: rows.map(adminUserShape),
       totalCount,
-      currentPage: page,
-      totalPages: Math.max(1, Math.ceil(totalCount / limit))
+      currentPage: safePage,
+      totalPages: Math.max(1, Math.ceil(totalCount / safeLimit))
     }
   },
 
@@ -887,7 +964,9 @@ export const queries = {
 
   restaurantSettlement: async (_p, { restaurantId, periodKey }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    // Financial data: an owner may only read their own restaurant's settlement
+    // (the role check alone let any owner pass any restaurantId).
+    requireRestaurantOwner(ctx, restaurantId)
     const key = periodKey || currentPeriodKey()
     const row = await upsertSettlementPreview(restaurantId, key)
     if (!row) throw new GraphQLError('Restaurant not found')
@@ -909,7 +988,9 @@ export const queries = {
       createdAt: { $gte: fromDate, $lte: toDate },
       orderStatus: { $nin: ['CANCELLED', 'REJECTED'] },
       paymentStatus: { $ne: 'REFUNDED' }
-    }).lean()
+    })
+      .select('orderAmount paymentMethod createdAt items.title items.quantity')
+      .lean()
 
     let onlineGross = 0
     let cashGross = 0

@@ -6,35 +6,45 @@
  */
 
 import { GraphQLError } from 'graphql'
-import { User, Restaurant, Category, Food, Order, ShopType } from '../../models/index.js'
+import Stripe from 'stripe'
+import {
+  User,
+  Restaurant,
+  Category,
+  Food,
+  Order,
+  ShopType,
+  Coupon
+} from '../../models/index.js'
 import {
   assertPublicAccess,
   requireUser,
   requireRestaurantOwner
 } from '../../auth/jwt.js'
-import Stripe from 'stripe'
-import { STRIPE_SECRET_KEY } from '../../config.js'
-const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null
+import { STRIPE_SECRET_KEY, MIN_PASSWORD_LENGTH } from '../../config.js'
+import { toMoney } from '../../utils/sanitize.js'
 import { resolveDefaultEta } from '../../services/eta.js'
 import { markSettlementSettled, currentPeriodKey } from '../../services/settlements.js'
-import { publishOrderChanged, isOnlineCardMethod, kitchenOrdersMongoFilter } from '../../services/orderNotify.js'
+import { publishOrderChanged, isOnlineCardMethod } from '../../services/orderNotify.js'
+import { priceOrder } from '../../services/pricing.js'
 import { withCurrentEta } from '../../services/eta.js'
 import { restaurantUnavailableReason } from '../../services/restaurantAvailability.js'
 import {
   pubsub,
   ORDER_STATUS,
   ORDER_CHANGED,
+  CHAT_MESSAGE,
   RESTAURANT_UPDATED
 } from '../orderPubsub.js'
 import {
   id,
-  toCoord,
   clampEtaMinutes,
   slugify,
   normalizeAreaName,
   applyOrderEtaFields,
-  profileShape,
-  mapUserType
+  couponShape,
+  toLatitude,
+  toLongitude
 } from './helpers.js'
 import {
   buildRestaurantTree,
@@ -42,7 +52,43 @@ import {
   publishRestaurantTimes,
   RestaurantFieldResolvers
 } from './restaurant.js'
-import { serializeOrder, ACTIVE } from './orders.js'
+import { serializeOrder, ACTIVE, loadAuthorizedOrder } from './orders.js'
+
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null
+
+const badInput = (message) =>
+  new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } })
+
+const forbidden = (message = 'FORBIDDEN') =>
+  new GraphQLError(message, { extensions: { code: 'FORBIDDEN' } })
+
+/**
+ * A restaurant owner may manage coupons for their own restaurant only;
+ * platform-wide coupons (restaurantId = null) are a super-admin concern.
+ */
+const resolveCouponScope = (couponInput, auth) => {
+  const requested =
+    couponInput.restaurantId === 'all' || !couponInput.restaurantId
+      ? null
+      : String(couponInput.restaurantId)
+
+  if (auth.role === 'SUPER_ADMIN') return requested
+  if (!requested || requested !== String(auth.restaurantId || '')) {
+    throw forbidden('FORBIDDEN: not your restaurant')
+  }
+  return requested
+}
+
+/** Discounts are percentages; anything outside 0–100 is nonsense or abuse. */
+const assertCouponInput = (couponInput) => {
+  const discount = Number(couponInput.discount)
+  if (!Number.isFinite(discount) || discount <= 0 || discount > 100) {
+    throw badInput('Rabat musi być wartością z zakresu 1–100%')
+  }
+  if (!String(couponInput.title || '').trim()) {
+    throw badInput('Kod rabatowy wymaga nazwy')
+  }
+}
 
 // ---------------------------------------------------------------------------
 // ETA sync helper: last accepted ETA becomes restaurant default
@@ -73,96 +119,119 @@ async function syncRestaurantTimesFromOrder(order) {
 // ---------------------------------------------------------------------------
 
 export const adminMutations = {
+  // Ownership is enforced by loadAuthorizedOrder: previously *any* logged-in
+  // user could cancel *any* order just by knowing its id.
   abortOrder: async (_p, { id: orderId }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx)
-    const updated = await Order.findByIdAndUpdate(
-      orderId,
-      { orderStatus: 'CANCELLED', cancelledAt: new Date() },
-      { new: true }
-    ).lean()
-    return serializeOrder(updated)
+    const { order } = await loadAuthorizedOrder(ctx, orderId)
+    if (!ACTIVE.has(order.orderStatus)) {
+      throw badInput('Zamówienia nie można już anulować')
+    }
+    order.orderStatus = 'CANCELLED'
+    order.cancelledAt = new Date()
+    order.isRinged = false
+    await order.save()
+    const serialized = await serializeOrder(order.toObject())
+    pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
+    await publishOrderChanged(order, serialized, 'abortOrder')
+    return serialized
   },
 
   createCoupon: async (_p, { couponInput }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
-    const { Coupon } = require('../models')
-    
-    // Walidacja przypisania ID restauracji
-    const restaurantId = couponInput.restaurantId === 'all' ? null : couponInput.restaurantId
-    
-    const doc = new Coupon({
-      title: couponInput.title,
-      discount: couponInput.discount,
-      enabled: couponInput.enabled,
-      restaurantId: restaurantId,
-      minOrderValue: couponInput.minOrderValue,
-      usageLimit: couponInput.usageLimit
+    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    assertCouponInput(couponInput)
+    const doc = await Coupon.create({
+      title: String(couponInput.title).trim(),
+      discount: Number(couponInput.discount),
+      enabled: couponInput.enabled !== false,
+      restaurantId: resolveCouponScope(couponInput, auth),
+      minOrderValue: toMoney(couponInput.minOrderValue),
+      usageLimit: couponInput.usageLimit ?? null
     })
-    await doc.save()
-    return doc.toObject()
+    return couponShape(doc)
   },
 
   editCoupon: async (_p, { couponInput }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
-    const { Coupon } = require('../models')
-    
-    const restaurantId = couponInput.restaurantId === 'all' ? null : couponInput.restaurantId
+    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    assertCouponInput(couponInput)
 
-    const doc = await Coupon.findByIdAndUpdate(couponInput._id, {
-      title: couponInput.title,
-      discount: couponInput.discount,
-      enabled: couponInput.enabled,
-      restaurantId: restaurantId,
-      minOrderValue: couponInput.minOrderValue,
-      usageLimit: couponInput.usageLimit
-    }, { new: true })
-    if (!doc) throw new GraphQLError('Coupon not found')
-    return doc.toObject()
+    const existing = await Coupon.findById(couponInput._id)
+    if (!existing) throw badInput('Coupon not found')
+    // Check the coupon's *current* owner as well as the requested one, so an
+    // owner cannot hijack a platform-wide or foreign coupon.
+    if (
+      auth.role !== 'SUPER_ADMIN' &&
+      String(existing.restaurantId || '') !== String(auth.restaurantId || '')
+    ) {
+      throw forbidden('FORBIDDEN: not your coupon')
+    }
+
+    existing.title = String(couponInput.title).trim()
+    existing.discount = Number(couponInput.discount)
+    existing.enabled = couponInput.enabled !== false
+    existing.restaurantId = resolveCouponScope(couponInput, auth)
+    existing.minOrderValue = toMoney(couponInput.minOrderValue)
+    existing.usageLimit = couponInput.usageLimit ?? null
+    await existing.save()
+    return couponShape(existing)
   },
 
-  deleteCoupon: async (_p, { id }, ctx) => {
+  deleteCoupon: async (_p, { id: couponId }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
-    const { Coupon } = require('../models')
-    await Coupon.findByIdAndDelete(id)
-    return true
+    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    const scope =
+      auth.role === 'SUPER_ADMIN'
+        ? { _id: couponId }
+        : { _id: couponId, restaurantId: auth.restaurantId || null }
+    const result = await Coupon.deleteOne(scope)
+    return result.deletedCount > 0
   },
 
   sendChatMessage: async (_p, { orderId, messageInput }, ctx) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx)
-    const user = await User.findById(auth.userId)
+    // Only the order's customer, its restaurant or an admin may post to the
+    // order's chat channel.
+    const { auth, order } = await loadAuthorizedOrder(ctx, orderId, { lean: true })
+    const user = await User.findById(auth.userId).select('name').lean()
     const data = {
       id: String(Date.now()),
-      message: messageInput.message || '',
+      message: String(messageInput.message || '').slice(0, 2000),
       image: messageInput.image || null,
-      user: { id: id(user), name: user.name },
+      user: { id: String(auth.userId), name: user?.name || '' },
       createdAt: new Date().toISOString()
     }
-    const { CHAT_MESSAGE } = await import('../orderPubsub.js')
-    pubsub.publish(CHAT_MESSAGE, { subscriptionNewMessage: data, orderId })
+    pubsub.publish(CHAT_MESSAGE, {
+      subscriptionNewMessage: data,
+      orderId: String(order._id)
+    })
     return { success: true, message: 'ok', data }
   },
 
-  reviewOrder: async (_p, { order, rating, description }, ctx) => {
+  reviewOrder: async (_p, { order: orderId, rating, description }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx)
-    const updated = await Order.findByIdAndUpdate(
-      order,
-      {
-        review: {
-          _id: String(Date.now()),
-          rating,
-          description: description || '',
-          createdAt: new Date().toISOString()
-        }
-      },
-      { new: true }
-    ).lean()
-    return serializeOrder(updated)
+    const { auth, order } = await loadAuthorizedOrder(ctx, orderId)
+    // A review is the customer's voice — the restaurant must not write it.
+    if (String(order.customerId) !== String(auth.userId)) {
+      throw forbidden('Tylko zamawiający może ocenić zamówienie')
+    }
+    if (order.orderStatus !== 'DELIVERED') {
+      throw badInput('Ocenić można tylko dostarczone zamówienie')
+    }
+    const score = Math.round(Number(rating))
+    if (!Number.isFinite(score) || score < 1 || score > 5) {
+      throw badInput('Ocena musi być liczbą z zakresu 1–5')
+    }
+
+    order.review = {
+      _id: String(order._id),
+      rating: score,
+      description: String(description || '').slice(0, 1000),
+      createdAt: new Date().toISOString()
+    }
+    await order.save()
+    return serializeOrder(order.toObject())
   },
 
   updateOrderStatus: async (_p, { orderId, status }, ctx) => {
@@ -480,16 +549,43 @@ export const adminMutations = {
   refundOrder: async (_p, { orderId, amount }, ctx) => {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
-    const order = await Order.findById(orderId)
-    if (!order) throw new GraphQLError('Order not found')
+
+    // Atomic claim: flips the status only if nobody else has refunded this
+    // order yet, so two concurrent calls cannot both reach Stripe.
+    const order = await Order.findOneAndUpdate(
+      { _id: orderId, paymentStatus: { $ne: 'REFUNDED' } },
+      { $set: { paymentStatus: 'REFUNDING' } },
+      { new: true }
+    )
+    if (!order) {
+      throw badInput('Zamówienie nie istnieje lub zostało już zwrócone')
+    }
+
+    const revert = async () => {
+      order.paymentStatus = 'PAID'
+      await order.save()
+    }
+
     const method = String(order.paymentMethod || '').toUpperCase()
-    if (method === 'COD') throw new GraphQLError('Cannot refund cash (COD) orders via Stripe')
-    if (order.paymentStatus === 'REFUNDED') throw new GraphQLError('Order already refunded')
-    const refundAmount = amount != null ? Number(amount) : Number(order.orderAmount || 0)
-    
+    if (method === 'COD') {
+      await revert()
+      throw badInput('Nie można zwrócić płatności gotówkowej (COD) przez Stripe')
+    }
+
+    // The refund can never exceed what the customer actually paid — the old
+    // code accepted any client-supplied amount, including negative values.
+    const paid = Number(order.paidAmount || order.orderAmount || 0)
+    const requested = amount == null ? paid : toMoney(amount, -1)
+    if (requested <= 0 || requested > paid) {
+      await revert()
+      throw badInput(`Kwota zwrotu musi mieścić się w zakresie 0–${paid.toFixed(2)}`)
+    }
+    const refundAmount = requested
+
     if (stripe) {
       if (!order.stripePaymentIntentId) {
-        throw new GraphQLError('Brak identyfikatora płatności w bazie. Zrób to z panelu Stripe.')
+        await revert()
+        throw badInput('Brak identyfikatora płatności w bazie. Zrób zwrot z panelu Stripe.')
       }
       try {
         await stripe.refunds.create({
@@ -497,8 +593,18 @@ export const adminMutations = {
           amount: Math.round(refundAmount * 100)
         })
       } catch (err) {
-        throw new GraphQLError('Stripe Refund Error: ' + err.message)
+        await revert()
+        console.error('[stripe] refund failed', err)
+        throw new GraphQLError('Zwrot w Stripe nie powiódł się', {
+          extensions: { code: 'PAYMENT_PROVIDER_ERROR' }
+        })
       }
+    } else {
+      // No provider configured: do not pretend the money went back.
+      await revert()
+      throw new GraphQLError('Stripe nie jest skonfigurowany — zwrot niemożliwy', {
+        extensions: { code: 'PAYMENT_PROVIDER_ERROR' }
+      })
     }
 
     order.paymentStatus = 'REFUNDED'
@@ -517,7 +623,8 @@ export const adminMutations = {
 
   editRestaurant: async (_p, { restaurant: input }, ctx) => {
     assertPublicAccess(ctx)
-    requireRestaurantOwner(ctx, input._id)
+    const auth = requireRestaurantOwner(ctx, input._id)
+    const isAdmin = auth.role === 'SUPER_ADMIN'
     const restaurant = await Restaurant.findById(input._id)
     if (!restaurant) throw new GraphQLError('Restaurant not found')
 
@@ -538,11 +645,16 @@ export const adminMutations = {
     assign('cuisines', input.cuisines)
     assign('isAvailable', input.isAvailable)
     assign('openingTimes', input.openingTimes)
-    assign('commissionRate', input.commissionRate)
-    assign('isSuspended', input.isSuspended)
-    assign('suspendedReason', input.suspendedReason)
     assign('freeDelivery', input.freeDelivery)
     assign('freeDeliveryFrom', input.freeDeliveryFrom)
+
+    // Platform-controlled fields. An owner used to be able to set their own
+    // commission to 0 % and lift a suspension imposed by the platform.
+    if (isAdmin) {
+      assign('commissionRate', input.commissionRate)
+      assign('isSuspended', input.isSuspended)
+      assign('suspendedReason', input.suspendedReason)
+    }
     if (input.pausedUntil !== undefined) {
       restaurant.pausedUntil = input.pausedUntil ? new Date(input.pausedUntil) : null
     }
@@ -552,6 +664,12 @@ export const adminMutations = {
     await restaurant.save()
 
     if (input.password) {
+      // Resetting someone else's password is an admin action; an owner changes
+      // their own password through changePassword (which asks for the old one).
+      if (!isAdmin) throw forbidden('Zmiana hasła właściciela wymaga uprawnień administratora')
+      if (String(input.password).length < MIN_PASSWORD_LENGTH) {
+        throw badInput(`Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`)
+      }
       const owner = await User.findById(restaurant.ownerId)
       if (owner) {
         owner.password = input.password
@@ -576,9 +694,13 @@ export const adminMutations = {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
 
-    const login = (ownerLogin || '').trim()
-    if (!login) throw new GraphQLError('Owner login is required')
-    if (ownerPassword.length < 6) throw new GraphQLError('Password must be at least 6 characters')
+    const login = (ownerLogin || '').trim().toLowerCase()
+    if (!/^[a-z0-9._-]{3,32}$/.test(login)) {
+      throw badInput('Login może zawierać 3–32 znaki: litery, cyfry, . _ -')
+    }
+    if (String(ownerPassword || '').length < MIN_PASSWORD_LENGTH) {
+      throw badInput(`Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`)
+    }
 
     // Store login as email@jedzto.local — the User model requires a unique email field.
     // The ownerLogin resolver accepts both bare login and full email variants.
@@ -634,11 +756,19 @@ export const adminMutations = {
   hardDeleteRestaurant: async (_p, { id: restaurantId }, ctx) => {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
-    const existing = await Restaurant.findById(restaurantId)
+    const existing = await Restaurant.findById(restaurantId).select('ownerId').lean()
     if (!existing) return false
-    await Food.deleteMany({ restaurantId })
-    await Category.deleteMany({ restaurantId })
-    await User.updateMany({ restaurantId }, { $set: { restaurantId: null } })
+    await Promise.all([
+      Food.deleteMany({ restaurantId }),
+      Category.deleteMany({ restaurantId }),
+      // Orders are financial records and are deliberately kept.
+      // The owner account is deactivated instead of being left as a valid
+      // login with no restaurant attached.
+      User.updateMany(
+        { restaurantId },
+        { $set: { restaurantId: null, isActive: false } }
+      )
+    ])
     await Restaurant.deleteOne({ _id: restaurantId })
     return true
   },
@@ -740,49 +870,18 @@ export const adminMutations = {
       )
     }
 
-    const { Food: FoodModel } = await import('../../models/index.js')
-    const items = []
-    for (const line of args.orderInput || []) {
-      const foodDoc = await FoodModel.findById(line.food).lean()
-      const variation =
-        (foodDoc?.variations || []).find(
-          (v) => String(v._id) === String(line.variation)
-        ) || foodDoc?.variations?.[0]
+    // Single source of truth for money: menu prices, delivery area fees,
+    // surcharges and discounts are all resolved server-side.
+    const pricing = await priceOrder(restaurant, args)
+    const {
+      items,
+      orderAmount,
+      paymentMethod,
+      isPickup,
+      commissionRate,
+      platformCommission
+    } = pricing
 
-      items.push({
-        food: foodDoc?._id || line.food,
-        title: foodDoc?.title || 'Pozycja',
-        description: foodDoc?.description || '',
-        image: foodDoc?.image || null,
-        quantity: line.quantity || 1,
-        variation: variation
-          ? {
-              _id: variation._id,
-              title: variation.title,
-              price: variation.price,
-              discounted: variation.discounted || 0
-            }
-          : { _id: line.variation, title: 'Standard', price: 0, discounted: 0 },
-        addons: [],
-        specialInstructions: line.specialInstructions || '',
-        excludedIngredients: line.excludedIngredients || []
-      })
-    }
-
-    const itemsTotal = items.reduce(
-      (sum, item) => sum + (item.variation?.price || 0) * item.quantity,
-      0
-    )
-    const orderAmount =
-      itemsTotal +
-      (args.deliveryCharges || 0) +
-      (args.tipping || 0) +
-      (args.taxationAmount || 0)
-
-    const paymentMethod = (args.paymentMethod || 'COD').toUpperCase()
-    const isPickup = Boolean(args.isPickedUp)
-    const commissionRate = Number(restaurant.commissionRate ?? 10)
-    const platformCommission = Math.round(((orderAmount * commissionRate) / 100) * 100) / 100
     const prepMins = clampEtaMinutes(restaurant.pickupTime ?? 20, 20)
     const deliveryMins = isPickup
       ? 0
@@ -791,8 +890,7 @@ export const adminMutations = {
         : clampEtaMinutes(restaurant.deliveryTime, 0, { min: 0 })
     const totalMins = Math.max(5, prepMins + deliveryMins)
 
-    const { Order: OrderModel } = await import('../../models/index.js')
-    const order = await OrderModel.create({
+    const order = await Order.create({
       orderId: `JT${Date.now().toString().slice(-8)}`,
       restaurantId: restaurant._id,
       customerId: auth.userId,
@@ -805,12 +903,14 @@ export const adminMutations = {
       orderStatus: 'PENDING',
       paymentStatus: 'PENDING',
       isRinged: !isOnlineCardMethod(paymentMethod),
-      tipping: args.tipping || 0,
-      taxationAmount: args.taxationAmount || 0,
-      deliveryCharges: args.deliveryCharges || 0,
+      tipping: pricing.tipping,
+      taxationAmount: pricing.taxationAmount,
+      deliveryCharges: pricing.deliveryCharges,
+      discountAmount: pricing.discountAmount,
       isPickedUp: isPickup,
-      instructions: args.instructions || '',
-      orderDate: args.orderDate ? new Date(args.orderDate) : new Date(),
+      instructions: String(args.instructions || '').slice(0, 500),
+      // The client may not backdate an order.
+      orderDate: new Date(),
       expectedTime: new Date(Date.now() + totalMins * 60 * 1000),
       preparationTime: new Date(Date.now() + prepMins * 60 * 1000),
       preparationEtaMinutes: prepMins,
@@ -819,15 +919,20 @@ export const adminMutations = {
       deliveryAddress: {
         location: {
           coordinates: [
-            toCoord(args.address?.longitude, 19.9381),
-            toCoord(args.address?.latitude, 49.8339)
+            toLongitude(args.address?.longitude, 19.9381),
+            toLatitude(args.address?.latitude, 49.8339)
           ]
         },
-        deliveryAddress: args.address?.deliveryAddress || '',
-        details: args.address?.details || '',
-        label: args.address?.label || 'Other'
+        deliveryAddress: String(args.address?.deliveryAddress || '').slice(0, 300),
+        details: String(args.address?.details || '').slice(0, 300),
+        label: String(args.address?.label || 'Other').slice(0, 60)
       }
     })
+
+    if (pricing.coupon) {
+      // Atomic increment keeps the usage limit honest under concurrency.
+      await Coupon.updateOne({ _id: pricing.coupon._id }, { $inc: { usedCount: 1 } })
+    }
 
     const serialized = await serializeOrder(order.toObject())
     await publishOrderChanged(order, serialized, 'placeOrder', {
