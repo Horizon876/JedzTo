@@ -16,7 +16,7 @@ import { resolvers } from './src/graphql/resolvers/index.js'
 import { verifyToken } from './src/auth/jwt.js'
 import { seedDatabase, CREDENTIALS, ensureTasteCuisineTags, ensureMenuItemCustomization } from './src/seed.js'
 import { Restaurant } from './src/models/index.js'
-import { connectMongo } from './src/db.js'
+import { connectMongo, disconnectMongo } from './src/db.js'
 import { UPLOADS_DIR } from './src/utils/imageUpload.js'
 import { mapsRouter } from './src/routes/maps.js'
 import { stripeRouter } from './src/routes/stripe.js'
@@ -256,6 +256,29 @@ async function start() {
 ║  Logowanie: sprawdź .env.example — NIGDY nie commituj .env
 ╚══════════════════════════════════════════════════════════╝
 `)
+
+  // Render (and most PaaS) send SIGTERM before killing the container on every
+  // deploy/restart. Without this, in-flight requests get dropped mid-response
+  // instead of finishing cleanly.
+  let shuttingDown = false
+  const shutdown = async (signal) => {
+    if (shuttingDown) return
+    shuttingDown = true
+    console.log(`[server] ${signal} received, shutting down gracefully…`)
+    const forceExit = setTimeout(() => process.exit(1), 10_000)
+    try {
+      await new Promise((resolve) => httpServer.close(resolve))
+      await disconnectMongo()
+      clearTimeout(forceExit)
+      process.exit(0)
+    } catch (err) {
+      console.error('[server] error during shutdown', err)
+      clearTimeout(forceExit)
+      process.exit(1)
+    }
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 start().catch((err) => {

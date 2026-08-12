@@ -21,18 +21,20 @@ const ENV_CONFIG = {
     CLARITY_ENABLED: false
   },
   staging: {
-    GRAPHQL_URL: 'https://aws-server-v2.enatega.com/graphql',
-    WS_GRAPHQL_URL: 'wss://aws-server-v2.enatega.com/graphql',
-    SERVER_URL: 'https://aws-server-v2.enatega.com/',
-    SERVER_REST_URL: 'https://aws-server-v2.enatega.com/',
+    GRAPHQL_URL: 'https://api.jedzto.com/graphql',
+    WS_GRAPHQL_URL: 'wss://api.jedzto.com/graphql',
+    SERVER_URL: 'https://api.jedzto.com/',
+    SERVER_REST_URL: 'https://api.jedzto.com/',
+    // false = restaurants come from our own GraphQL API (jedzto-local-api),
+    // not the hardcoded demo data in src/data/jedztoLocalRestaurants.js.
     USE_JEDZTO_LOCAL_RESTAURANTS: false,
     CLARITY_ENABLED: true
   },
   production: {
-    GRAPHQL_URL: 'https://aws-server-v2.enatega.com/graphql',
-    WS_GRAPHQL_URL: 'wss://aws-server-v2.enatega.com/graphql',
-    SERVER_URL: 'https://aws-server-v2.enatega.com/',
-    SERVER_REST_URL: 'https://aws-server-v2.enatega.com/',
+    GRAPHQL_URL: 'https://api.jedzto.com/graphql',
+    WS_GRAPHQL_URL: 'wss://api.jedzto.com/graphql',
+    SERVER_URL: 'https://api.jedzto.com/',
+    SERVER_REST_URL: 'https://api.jedzto.com/',
     USE_JEDZTO_LOCAL_RESTAURANTS: false,
     CLARITY_ENABLED: true
   }

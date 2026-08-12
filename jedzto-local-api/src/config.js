@@ -77,6 +77,24 @@ if (NODE_ENV === 'production' && STRIPE_SECRET_KEY && !STRIPE_WEBHOOK_SECRET) {
 }
 export const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || '').replace(/\/$/, '')
 
+// Most free/cheap hosts (Render, Fly, Cloud Run, ...) wipe local disk on every
+// deploy or restart. When these are set, uploaded images go to Cloudinary
+// instead of ./uploads, so restaurant/menu photos survive redeploys.
+export const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || ''
+export const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || ''
+export const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || ''
+export const CLOUDINARY_ENABLED = Boolean(
+  CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET
+)
+
+if (NODE_ENV === 'production' && !CLOUDINARY_ENABLED) {
+  console.warn(
+    '[storage] CLOUDINARY_* nie skonfigurowane — obrazki uploadowane przez panel/apkę ' +
+    'będą trafiać na lokalny dysk kontenera i ZGINĄ przy każdym redeployu. ' +
+    'Ustaw CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET (darmowe konto na cloudinary.com).'
+  )
+}
+
 // Accepted `aud` values for Google ID tokens (comma separated OAuth client ids).
 // Leave empty to skip the audience check (development only).
 export const GOOGLE_CLIENT_IDS = (process.env.GOOGLE_CLIENT_IDS || '')

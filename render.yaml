@@ -1,0 +1,53 @@
+# Render Blueprint — https://render.com/docs/infrastructure-as-code
+#
+# This repo is a monorepo; only jedzto-local-api is deployed to Render.
+# Import this repo on https://dashboard.render.com/blueprints and Render will
+# create the service below automatically. Secrets marked `sync: false` must be
+# filled in manually in the Render dashboard after the first deploy — never
+# commit real secrets to this file.
+services:
+  - type: web
+    name: jedzto-api
+    runtime: docker
+    dockerfilePath: ./jedzto-local-api/Dockerfile
+    dockerContext: ./jedzto-local-api
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render sets PORT automatically; src/config.js reads it.
+      - key: ALLOW_MEMORY_MONGO
+        value: '0'
+      - key: SEED_ON_START
+        value: '0'
+      - key: LOCAL_API_OPEN
+        value: '0'
+      - key: ALLOW_TEST_OTP
+        value: '0'
+      - key: PUBLIC_API_URL
+        value: https://api.jedzto.com
+      - key: ALLOWED_ORIGINS
+        value: https://admin.jedzto.com,https://jedzto.com
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: MAPBOX_ACCESS_TOKEN
+        sync: false
+      - key: GOOGLE_CLIENT_IDS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false

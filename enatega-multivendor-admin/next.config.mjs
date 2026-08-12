@@ -12,13 +12,15 @@ const contentSecurityPolicy = [
   "frame-ancestors 'none'",
   "object-src 'none'",
   "form-action 'self'",
-  // Images come from the local API and common stock/CDN domains used in the UI.
+  // Images come from the API (uploads/Cloudinary) and common stock/CDN domains.
   "img-src 'self' data: blob: https: http://localhost:8001 http://127.0.0.1:8001",
   "font-src 'self' data: https:",
   // unsafe-inline is required by PrimeReact and Chart.js inline styles.
   // Do NOT add unsafe-eval here — admin panel does not require eval().
   "style-src 'self' 'unsafe-inline' https:",
   "script-src 'self' 'unsafe-inline' https:",
+  // https:/wss: already cover api.jedzto.com — kept explicit localhost too so
+  // `next build` with NODE_ENV=production still works against a local API.
   "connect-src 'self' https: wss: ws: http://localhost:8001 http://127.0.0.1:8001",
   "frame-src 'self' https:",
   "media-src 'self' data: blob: https:",
@@ -80,6 +82,8 @@ const nextConfig = {
       // Local API uploads (development)
       { protocol: 'http', hostname: 'localhost', port: '8001', pathname: '/uploads/**' },
       { protocol: 'http', hostname: '127.0.0.1', port: '8001', pathname: '/uploads/**' },
+      // Production API uploads (local-disk fallback when Cloudinary isn't set)
+      { protocol: 'https', hostname: 'api.jedzto.com', pathname: '/uploads/**' },
     ],
   },
 };
