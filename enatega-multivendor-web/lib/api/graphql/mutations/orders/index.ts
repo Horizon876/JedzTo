@@ -70,6 +70,7 @@ export const PLACE_ORDER = gql`
           quantityMinimum
           quantityMaximum
         }
+        excludedIngredients
       }
       user {
         _id

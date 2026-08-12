@@ -1647,12 +1647,14 @@ export const resolvers = {
     },
     ownerLogin: async (_p, { email, password }, ctx) => {
       assertPublicAccess(ctx)
+      // If the caller supplied a bare login (no "@"), treat it as ownerLogin@jedzto.local
+      const resolvedEmail = email.includes('@') ? email.toLowerCase() : `${email}@jedzto.local`
       const user = await User.findOne({
-        email: email.toLowerCase(),
+        email: resolvedEmail,
         role: { $in: ['SUPER_ADMIN', 'RESTAURANT_OWNER'] }
       })
       if (!user || !(await user.comparePassword(password))) {
-        throw new GraphQLError('Invalid email or password')
+        throw new GraphQLError('Invalid login or password')
       }
       return ownerResponse(user)
     },
@@ -1820,7 +1822,8 @@ export const resolvers = {
               }
             : { _id: line.variation, title: 'Standard', price: 0, discounted: 0 },
           addons: [],
-          specialInstructions: line.specialInstructions || ''
+          specialInstructions: line.specialInstructions || '',
+          excludedIngredients: line.excludedIngredients || []
         })
       }
 
@@ -2436,21 +2439,24 @@ export const resolvers = {
     },
 
     // ---- Super Admin: restaurant onboarding -------------------------
-    createRestaurant: async (_p, { restaurant, ownerName, ownerEmail }, ctx) => {
+    createRestaurant: async (_p, { restaurant, ownerName, ownerLogin, ownerPassword }, ctx) => {
       assertPublicAccess(ctx)
       requireUser(ctx, ['SUPER_ADMIN'])
 
-      const email = (ownerEmail || '').toLowerCase().trim()
-      if (!email) throw new GraphQLError('Owner email is required')
+      const login = (ownerLogin || '').trim()
+      if (!login) throw new GraphQLError('Owner login is required')
+      if (ownerPassword.length < 6) throw new GraphQLError('Password must be at least 6 characters')
+
+      // Store login as email@jedzto.local — the User model requires a unique email field.
+      const email = `${login}@jedzto.local`
       if (await User.findOne({ email })) {
-        throw new GraphQLError('A user with this email already exists')
+        throw new GraphQLError('A user with this login already exists')
       }
 
-      const temporaryPassword = generateTemporaryPassword()
       const owner = await User.create({
         email,
-        password: temporaryPassword,
-        name: ownerName,
+        password: ownerPassword,
+        name: ownerName || login,
         role: 'RESTAURANT_OWNER'
       })
 
@@ -2468,7 +2474,8 @@ export const resolvers = {
           minimumOrder: restaurant.minimumOrder ?? 25,
           tax: restaurant.salesTax ?? 8,
           shopType: restaurant.shopType || 'restaurant',
-          cuisines: restaurant.cuisines || []
+          cuisines: restaurant.cuisines || [],
+          commissionRate: restaurant.commissionRate ?? 10
         })
       } catch (err) {
         // Roll back the just-created owner account if the restaurant fails
@@ -2485,8 +2492,8 @@ export const resolvers = {
         restaurant: await buildRestaurantTree(created.toObject()),
         owner: {
           userId: id(owner),
-          email: owner.email,
-          temporaryPassword,
+          login,
+          password: ownerPassword,
           role: owner.role,
           restaurantId: id(created)
         }

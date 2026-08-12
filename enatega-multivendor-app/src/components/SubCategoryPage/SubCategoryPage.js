@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   View,
   Easing,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import ReAnimated, { 
@@ -34,6 +35,7 @@ import SearchOverlay from '../SearchOverlay/searchOverlay'
 import CategoryPageHeader from './CategoryHeader/CategoryHeader'
 import FoodItem from './FoodItem/FoodItem'
 import callStyles from './styles'
+import { foodNeedsCustomization, getDefaultVariationId } from '../../utils/foodCustomization'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 const ITEM_WIDTH = 180
@@ -222,7 +224,7 @@ const CategoryPage = ({ route, navigation }) => {
   // Context
   const configuration = useContext(ConfigurationContext)
   const themeContext = useContext(ThemeContext)
-  const { cartCount } = useContext(UserContext)
+  const { cartCount, addCartItem, setCartRestaurant, restaurant: restaurantCart, clearCart } = useContext(UserContext)
 
   // Constants
   const currentTheme = {
@@ -828,17 +830,55 @@ const CategoryPage = ({ route, navigation }) => {
                   item={item}
                   currentTheme={currentTheme}
                   configuration={configuration}
-                  onPress={() => {
-                    navigation.navigate('ItemDetail', {
-                      food: {
-                        ...item,
-                        restaurant: restaurantId,
-                        restaurantName: restaurantData?.restaurant?.name
-                      },
-                      addons: restaurantData?.restaurant?.addons || [],
-                      options: restaurantData?.restaurant?.options || [],
-                      restaurant: restaurantId
-                    })
+                  onPress={async () => {
+                    const openDetail = () => {
+                      navigation.navigate('ItemDetail', {
+                        food: {
+                          ...item,
+                          restaurant: restaurantId,
+                          restaurantName: restaurantData?.restaurant?.name
+                        },
+                        addons: restaurantData?.restaurant?.addons || [],
+                        options: restaurantData?.restaurant?.options || [],
+                        restaurant: restaurantId
+                      })
+                    }
+
+                    if (foodNeedsCustomization(item)) {
+                      openDetail()
+                      return
+                    }
+
+                    const variationId = getDefaultVariationId(item)
+                    if (!variationId) {
+                      openDetail()
+                      return
+                    }
+
+                    const addSimple = async (clearFlag = false) => {
+                      if (clearFlag) await clearCart()
+                      await setCartRestaurant(restaurantId)
+                      await addCartItem(item._id, variationId, 1, [], false, '', [])
+                    }
+
+                    if (restaurantCart && restaurantCart !== restaurantId) {
+                      Alert.alert(
+                        t('clearCartTitle'),
+                        t('clearCartText') || t('cartClearWarning'),
+                        [
+                          { text: t('Cancel'), style: 'cancel' },
+                          {
+                            text: t('clearCartConfirm'),
+                            onPress: () => {
+                              addSimple(true)
+                            }
+                          }
+                        ]
+                      )
+                      return
+                    }
+
+                    await addSimple(false)
                   }}
                 />
               </View>

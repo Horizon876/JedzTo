@@ -20,7 +20,7 @@ import { ORDER_TYPE } from "@/lib/utils/types";
 import { useKeepAwake } from "expo-keep-awake";
 import { useTranslation } from "react-i18next";
 
-function HomeDeliveredOrdersMain(props: IOrderTabsComponentProps) {
+function HomeProcessingOrdersMain(props: IOrderTabsComponentProps) {
   // Props
   const { route } = props;
 
@@ -38,8 +38,6 @@ function HomeDeliveredOrdersMain(props: IOrderTabsComponentProps) {
     setCurrentTab,
   } = useOrders();
   useKeepAwake();
-
-  // const { loading: mutateLoading } = useAcceptOrder();
 
   // States
   const [refreshing, setRefreshing] = useState(false);
@@ -146,9 +144,9 @@ function HomeDeliveredOrdersMain(props: IOrderTabsComponentProps) {
             showsVerticalScrollIndicator={false}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            initialNumToRender={20} // render more items up front
-            maxToRenderPerBatch={20} // reduce batching delays
-            windowSize={5} // keep more items around viewport
+            initialNumToRender={20}
+            maxToRenderPerBatch={20}
+            windowSize={5}
             renderItem={renderOrderItem}
             ListEmptyComponent={renderEmptyState}
           />
@@ -160,7 +158,7 @@ function HomeDeliveredOrdersMain(props: IOrderTabsComponentProps) {
   );
 }
 
-export default HomeDeliveredOrdersMain;
+export default HomeProcessingOrdersMain;
 
 const style = StyleSheet.create({
   container: { flex: 1 },

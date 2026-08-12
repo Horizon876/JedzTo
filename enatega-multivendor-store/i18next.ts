@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const LANGUAGE_LOADERS = {
   en: () => import("./languages/en").then((module) => module.en),
+  pl: () => import("./languages/pl").then((module) => module.pl),
   zh: () => import("./languages/zh").then((module) => module.zh),
   de: () => import("./languages/de").then((module) => module.de),
   fr: () => import("./languages/fr").then((module) => module.fr),

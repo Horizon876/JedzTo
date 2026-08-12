@@ -66,7 +66,7 @@ const DeliveryAreasMain = () => {
   const { data, loading, refetch } = useQuery(GET_RESTAURANT_DELIVERY_AREAS, {
     variables: { id: restaurantId },
     skip: !restaurantId,
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   });
 
   useEffect(() => {

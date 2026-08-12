@@ -7,9 +7,9 @@ export const CREATE_COUPON = gql`
       title
       discount
       enabled
-      startDate
-      endDate
-      lifeTimeActive
+      restaurantId
+      minOrderValue
+      usageLimit
     }
   }
 `;
@@ -20,9 +20,9 @@ export const EDIT_COUPON = gql`
       title
       discount
       enabled
-      startDate
-      endDate
-      lifeTimeActive
+      restaurantId
+      minOrderValue
+      usageLimit
     }
   }
 `;

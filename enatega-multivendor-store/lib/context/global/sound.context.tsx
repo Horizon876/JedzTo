@@ -33,8 +33,10 @@ export const SoundProvider = ({ children }: ISoundContextProviderProps) => {
         shouldPlayInBackground: true,
         interruptionMode: "duckOthers",
         playsInSilentMode: true,
-        shouldRouteThroughEarpiece: true,
+        // Kitchen devices must use the loudspeaker, not the phone earpiece.
+        shouldRouteThroughEarpiece: false,
       });
+      newSound.volume = 1;
       newSound.play();
 
       soundRef.current = newSound;

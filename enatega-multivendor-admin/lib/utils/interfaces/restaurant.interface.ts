@@ -186,12 +186,12 @@ export interface ICreateRestaurantResponse {
   };
 }
 
-// JedzTo — createRestaurant now auto-generates the owner account and returns
-// its (one-time-only) login credentials alongside the created restaurant.
+// JedzTo — createRestaurant now creates the owner account with admin-specified
+// login and password, and returns them for display/copy in the credentials modal.
 export interface IGeneratedOwnerCredentials {
   userId: string;
-  email: string;
-  temporaryPassword: string;
+  login: string;
+  password: string;
   role: string;
   restaurantId: string;
 }

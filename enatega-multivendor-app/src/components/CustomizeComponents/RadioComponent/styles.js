@@ -37,10 +37,13 @@ const styles = (props = null) =>
       flexShrink: 1
     },
     list: {
-      borderRadius: scale(14),
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderTopRightRadius: scale(14),
+      borderBottomRightRadius: scale(14),
       overflow: 'hidden',
       backgroundColor: CARD,
-      marginBottom: scale(8)
+      marginBottom: 0
     }
   })
 

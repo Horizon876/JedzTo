@@ -99,7 +99,7 @@ export default function FoodsMain() {
   const [fetchSubcategory, { loading: subCategoriesLoading }] = useLazyQuery(
     GET_SUBCATEGORY,
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       refetchWritePolicy: 'overwrite',
       onError(err) {
         console.error('Subcategory fetch failed:', err);
@@ -174,6 +174,7 @@ export default function FoodsMain() {
             label: ctg.title,
           },
           title: fd.title,
+          ingredients: fd.ingredients || [],
           variations: fd.variations,
         });
       })

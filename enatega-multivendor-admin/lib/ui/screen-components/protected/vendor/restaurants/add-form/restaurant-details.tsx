@@ -189,9 +189,9 @@ export default function RestaurantDetails({
             password: data.password,
             shopType: data.shopType?.code,
             salesTax: data.salesTax,
-            cuisines: data.cuisines.map(
+            cuisines: data.cuisines?.map(
               (cuisin: IDropdownSelectItem) => cuisin.code
-            ),
+            ) || [],
           },
         },
       });
@@ -425,7 +425,7 @@ export default function RestaurantDetails({
                           placeholder={t('Delivery Time')}
                           name="deliveryTime"
                           showLabel={true}
-                          value={values.deliveryTime}
+                          value={values.deliveryTime ?? 1}
                           onChange={setFieldValue}
                           style={{
                             borderColor: onErrorMessageMatcher(
@@ -446,7 +446,7 @@ export default function RestaurantDetails({
                           placeholder={t('Min Order')}
                           name="minOrder"
                           showLabel={true}
-                          value={values.minOrder}
+                          value={values.minOrder ?? 1}
                           onChange={setFieldValue}
                           style={{
                             borderColor: onErrorMessageMatcher(
@@ -469,7 +469,7 @@ export default function RestaurantDetails({
                           maxFractionDigits={2}
                           name="salesTax"
                           showLabel={true}
-                          value={values.salesTax}
+                          value={values.salesTax ?? 0}
                           onChange={setFieldValue}
                           style={{
                             borderColor: onErrorMessageMatcher(
@@ -486,7 +486,7 @@ export default function RestaurantDetails({
                         <CustomDropdownComponent
                           name="shopType"
                           placeholder={t('Shop Category')}
-                          selectedItem={values.shopType}
+                          selectedItem={values.shopType ?? null}
                           setSelectedItem={setFieldValue}
                           loading={loading}
                           options={dropdownList || []}
@@ -512,7 +512,7 @@ export default function RestaurantDetails({
                           name="cuisines"
                           placeholder={t('Cuisines')}
                           options={cuisinesDropdown ?? []}
-                          selectedItems={values.cuisines}
+                          selectedItems={values.cuisines ?? []}
                           setSelectedItems={setFieldValue}
                           showLabel={true}
                           style={{

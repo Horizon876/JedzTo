@@ -39,8 +39,6 @@ function HomeDeliveredOrdersMain(props: IOrderTabsComponentProps) {
   } = useOrders();
   useKeepAwake();
 
-  // const { loading: mutateLoading } = useAcceptOrder();
-
   // States
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<IOrder[]>([]);
@@ -141,9 +139,9 @@ function HomeDeliveredOrdersMain(props: IOrderTabsComponentProps) {
             showsVerticalScrollIndicator={false}
             refreshing={refreshing}
             onRefresh={onRefresh}
-            initialNumToRender={20} // render more items up front
-            maxToRenderPerBatch={20} // reduce batching delays
-            windowSize={5} // keep more items around viewport
+            initialNumToRender={20}
+            maxToRenderPerBatch={20}
+            windowSize={5}
             renderItem={renderOrderItem}
             ListEmptyComponent={renderEmptyState}
           />

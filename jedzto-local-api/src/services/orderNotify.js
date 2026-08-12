@@ -54,13 +54,22 @@ export async function publishOrderChanged(
   }
 }
 
-export async function markStripeOrderPaid(order, serializeOrder) {
+export async function markStripeOrderPaid(order, serializeOrder, paymentIntentId = null) {
   if (!order) return null
   if (String(order.paymentStatus || '').toUpperCase() === 'PAID') {
     return order
   }
   order.paymentStatus = 'PAID'
   order.paidAmount = order.orderAmount
+  // Kitchen sees the order only after Stripe succeeds — start the tablet alarm.
+  order.isRinged = true
+  if (paymentIntentId) {
+    let piId = paymentIntentId
+    if (typeof paymentIntentId === 'object' && paymentIntentId.id) {
+      piId = paymentIntentId.id
+    }
+    order.stripePaymentIntentId = piId
+  }
   await order.save()
   const serialized = await serializeOrder(order.toObject())
   // Now kitchen learns about the order for the first time.

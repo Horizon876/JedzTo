@@ -105,6 +105,7 @@ function calculateAmount(costType, deliveryRate, distance) {
 }
 
 const isOpen = (restaurant) => {
+  if (restaurant?.isBusy) return false
   if (!restaurant?.isAvailable) return false
   if (restaurant?.isSuspended) return false
   if (restaurant?.pausedUntil) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useContext } from 'react'
 import { View, FlatList, TouchableOpacity, Alert, Animated, Easing } from 'react-native'
 import { useRestaurantQueries } from '../../../ui/hooks/useRestaurantScreenNewDesign'
 import TextDefault from '../../Text/TextDefault/TextDefault'
@@ -9,6 +9,8 @@ import ShimmerImage from '../../ShimmerImage/ShimmerImage'
 import { useTranslation } from 'react-i18next'
 import { isOpen } from '../../../utils/customFunctions'
 import { formatMoney } from '../../../utils/formatMoney'
+import UserContext from '../../../context/User'
+import { foodNeedsCustomization, getDefaultVariationId } from '../../../utils/foodCustomization'
 
 const CARD_SPACING = scale(10)
 
@@ -204,6 +206,7 @@ const RestaurantSections = ({
   restaurant // Restaurant details including isOpen, isAvailable
 }) => {
   const { t } = useTranslation()
+  const { addCartItem, setCartRestaurant, restaurant: restaurantCart, clearCart } = useContext(UserContext)
   const { popularItems, categories } = useRestaurantQueries(restaurantId)
   // let popularItems={}
   // let categories={}
@@ -229,9 +232,8 @@ const RestaurantSections = ({
   const isAvailable = restaurant?.isAvailable
   const isRestaurantClosed = !isAvailable || !isOpen(restaurant)
 
-  const handleItemClick = (item) => {
+  const handleItemClick = async (item) => {
     if (isRestaurantClosed) {
-      // Show alert if restaurant is closed
       Alert.alert(
         '',
         t('restaurantClosed'),
@@ -248,8 +250,10 @@ const RestaurantSections = ({
         ],
         { cancelable: true }
       )
-    } else {
-      // Navigate directly if restaurant is open
+      return
+    }
+
+    const openDetail = () => {
       navigation.navigate('ItemDetail', {
         food: {
           ...item,
@@ -261,6 +265,38 @@ const RestaurantSections = ({
         restaurant: restaurantId
       })
     }
+
+    if (foodNeedsCustomization(item)) {
+      openDetail()
+      return
+    }
+
+    const variationId = getDefaultVariationId(item)
+    if (!variationId) {
+      openDetail()
+      return
+    }
+
+    const addSimple = async (clearFlag = false) => {
+      if (clearFlag) await clearCart()
+      await setCartRestaurant(restaurantId)
+      await addCartItem(item._id, variationId, 1, [], false, '', [])
+    }
+
+    if (restaurantCart && restaurantCart !== restaurantId) {
+      Alert.alert(t('clearCartTitle'), t('clearCartText') || t('cartClearWarning'), [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('clearCartConfirm'),
+          onPress: () => {
+            addSimple(true)
+          }
+        }
+      ])
+      return
+    }
+
+    await addSimple(false)
   }
 
   const handleCategoryClick = (category) => {

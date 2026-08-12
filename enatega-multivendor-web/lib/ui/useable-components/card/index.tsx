@@ -76,7 +76,9 @@ const Card: React.FC<ICardProps> = ({
       {!isOpen && (
         <div className="absolute rounded-md top-0 left-0 w-full h-[160px] bg-black/50 opacity-75 z-20 flex items-center justify-center">
           <div className="text-white text-center z-30">
-            <p className="text-lg font-bold">{t("closed_label")}</p>
+            <p className="text-lg font-bold">
+              {item?.isBusy ? "Nie można zamówić" : t("closed_label")}
+            </p>
             <p className="text-sm">{t("currently_closed_message")}</p>
           </div>
         </div>

@@ -38,8 +38,6 @@ export default function AdminRestaurantDashboard() {
 
       <RestaurantSalesReportCard />
       <OrderStats dateFilter={dateFilter} />
-      <GrowthOverView />
-      <RestaurantStatesTable dateFilter={dateFilter} />
     </div>
   );
 }

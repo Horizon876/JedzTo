@@ -30,10 +30,18 @@ export default function useOrders() {
     );
 
   const hasNewOrders =
-    activeOrders?.some((order: IOrder) => Boolean(order?.isRinged)) ?? false;
+    activeOrders?.some((order: IOrder) =>
+      order?.isRinged === undefined || order?.isRinged === null
+        ? true
+        : Boolean(order.isRinged),
+    ) ?? false;
   const ringedOrderIds =
     activeOrders
-      ?.filter((order: IOrder) => Boolean(order?.isRinged))
+      ?.filter((order: IOrder) =>
+        order?.isRinged === undefined || order?.isRinged === null
+          ? true
+          : Boolean(order.isRinged),
+      )
       .map((order: IOrder) => order?._id)
       .sort()
       .join(",") ?? "";

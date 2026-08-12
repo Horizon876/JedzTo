@@ -2,7 +2,7 @@
 
 import { useContext } from 'react';
 import { Dialog } from 'primereact/dialog';
-import { faCopy, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faUserShield } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useTranslations } from 'next-intl';
 
@@ -16,9 +16,8 @@ interface IOwnerCredentialsModalProps {
   onHide: () => void;
 }
 
-// JedzTo — the temporary password is only ever returned once, right here,
-// in the createRestaurant response. This modal is the only place an admin
-// can read it — make sure it's easy to copy before closing.
+// JedzTo — shows the login + password the super-admin just set for this
+// restaurant owner. Admin can copy them before handing them over to the owner.
 export default function OwnerCredentialsModal({
   visible,
   credentials,
@@ -48,7 +47,12 @@ export default function OwnerCredentialsModal({
 
   return (
     <Dialog
-      header={t('Owner Login Credentials')}
+      header={
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon icon={faUserShield} className="text-blue-500" />
+          <span>{t('Dane logowania właściciela')}</span>
+        </div>
+      }
       visible={visible}
       onHide={onHide}
       style={{ width: '90vw', maxWidth: '480px' }}
@@ -58,26 +62,26 @@ export default function OwnerCredentialsModal({
     >
       {credentials && (
         <div className="space-y-4">
-          <div className="flex items-start gap-2 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">
-            <FontAwesomeIcon icon={faTriangleExclamation} className="mt-0.5" />
+          <div className="flex items-start gap-2 rounded-md bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+            <FontAwesomeIcon icon={faUserShield} className="mt-0.5 shrink-0" />
             <span>
               {t(
-                'This password is shown only once. Copy it now and share it securely with the restaurant owner.'
+                'Poniżej znajdziesz dane logowania do panelu właściciela i aplikacji kuchni. Przekaż je właścicielowi restauracji.'
               )}
             </span>
           </div>
 
           <div className="space-y-1">
             <label className="text-[13px] font-medium text-[#09090B] dark:text-white">
-              {t('Email')}
+              {t('Login')}
             </label>
             <div className="flex items-center justify-between gap-2 rounded-md border border-gray-300 px-3 py-2 dark:border-dark-600">
-              <span className="truncate text-sm">{credentials.email}</span>
+              <span className="truncate font-mono text-sm">{credentials.login}</span>
               <button
                 type="button"
-                onClick={() => onCopy(credentials.email, t('Email'))}
+                onClick={() => onCopy(credentials.login, t('Login'))}
                 className="text-gray-500 hover:text-black dark:hover:text-white"
-                aria-label={t('Copy email')}
+                aria-label={t('Copy login')}
               >
                 <FontAwesomeIcon icon={faCopy} />
               </button>
@@ -86,16 +90,16 @@ export default function OwnerCredentialsModal({
 
           <div className="space-y-1">
             <label className="text-[13px] font-medium text-[#09090B] dark:text-white">
-              {t('Temporary Password')}
+              {t('Hasło')}
             </label>
             <div className="flex items-center justify-between gap-2 rounded-md border border-gray-300 px-3 py-2 dark:border-dark-600">
               <span className="truncate font-mono text-sm">
-                {credentials.temporaryPassword}
+                {credentials.password}
               </span>
               <button
                 type="button"
                 onClick={() =>
-                  onCopy(credentials.temporaryPassword, t('Password'))
+                  onCopy(credentials.password, t('Hasło'))
                 }
                 className="text-gray-500 hover:text-black dark:hover:text-white"
                 aria-label={t('Copy password')}

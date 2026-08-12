@@ -299,6 +299,7 @@ export const restaurantFragment = gql`
           rating
           isActive
           isAvailable
+    isBusy
           slug
           stripeDetailsSubmitted
           tax
@@ -335,6 +336,7 @@ export const restaurantFragment = gql`
     rating
     isActive
     isAvailable
+    isBusy
     pausedUntil
     isSuspended
     holidayExceptions {
@@ -385,6 +387,7 @@ export const restaurantCarouselPreviewFragment = gql`
     minimumOrder
     tax
     isAvailable
+    isBusy
     shopType
     tags
     reviewCount
@@ -775,6 +778,7 @@ export const restaurantList = `query Restaurants($latitude:Float,$longitude:Floa
           image
           description
           subCategory
+          ingredients
           variations{
             _id
             title
@@ -800,6 +804,7 @@ export const restaurantList = `query Restaurants($latitude:Float,$longitude:Floa
       }
       rating
       isAvailable
+    isBusy
       openingTimes{
       day
       times{
@@ -834,6 +839,7 @@ export const restaurantListPreview = `query Restaurants($latitude:Float,$longitu
       currentEta
       minimumOrder
       isAvailable
+    isBusy
       tax
       shopType
       cuisines
@@ -922,6 +928,7 @@ export const restaurant = `query Restaurant($id:String){
         image
         subCategory
         description
+        ingredients
         isOutOfStock
         variations{
           _id
@@ -955,6 +962,7 @@ export const restaurant = `query Restaurant($id:String){
     }
     rating
     isAvailable
+    isBusy
     pausedUntil
     isSuspended
     holidayExceptions {
@@ -1026,6 +1034,7 @@ export const FavouriteRestaurant = `query UserFavourite ($latitude:Float,$longit
       currentEta
       minimumOrder
       isAvailable
+    isBusy
       tax
       shopType
       cuisines

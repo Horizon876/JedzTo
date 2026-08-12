@@ -14,11 +14,8 @@ import {
   View,
 } from "react-native";
 
-// Components
-
 // Icon
-import { FontAwesome, FontAwesome6 } from '@expo/vector-icons';
-
+import { FontAwesome6 } from '@expo/vector-icons';
 
 // Schemas
 import { SignInSchema } from "@/lib/utils/schema";
@@ -29,9 +26,15 @@ import useLogin from "@/lib/hooks/useLogin";
 
 // Interface
 import { useApolloClient } from "@apollo/client";
-import { useApptheme } from "@/lib/context/global/theme.context";
 import { ILoginInitialValues } from "@/lib/utils/interfaces";
-import { CustomContinueButton } from "../../useable-components";
+
+const JEDZ_COLOR = '#00A8FF';
+const TO_COLOR = '#00E676';
+const PAGE = '#121212';
+const SURFACE = '#1C1C1E';
+const MUTED = '#8E8E93';
+const BORDER = '#3A3A3C';
+const ERROR = '#FF453A';
 
 const initial: ILoginInitialValues = {
   username: "owner1@jedzto.local",
@@ -44,7 +47,6 @@ const LoginScreen = () => {
   const [initialValues, setInitialValues] = useState(initial);
 
   // Hooks
-  const { appTheme } = useApptheme();
   const client = useApolloClient();
   const { t } = useTranslation();
   const { onLogin, creds } = useLogin();
@@ -52,7 +54,6 @@ const LoginScreen = () => {
 
   // Handlers
   const onLoginHandler = async (creds: ILoginInitialValues) => {
-    // TODO: Implement login logic
     try {
       setLoading(true);
       await onLogin(creds.username.toLowerCase(), creds.password);
@@ -84,27 +85,16 @@ const LoginScreen = () => {
     onInit();
   }, [creds]);
 
-  if (loading) {
-    return (
-      <View
-        className="flex-1 items-center justify-center"
-        style={{ backgroundColor: appTheme.themeBackground }}
-      >
-        <Text style={{ color: appTheme.fontMainColor }}>{t("Loading...")}</Text>
-      </View>
-    );
-  }
-
   return (
     <KeyboardAvoidingView
       className="flex-1 justify-center"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ backgroundColor: appTheme.themeBackground }}
+      style={{ backgroundColor: PAGE }}
     >
-      <SafeAreaView>
+      <SafeAreaView style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-        // contentContainerStyle={{ height: height * 1 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
         >
           <Formik
             initialValues={initialValues}
@@ -114,102 +104,148 @@ const LoginScreen = () => {
           >
             {({ handleChange, handleBlur, handleSubmit, values, errors }) => {
               return (
-                <View className="mt-24 p-5 items-center justify-between gap-y-2">
-                  {/* Icon */}
-                  <FontAwesome
-                    name="envelope"
-                    size={30}
-                    color={appTheme.fontMainColor}
-                  />
+                <View className="flex-1 items-center justify-center px-4 py-10 w-full">
+                  <View className="w-full max-w-[560px] items-center">
+                    
+                    <View className="mb-10 items-center text-center">
+                      <View className="flex-row mb-6">
+                        <Text style={{ color: JEDZ_COLOR, fontSize: 60, fontWeight: "900", lineHeight: 60, letterSpacing: -1 }}>Jedz</Text>
+                        <Text style={{ color: TO_COLOR, fontSize: 60, fontWeight: "900", lineHeight: 60, letterSpacing: -1 }}>To</Text>
+                      </View>
+                      <Text className="text-xl font-semibold text-center text-white sm:text-2xl max-w-[420px]">
+                        Witaj w aplikacji kuchni
+                      </Text>
+                    </View>
 
-                  {/* Title */}
-                  <Text
-                    className="text-center text-xl font-semibold "
-                    style={{ color: appTheme.fontMainColor }}
-                  >
-                    {t("Kitchen login")}
-                  </Text>
-                  <Text
-                    className="text-center text-sm mb-5"
-                    style={{ color: appTheme.fontSecondColor }}
-                  >
-                    {t("Use the same email and password as the owner panel")}
-                  </Text>
-
-                  {/* Email Input */}
-
-                  <View
-                    className="flex-row items-center border rounded-lg px-3  mb-[-4]"
-                    style={{
-                      borderColor: appTheme.borderLineColor,
-                      backgroundColor: appTheme.cartContainer,
-                    }}
-                  >
-                    <TextInput
-                      className="flex-1 h-12 text-base"
-                      style={{ color: appTheme.fontMainColor }}
-                      placeholder={t("Email")}
-                      placeholderTextColor={appTheme.fontSecondColor}
-                      keyboardType="email-address"
-                      inputMode="email"
-                      value={values.username}
-                      onChangeText={handleChange("username")}
-                      onBlur={handleBlur("username")}
-                    />
-                  </View>
-                  {errors.username && (
-                    <Text className="mb-2 text-sm text-red-500">
-                      {errors?.username}
-                    </Text>
-                  )}
-
-                  {/* Password Input */}
-                  <View
-                    className="flex-row items-center border  rounded-lg px-3  mb-[-4]"
-                    style={{
-                      backgroundColor: appTheme.cartContainer,
-                      borderColor: appTheme.borderLineColor,
-                    }}
-                  >
-                    <TextInput
-                      className="flex-1 h-12 text-base"
-                      style={{ color: appTheme.fontMainColor }}
-                      placeholder={t("Password")}
-                      secureTextEntry={!passwordVisible}
-                      placeholderTextColor={appTheme.fontSecondColor}
-
-                      value={values.password}
-                      onChangeText={handleChange("password")}
-                      onBlur={handleBlur("password")}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setPasswordVisible(!passwordVisible)}
-                      className="ml-2"
+                    <View
+                      className="w-full rounded-2xl border p-6 sm:p-10"
+                      style={{
+                        backgroundColor: SURFACE,
+                        borderColor: '#2C2C2E',
+                      }}
                     >
-                      <FontAwesome6
-                        name={passwordVisible ? "eye-slash" : "eye"}
-                        size={14}
-                        color={appTheme.fontMainColor}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  {errors.password && (
-                    <Text className="mb-2 text-sm text-red-500">
-                      {errors?.password}
-                    </Text>
-                  )}
-                  <Text
-                    className="text-center text-xs mb-2"
-                    style={{ color: appTheme.fontSecondColor }}
-                  >
-                    {t("Test account")}: owner1@jedzto.local / owner1234
-                  </Text>
+                      <View className="mb-8 items-center">
+                        <Text className="text-base text-center leading-relaxed" style={{ color: MUTED }}>
+                          Aby kontynuować wpisz swoje dane poniżej
+                        </Text>
+                      </View>
 
-                  <CustomContinueButton
-                    title={t("Login")}
-                    onPress={() => handleSubmit()}
-                    className="self-center"
-                  />
+                      <View className="flex-col gap-y-5">
+                        <View className="flex-col gap-y-2">
+                          <Text className="text-sm font-medium" style={{ color: MUTED }}>
+                            Login
+                          </Text>
+                          <TextInput
+                            style={{
+                              width: '100%',
+                              height: 56,
+                              borderRadius: 12,
+                              borderWidth: 1.5,
+                              borderColor: BORDER,
+                              backgroundColor: PAGE,
+                              color: '#fff',
+                              fontSize: 16,
+                              paddingHorizontal: 16,
+                            }}
+                            placeholder=""
+                            placeholderTextColor={MUTED}
+                            keyboardType="email-address"
+                            inputMode="email"
+                            value={values.username}
+                            onChangeText={handleChange("username")}
+                            onBlur={handleBlur("username")}
+                          />
+                          {errors.username && (
+                            <Text className="mt-1 text-sm text-center" style={{ color: ERROR }}>
+                              {errors?.username}
+                            </Text>
+                          )}
+                        </View>
+
+                        <View className="flex-col gap-y-2">
+                          <Text className="text-sm font-medium" style={{ color: MUTED }}>
+                            {t("Password")}
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              width: '100%',
+                              height: 56,
+                              borderRadius: 12,
+                              borderWidth: 1.5,
+                              borderColor: BORDER,
+                              backgroundColor: PAGE,
+                              alignItems: 'stretch',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <TextInput
+                              style={{
+                                flex: 1,
+                                height: '100%',
+                                color: '#fff',
+                                fontSize: 16,
+                                paddingHorizontal: 16,
+                              }}
+                              placeholder=""
+                              secureTextEntry={!passwordVisible}
+                              placeholderTextColor={MUTED}
+                              value={values.password}
+                              onChangeText={handleChange("password")}
+                              onBlur={handleBlur("password")}
+                            />
+                            <TouchableOpacity
+                              onPress={() => setPasswordVisible(!passwordVisible)}
+                              style={{
+                                width: 56,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                borderLeftWidth: 1,
+                                borderLeftColor: BORDER,
+                              }}
+                            >
+                              <FontAwesome6
+                                name={passwordVisible ? "eye-slash" : "eye"}
+                                size={18}
+                                color={MUTED}
+                              />
+                            </TouchableOpacity>
+                          </View>
+                          {errors.password && (
+                            <Text className="mt-1 text-sm text-center" style={{ color: ERROR }}>
+                              {errors?.password}
+                            </Text>
+                          )}
+                        </View>
+
+                        <Text
+                          className="text-center text-xs mt-2"
+                          style={{ color: MUTED }}
+                        >
+                          {t("Test account")}: owner1@jedzto.local / owner1234
+                        </Text>
+
+                        <TouchableOpacity
+                          disabled={loading}
+                          onPress={() => handleSubmit()}
+                          style={{
+                            marginTop: 12,
+                            height: 56,
+                            width: '100%',
+                            borderRadius: 12,
+                            backgroundColor: JEDZ_COLOR,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            opacity: loading ? 0.7 : 1,
+                          }}
+                        >
+                          <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
+                            {loading ? "Logowanie..." : "Zaloguj się"}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
                 </View>
               );
             }}

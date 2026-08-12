@@ -7,9 +7,9 @@ export const GET_COUPONS = gql`
       title
       discount
       enabled
-      startDate
-      endDate
-      lifeTimeActive
+      restaurantId
+      minOrderValue
+      usageLimit
     }
   }
 `;
@@ -36,9 +36,9 @@ export const GET_COUPONS_PAGINATED = gql`
         title
         discount
         enabled
-        startDate
-        endDate
-        lifeTimeActive
+        restaurantId
+        minOrderValue
+        usageLimit
       }
       totalCount
       currentPage

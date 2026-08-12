@@ -110,7 +110,7 @@ const AppTopbar = () => {
 
   // Query
   const { loading, refetch } = useQuery(GET_WEB_NOTIFICATIONS, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
     onCompleted: (data) => {
       setNotifications(data?.webNotifications);
     },
@@ -118,7 +118,6 @@ const AppTopbar = () => {
 
   // Subscriptions
   useSubscription(RIDER_UPDATED_SUBSCRIPTION, {
-    fetchPolicy: 'network-only',
     onData: async () => {
       const result = await refetch();
       setNotifications(result?.data?.webNotifications);
@@ -241,128 +240,8 @@ const AppTopbar = () => {
         </div>
       </div>
       <div className="hidden items-center space-x-5 md:flex">
-        {shouldShow('Zone') && (
-          <TextIconClickable
-            icon={faMap}
-            title={t('Zone')}
-            className={
-              pathname === '/zone'
-                ? 'rounded bg-primary-color text-white'
-                : 'bg-transparent hover:rounded hover:bg-secondary-color dark:hover:text-black '
-            }
-            iconStyles={{
-              color: pathname === '/zone' || isDarkMode ? 'white' : 'gray',
-            }}
-            onClick={() => onRedirectToPage('/zone')}
-          />
-        )}
-        {shouldShow('Dispatch') && (
-          <TextIconClickable
-            icon={faTruck}
-            title={t('Dispatch')}
-            className={
-              pathname === '/dispatch'
-                ? 'rounded bg-primary-color text-white'
-                : 'bg-transparent hover:rounded hover:bg-secondary-color dark:hover:text-black'
-            }
-            iconStyles={{
-              color: pathname === '/dispatch' || isDarkMode ? 'white' : 'gray',
-            }}
-            onClick={() => onRedirectToPage('/dispatch')}
-          />
-        )}
-        <div className="relative z-50">
-          <FontAwesomeIcon
-            icon={faBell}
-            className="cursor-pointer text-gray-600 dark:text-white hover:text-black"
-            onClick={toggleDropdown}
-            title="Notifications" // 👈 native tooltip added here
-          />
-          {!loading &&
-            notifications?.filter((ntfn) => !ntfn.read).length > 0 && (
-              <span className="absolute text-xs top-[-4px] right-[-8px] w-4 h-4 flex justify-center items-center rounded-full bg-red-500 text-white">
-                {notifications?.filter((ntfn) => !ntfn.read).length}
-              </span>
-            )}
-
-          {isNtfnOpen && (
-            <div
-              ref={ntfnDropdownRef}
-              className="absolute flex select-none flex-col pb-2 top-5 right-0 mt-2 w-72 bg-white dark:bg-dark-950 shadow-xl rounded-md border dark:border-dark-600 dark:text-white"
-            >
-              <p className="select-none text-center font-medium p-2 shadow-sm">
-                {t('Notifications')}
-              </p>
-
-              <ul className="flex flex-col gap-1 pt-2 overflow-y-auto max-h-[368px]">
-                {/* If loading, show skeleton loaders */}
-                {loading ? (
-                  [1, 2, 3].map((_, index) => (
-                    <div className="px-3" key={index}>
-                      <Skeleton width="100%" height="52px" className="px-2" />
-                    </div>
-                  ))
-                ) : notifications.length === 0 ? (
-                  <div className="flex p-2 gap-2 justify-center items-center">
-                    <li className="text-center text-gray-500 ">
-                      No notifications yet
-                    </li>
-                    <FontAwesomeIcon
-                      icon={faFaceFrown}
-                      color="gray"
-                      onClick={() =>
-                        onRedirectToPage('/management/notifications')
-                      }
-                    />
-                  </div>
-                ) : (
-                  notifications?.map((notification, index) => (
-                    <Link
-                      key={index}
-                      className={`p-2 mx-3 rounded-md text-sm cursor-pointer ${notification.read
-                        ? 'text-black dark:text-white'
-                        : 'text-[#484848] dark:hover:text-white dark:text-dark-950 bg-secondary-color'
-                        } hover:bg-gray-300 dark:hover:bg-dark-600`}
-                      href={`${notification.navigateTo}`}
-                      onClick={() => {
-                        markAllAsRead();
-                        setIsNtfnOpen(false);
-                      }}
-                    >
-                      <p>{notification.body}</p>
-                      <p className="text-xs text-gray-400 ">
-                        {timeAgo(+notification.createdAt)}
-                      </p>
-                    </Link>
-                  ))
-                )}
-              </ul>
-            </div>
-          )}
-        </div>
-
         <div className="hidden items-center space-x-3 md:flex">
-          <div className="flex items-center space-x-3">
-            <ThemeToggle />
-          </div>
-          <div
-            className="flex items-center space-x-2 rounded-md p-2 hover:bg-[#d8d8d837] cursor-pointer"
-            onClick={(event) => languageMenuRef.current?.toggle(event)}
-            aria-controls="popup_menu_right"
-            aria-haspopup
-            title="Languages"
-          >
-            <FontAwesomeIcon icon={faGlobe} />
 
-            <Menu
-              model={model}
-              popup
-              ref={languageMenuRef}
-              id="popup_menu_right"
-              popupAlignment="right"
-              className="dark:bg-dark-950 dark:border-dark-600 dark:text-white"
-            />
-          </div>
 
           <div
             className="flex items-center space-x-2 rounded-md p-2 hover:bg-[#d8d8d837]"
@@ -405,29 +284,7 @@ const AppTopbar = () => {
       </div>
 
       <div className="flex md:hidden space-x-3">
-        <div
-          className="rounded-md p-2 hover:bg-[#d8d8d837] cursor-pointer"
-          onClick={(event) => languageMenuRef.current?.toggle(event)}
-          aria-controls="popup_menu_right"
-          aria-haspopup
-          title="Languages"
-        >
-          <FontAwesomeIcon icon={faGlobe} />
-          <Menu
-            model={model}
-            popup
-            ref={languageMenuRef}
-            id="popup_menu_right"
-            popupAlignment="right"
-            className="
-        [&_.p-menu-list]:max-h-72 
-        [&_.p-menu-list]:overflow-y-auto
-        [&_.p-menu-list]:scrollbar-thin
-        shadow-lg
-        dark:bg-dark-950 dark:border-dark-600 dark:text-white
-      "
-          />
-        </div>
+
 
         <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
           <FontAwesomeIcon icon={faEllipsisV} />
@@ -440,34 +297,7 @@ const AppTopbar = () => {
           ref={containerRef}
         >
           <div className="flex flex-col items-center space-y-4">
-            {shouldShow('Notification') && (
-              <FontAwesomeIcon
-                icon={faBell}
-                color="gray"
-                onClick={() => onRedirectToPage('/management/notifications')}
-              />
-            )}
-            {shouldShow('Zone') && (
-              <TextIconClickable
-                className="justify-between"
-                icon={faMap}
-                iconStyles={{
-                  color: pathname === '/zone' || isDarkMode ? 'white' : 'gray',
-                }}
-                onClick={() => onRedirectToPage('/zone')}
-              />
-            )}
-            {shouldShow('Dispatch') && (
-              <TextIconClickable
-                className="justify-between"
-                icon={faTruck}
-                iconStyles={{
-                  color:
-                    pathname === '/dispatch' || isDarkMode ? 'white' : 'gray',
-                }}
-                onClick={() => onRedirectToPage('/dispatch')}
-              />
-            )}
+
             {/* <TextIconClickable className="justify-between" icon={faCog} /> */}
             {/* <TextIconClickable className="justify-between" icon={faGlobe} /> */}
             <TextIconClickable

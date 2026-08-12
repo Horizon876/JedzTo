@@ -1,4 +1,4 @@
-// Core
+﻿// Core
 import { useMutation } from '@apollo/client';
 import { useContext, useEffect, useState } from 'react';
 
@@ -62,7 +62,7 @@ export default function OptionMain({
       search: debouncedSearch || undefined,
     },
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       enabled: !!restaurantId,
       onCompleted: onFetchAddonsByRestaurantCompleted,
       onError: onErrorFetchAddonsByRestaurant,

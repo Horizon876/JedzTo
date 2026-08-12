@@ -1,18 +1,20 @@
 import { gql } from '@apollo/client';
 
-// JedzTo — createRestaurant now auto-generates the owner account (no more
-// picking/creating a vendor first) and returns its one-time credentials
-// alongside the created restaurant.
+// JedzTo — createRestaurant now creates the owner account with admin-specified
+// login and password. The credentials (login + password) are returned once
+// for display in the OwnerCredentialsModal.
 export const CREATE_RESTAURANT = gql`
   mutation CreateRestaurant(
     $restaurant: RestaurantInput!
     $ownerName: String!
-    $ownerEmail: String!
+    $ownerLogin: String!
+    $ownerPassword: String!
   ) {
     createRestaurant(
       restaurant: $restaurant
       ownerName: $ownerName
-      ownerEmail: $ownerEmail
+      ownerLogin: $ownerLogin
+      ownerPassword: $ownerPassword
     ) {
       restaurant {
         _id
@@ -43,8 +45,8 @@ export const CREATE_RESTAURANT = gql`
       }
       owner {
         userId
-        email
-        temporaryPassword
+        login
+        password
         role
         restaurantId
       }

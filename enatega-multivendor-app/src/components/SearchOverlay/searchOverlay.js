@@ -1,5 +1,5 @@
 // SearchOverlay.js
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import {
   View,
   FlatList,
@@ -19,6 +19,8 @@ import ShimmerImage from '../ShimmerImage/ShimmerImage'
 import { useTranslation } from 'react-i18next'
 import { isOpen } from '../../utils/customFunctions'
 import { formatMoney } from '../../utils/formatMoney'
+import UserContext from '../../context/User'
+import { foodNeedsCustomization, getDefaultVariationId } from '../../utils/foodCustomization'
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight
 
@@ -31,6 +33,7 @@ const SearchOverlay = ({
   navigation
 }) => {
   const { t, i18n } = useTranslation()
+  const { addCartItem, setCartRestaurant, restaurant: restaurantCart, clearCart } = useContext(UserContext)
   const [search, setSearch] = useState('')
   const [filterData, setFilterData] = useState([])
   const [showSearchResults, setShowSearchResults] = useState(false)
@@ -71,39 +74,35 @@ const SearchOverlay = ({
   const isRestaurantOpen = restaurant?.isOpen || restaurant?.isAvailable && isOpen(restaurant)
   console.log('isRestaurantOpen :', isRestaurantOpen);
 
-  const onPressItem = (food) => {
+  const onPressItem = async (food) => {
     if (food.isOutOfStock) {
-      // Display an alert if the item is out of stock
       Alert.alert('Currently Unavailable', 'Item Out of Stock')
       return
     }
     
     if (!isRestaurantOpen) {
-      // Show alert if restaurant is closed
       Alert.alert(
         '',
         t('restaurantClosed'),
         [
           {
-            text: t('סגור'), // Hebrew for "close"
+            text: t('close'),
             onPress: () => {
-              // Just close the search overlay
               onClose()
             },
             style: 'cancel'
           },
           {
             text: t('seeMenu'),
-            onPress: () => {
-              // Stay on search, don't navigate away
-              // Do nothing here
-            }
+            onPress: () => {}
           }
         ],
         { cancelable: true }
       )
-    } else {
-      // Only navigate if restaurant is open
+      return
+    }
+
+    const openDetail = () => {
       navigation.navigate('ItemDetail', {
         food: {
           ...food,
@@ -114,8 +113,41 @@ const SearchOverlay = ({
         options: restaurant?.options || [],
         restaurant: restaurant?._id
       })
-      onClose() // Close the search overlay after navigation
+      onClose()
     }
+
+    if (foodNeedsCustomization(food)) {
+      openDetail()
+      return
+    }
+
+    const variationId = getDefaultVariationId(food)
+    if (!variationId) {
+      openDetail()
+      return
+    }
+
+    const addSimple = async (clearFlag = false) => {
+      if (clearFlag) await clearCart()
+      await setCartRestaurant(restaurant?._id)
+      await addCartItem(food._id, variationId, 1, [], false, '', [])
+      onClose()
+    }
+
+    if (restaurantCart && restaurantCart !== restaurant?._id) {
+      Alert.alert(t('clearCartTitle'), t('clearCartText') || t('cartClearWarning'), [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('clearCartConfirm'),
+          onPress: () => {
+            addSimple(true)
+          }
+        }
+      ])
+      return
+    }
+
+    await addSimple(false)
   }
 
   const renderItem = ({ item }) => (

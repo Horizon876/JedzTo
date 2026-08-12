@@ -19,7 +19,7 @@ export default function RestaurantSalesReportCard() {
   const { data, loading } = useQuery(GET_RESTAURANT_SALES_REPORT, {
     variables: { restaurantId },
     skip: !restaurantId,
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   });
 
   const report = data?.restaurantSalesReport;
@@ -32,7 +32,7 @@ export default function RestaurantSalesReportCard() {
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div>
-          <div className="text-xs text-gray-400">Total</div>
+          <div className="text-xs text-gray-400">{t('Total')}</div>
           <div className="font-bold">{money(report.totalGross)}</div>
         </div>
         <div>
@@ -50,7 +50,7 @@ export default function RestaurantSalesReportCard() {
       </div>
       <div className="grid md:grid-cols-2 gap-4">
         <div>
-          <div className="text-sm font-semibold mb-2">Top items</div>
+          <div className="text-sm font-semibold mb-2">{t('Top items')}</div>
           {(report.topItems || []).slice(0, 5).map((item: any) => (
             <div key={item.id} className="flex justify-between text-sm py-1 border-b border-dark-600">
               <span>{item.title || item.id}</span>

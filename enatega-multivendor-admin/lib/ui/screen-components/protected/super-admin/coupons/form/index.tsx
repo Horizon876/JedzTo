@@ -8,6 +8,9 @@ import { ToastContext } from '@/lib/context/global/toast.context';
 // Components
 import CustomTextField from '@/lib/ui/useable-components/input-field';
 import CustomNumberField from '@/lib/ui/useable-components/number-input-field';
+import CustomDropdownComponent from '@/lib/ui/useable-components/custom-dropdown';
+import { GET_RESTAURANTS_DROPDOWN } from '@/lib/api/graphql';
+import { useQuery } from '@apollo/client';
 
 // Interfaces
 import { IAddCouponProps } from '@/lib/utils/interfaces/coupons.interface';
@@ -39,6 +42,14 @@ export default function CouponForm({
   // Hooks
   const { showToast } = useContext(ToastContext);
   const t = useTranslations();
+  const { data: restaurantsData, loading: restaurantsLoading } = useQuery(GET_RESTAURANTS_DROPDOWN, {
+    fetchPolicy: 'cache-first'
+  });
+
+  const restaurantOptions = [
+    { label: t('All Restaurants'), code: 'all' },
+    ...(restaurantsData?.restaurants?.map((r: { name: string; _id: string }) => ({ label: r.name, code: r._id })) || [])
+  ];
 
   // Initial values
   const initialValues = {
@@ -46,25 +57,9 @@ export default function CouponForm({
     title: isEditing.bool ? isEditing?.data?.title : '',
     discount: isEditing.bool ? isEditing?.data?.discount : 0,
     enabled: isEditing.bool ? isEditing?.data?.enabled : true,
-    lifeTimeActive: isEditing.bool ? isEditing?.data?.lifeTimeActive : false,
-    startDate:
-      isEditing.bool && isEditing?.data?.startDate
-        ? (() => {
-            const date = new Date(isEditing.data.startDate);
-            return !isNaN(date.getTime())
-              ? date.toISOString().split('T')[0]
-              : '';
-          })()
-        : '',
-    endDate:
-      isEditing.bool && isEditing?.data?.endDate
-        ? (() => {
-            const date = new Date(isEditing.data.endDate);
-            return !isNaN(date.getTime())
-              ? date.toISOString().split('T')[0]
-              : '';
-          })()
-        : '',
+    restaurantId: isEditing.bool ? isEditing?.data?.restaurantId : 'all',
+    minOrderValue: isEditing.bool ? isEditing?.data?.minOrderValue : 0,
+    usageLimit: isEditing.bool && isEditing?.data?.usageLimit !== null ? isEditing?.data?.usageLimit : null,
   };
 
   // Mutations
@@ -88,9 +83,9 @@ export default function CouponForm({
             discount: 0,
             enabled: false,
             title: '',
-            lifeTimeActive: false,
-            startDate: '',
-            endDate: '',
+            restaurantId: null,
+            minOrderValue: 0,
+            usageLimit: null,
           },
         });
       },
@@ -111,9 +106,9 @@ export default function CouponForm({
             discount: 0,
             enabled: false,
             title: '',
-            lifeTimeActive: false,
-            startDate: '',
-            endDate: '',
+            restaurantId: null,
+            minOrderValue: 0,
+            usageLimit: null,
           },
         });
       },
@@ -139,9 +134,9 @@ export default function CouponForm({
             discount: 0,
             enabled: false,
             title: '',
-            lifeTimeActive: false,
-            startDate: '',
-            endDate: '',
+            restaurantId: null,
+            minOrderValue: 0,
+            usageLimit: null,
           },
         });
       },
@@ -162,9 +157,9 @@ export default function CouponForm({
             discount: 0,
             enabled: false,
             title: '',
-            lifeTimeActive: false,
-            startDate: '',
-            endDate: '',
+            restaurantId: null,
+            minOrderValue: 0,
+            usageLimit: null,
           },
         });
       },
@@ -184,9 +179,9 @@ export default function CouponForm({
             discount: 0,
             enabled: true,
             title: '',
-            lifeTimeActive: false,
-            startDate: '',
-            endDate: '',
+            restaurantId: null,
+            minOrderValue: 0,
+            usageLimit: null,
           },
         });
       }}
@@ -204,9 +199,9 @@ export default function CouponForm({
               title: values.title,
               discount: values.discount,
               enabled: values.enabled,
-              lifeTimeActive: values.lifeTimeActive,
-              startDate: values.startDate,
-              endDate: values.endDate,
+              restaurantId: values.restaurantId,
+              minOrderValue: values.minOrderValue,
+              usageLimit: values.usageLimit,
             };
           } else {
             formData = {
@@ -214,9 +209,9 @@ export default function CouponForm({
               title: values.title,
               discount: values.discount,
               enabled: values.enabled,
-              lifeTimeActive: values.lifeTimeActive,
-              startDate: values.startDate,
-              endDate: values.endDate,
+              restaurantId: values.restaurantId,
+              minOrderValue: values.minOrderValue,
+              usageLimit: values.usageLimit,
             };
           }
 
@@ -241,9 +236,9 @@ export default function CouponForm({
               discount: 0,
               enabled: true,
               title: '',
-              lifeTimeActive: false,
-              startDate: '',
-              endDate: '',
+              restaurantId: null,
+              minOrderValue: 0,
+              usageLimit: null,
             },
           });
           setVisible(false);
@@ -311,53 +306,35 @@ export default function CouponForm({
                   }}
                 />
 
-                <CustomInputSwitch
-                  label={t('Lifetime Active')}
-                  isActive={values.lifeTimeActive}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setFieldValue('lifeTimeActive', e.target.checked)
+                <CustomDropdownComponent
+                  name="restaurantId"
+                  options={restaurantOptions}
+                  selectedItem={
+                    restaurantOptions.find(o => o.code === values.restaurantId) || restaurantOptions[0]
                   }
+                  setSelectedItem={(name: string, value: any) => setFieldValue('restaurantId', value.code)}
+                  placeholder={t('Assign to Restaurant')}
+                  showLabel={true}
+                  isLoading={restaurantsLoading}
                 />
 
-                {!values.lifeTimeActive && (
-                  <CustomTextField
-                    value={values.startDate}
-                    name="startDate"
-                    showLabel={true}
-                    placeholder={t('Start Date')}
-                    type="date"
-                    onChange={(e) => setFieldValue('startDate', e.target.value)}
-                    style={{
-                      borderColor: onErrorMessageMatcher(
-                        'startDate',
-                        errors?.startDate,
-                        CouponErrors
-                      )
-                        ? 'red'
-                        : '',
-                    }}
-                  />
-                )}
+                <CustomNumberField
+                  value={values.minOrderValue}
+                  name="minOrderValue"
+                  showLabel={true}
+                  placeholder={t('Minimum Order Value')}
+                  onChange={setFieldValue}
+                  min={0}
+                />
 
-                {!values.lifeTimeActive && (
-                  <CustomTextField
-                    value={values.endDate}
-                    name="endDate"
-                    showLabel={true}
-                    placeholder={t('End Date')}
-                    type="date"
-                    onChange={(e) => setFieldValue('endDate', e.target.value)}
-                    style={{
-                      borderColor: onErrorMessageMatcher(
-                        'endDate',
-                        errors?.endDate,
-                        CouponErrors
-                      )
-                        ? 'red'
-                        : '',
-                    }}
-                  />
-                )}
+                <CustomNumberField
+                  value={values.usageLimit}
+                  name="usageLimit"
+                  showLabel={true}
+                  placeholder={t('Usage Limit')}
+                  onChange={setFieldValue}
+                  min={1}
+                />
 
                 <button
                   className="float-end h-10 w-fit rounded-md border dark:border-dark-600 border-gray-300 bg-black px-8 text-white"

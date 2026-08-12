@@ -31,6 +31,8 @@ import { resolveRestaurantImage as resolveResolvedRestaurantImage } from '../../
 import { isJedzToLocalRestaurantId } from '../../utils/jedztoLocalRestaurants'
 import { getPopulatedCartQuantityTotal, populateCart, pruneCartToRestaurant } from '../../utils/populateCart'
 import { formatMoney } from '../../utils/formatMoney'
+import { foodNeedsCustomization, getDefaultVariationId } from '../../utils/foodCustomization'
+import VerticalQtyStepper from '../../components/VerticalQtyStepper/VerticalQtyStepper'
 
 const CATEGORY_RAIL_HEIGHT = scale(48)
 const POPULAR_ROW_LIMIT = 4
@@ -90,7 +92,7 @@ function Restaurant(props) {
   const configuration = useContext(ConfigurationContext)
   const { location } = useContext(LocationContext)
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0)
-  const { restaurant: restaurantCart, cartCount, cart, clearCart, isPickup, updateCart } = useContext(UserContext)
+  const { restaurant: restaurantCart, cartCount, cart, clearCart, isPickup, updateCart, addCartItem, setCartRestaurant } = useContext(UserContext)
   const { data, refetch, networkStatus, loading, error } = useRestaurant(propsData._id)
   const client = useApolloClient()
   const { data: popularItemsData } = useQuery(POPULAR_ITEMS, {
@@ -423,12 +425,20 @@ function Restaurant(props) {
         )
       }
     },
-    [navigation, restaurant, restaurantCart, t]
+    [addToCart, navigation, restaurant, restaurantCart, t]
   )
 
   const addToCart = useCallback(
     async (foodItem, clearFlag) => {
       if (clearFlag) await clearCart()
+
+      if (!foodNeedsCustomization(foodItem)) {
+        const variationId = getDefaultVariationId(foodItem)
+        if (!variationId) return
+        await setCartRestaurant(restaurant._id)
+        await addCartItem(foodItem._id, variationId, 1, [], false, '', [])
+        return
+      }
 
       navigation.navigate('ItemDetail', {
         food: foodItem,
@@ -437,7 +447,7 @@ function Restaurant(props) {
         restaurant: restaurant._id
       })
     },
-    [clearCart, navigation, restaurant]
+    [addCartItem, clearCart, navigation, restaurant, setCartRestaurant]
   )
 
   const handleScrollToIndexFailed = useCallback(
@@ -734,6 +744,7 @@ const PopularGridRow = React.memo(function PopularGridRow({ currentTheme, items,
 
 const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item, onPressItem, isLast }) {
   const { t } = useTranslation()
+  const { cart, addQuantity, removeQuantity } = useContext(UserContext)
   const imageUrl = item?.image && item?.image.trim() !== '' ? item?.image : IMAGE_LINK
   const ACCENT = '#00A8FF'
   const hasMultipleSizes = (item?.variations?.length || 0) > 1
@@ -743,6 +754,29 @@ const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item,
   const priceLabel = hasMultipleSizes
     ? t('fromPrice', { price: formatMoney(minPrice, configuration.currencySymbol) })
     : formatMoney(minPrice, configuration.currencySymbol)
+
+  const cartLines = useMemo(
+    () => (cart || []).filter((line) => String(line?._id) === String(item?._id)),
+    [cart, item?._id]
+  )
+  const cartQty = useMemo(
+    () => cartLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0),
+    [cartLines]
+  )
+  const primaryLine = cartLines[cartLines.length - 1]
+
+  const onIncrement = () => {
+    if (primaryLine?.key) {
+      addQuantity(primaryLine.key, 1)
+      return
+    }
+    onPressItem(item)
+  }
+
+  const onDecrement = () => {
+    if (!primaryLine?.key) return
+    removeQuantity(primaryLine.key)
+  }
 
   return (
     <Pressable
@@ -814,17 +848,21 @@ const FoodRow = React.memo(function FoodRow({ configuration, currentTheme, item,
           </View>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={[styles(currentTheme).addToCart, { backgroundColor: ACCENT }]}
-          onPress={(e) => {
-            e?.stopPropagation?.()
-            onPressItem(item)
-          }}
-        >
-          <MaterialIcons name='add' size={scale(20)} color='#FFFFFF' />
-        </TouchableOpacity>
+        {cartQty > 0 ? (
+          <VerticalQtyStepper quantity={cartQty} onAdd={onIncrement} onRemove={onDecrement} />
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={[styles(currentTheme).addToCart, { backgroundColor: ACCENT }]}
+            onPress={(e) => {
+              e?.stopPropagation?.()
+              onPressItem(item)
+            }}
+          >
+            <MaterialIcons name='add' size={scale(20)} color='#FFFFFF' />
+          </TouchableOpacity>
+        )}
       </View>
     </Pressable>
   )

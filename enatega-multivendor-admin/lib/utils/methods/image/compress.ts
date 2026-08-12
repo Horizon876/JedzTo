@@ -1,6 +1,7 @@
 export const compressImage = (
   file: File,
   maxWidth = 800,
+  maxHeight?: number,
   quality = 0.7
 ): Promise<File> => {
   return new Promise((resolve) => {
@@ -9,11 +10,27 @@ export const compressImage = (
     const img = new Image();
 
     img.onload = () => {
-      const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
-      canvas.width = img.width * ratio;
-      canvas.height = img.height * ratio;
+      let targetWidth = maxWidth;
+      let targetHeight = maxHeight || maxWidth;
 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // Calculate ratios for cover crop
+      const ratio = Math.max(targetWidth / img.width, targetHeight / img.height);
+      const drawWidth = img.width * ratio;
+      const drawHeight = img.height * ratio;
+
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      // Center the image (crop edges)
+      const offsetX = (targetWidth - drawWidth) / 2;
+      const offsetY = (targetHeight - drawHeight) / 2;
+
+      // Fill background (optional, for transparent pngs)
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+      
       canvas.toBlob(
         (blob) => {
           resolve(new File([blob!], file.name, { type: file.type }));

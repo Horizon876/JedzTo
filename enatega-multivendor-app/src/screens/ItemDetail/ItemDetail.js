@@ -5,7 +5,7 @@ import TitleComponent from '../../components/CustomizeComponents/TitleComponent/
 import CartComponent from '../../components/CustomizeComponents/CartComponent/CartComponent'
 import HeadingComponent from '../../components/CustomizeComponents/HeadingComponent/HeadingComponent'
 import ImageHeader from '../../components/CustomizeComponents/ImageHeader/ImageHeader'
-import IngredientRemove from '../../components/CustomizeComponents/IngredientRemove/IngredientRemove'
+import PersonalizeIngredientsModal from '../../components/CustomizeComponents/PersonalizeIngredientsModal/PersonalizeIngredientsModal'
 import Options from './Options'
 import { theme } from '../../utils/themeColors'
 import analytics from '../../utils/analytics'
@@ -29,13 +29,12 @@ import Animated, {
   useSharedValue,
   useAnimatedRef
 } from 'react-native-reanimated'
-import { TextField } from 'react-native-material-textfield'
 import { scale } from '../../utils/scaling'
 import { truncateText } from '../../utils/customFunctions'
 
 const { height } = Dimensions.get('window')
 const TOP_BAR_HEIGHT = Math.round(height * 0.08)
-const HEADER_MAX_HEIGHT = Math.round(height * 0.42)
+const HEADER_MAX_HEIGHT = Math.round(height * 0.26)
 const HEADER_MIN_HEIGHT = TOP_BAR_HEIGHT
 const SCROLL_RANGE = HEADER_MAX_HEIGHT
 
@@ -101,6 +100,7 @@ function ItemDetail(props) {
 
   const [specialInstructions, setSpecialInstructions] = useState(initialNotes)
   const [removedIngredients, setRemovedIngredients] = useState(initialRemoved)
+  const [personalizeOpen, setPersonalizeOpen] = useState(false)
   const [selectedVariation, setSelectedVariation] = useState(
     getVariationWithAddons(
       food?.variations?.find((variation) => variation._id === editCartItem?.variation?._id) || food?.variations?.[0]
@@ -369,12 +369,6 @@ function ItemDetail(props) {
     setSelectedAddons([...selectedAddons])
   }
 
-  const onToggleIngredient = (ingredient) => {
-    setRemovedIngredients((prev) =>
-      prev.includes(ingredient) ? prev.filter((item) => item !== ingredient) : [...prev, ingredient]
-    )
-  }
-
   const calculatePrice = useCallback(() => {
     const variation = selectedVariation?.price || 0
     let addonTotal = 0
@@ -436,7 +430,7 @@ function ItemDetail(props) {
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            paddingBottom: scale(4),
+            paddingBottom: scale(24),
             flexGrow: 0
           }}
         >
@@ -464,7 +458,7 @@ function ItemDetail(props) {
             <View>
               {showSizePicker ? (
                 <View>
-                  <TitleComponent title={t('size')} subTitle={t('SelectOne')} status={t('Required')} />
+                  <TitleComponent title={t('size')} />
                   <RadioComponent
                     options={food?.variations}
                     selected={selectedVariation}
@@ -473,21 +467,6 @@ function ItemDetail(props) {
                     }}
                     setSelectedVariation={onSelectVariation}
                     selectedVariation={selectedVariation}
-                  />
-                </View>
-              ) : null}
-
-              {ingredients.length ? (
-                <View style={styles(currentTheme).sectionGap}>
-                  <TitleComponent
-                    title={t('removeIngredients')}
-                    subTitle={t('removeIngredientsHint')}
-                    status={t('optional')}
-                  />
-                  <IngredientRemove
-                    ingredients={ingredients}
-                    removed={removedIngredients}
-                    onToggle={onToggleIngredient}
                   />
                 </View>
               ) : null}
@@ -514,29 +493,6 @@ function ItemDetail(props) {
               ))}
             </View>
 
-            <View style={styles(currentTheme).inputContainer}>
-              <TitleComponent
-                title={t('specialInstructions')}
-                subTitle={t('anySpecificPreferences')}
-                status={t('optional')}
-              />
-              <TextField
-                style={styles(currentTheme).input}
-                placeholder={t('noMayo')}
-                textAlignVertical='center'
-                value={specialInstructions}
-                onChangeText={setSpecialInstructions}
-                maxLength={144}
-                textColor='#FFFFFF'
-                baseColor='transparent'
-                errorColor='#FF6B6B'
-                tintColor='#00A8FF'
-                lineWidth={0}
-                activeLineWidth={0}
-                disabledLineWidth={0}
-                placeholderTextColor='#8E8E93'
-              />
-            </View>
           </View>
         </Animated.ScrollView>
 
@@ -551,7 +507,18 @@ function ItemDetail(props) {
           <HeadingComponent title={food?.title} price={calculatePrice()} />
         </Animated.View>
         <View style={{ backgroundColor: '#1C1C1E', zIndex: 10 }}>
-          <CartComponent onPress={onPressAddToCart} disabled={!validateButton()} quantity={editCartItem?.quantity} />
+          <CartComponent
+            onPress={onPressAddToCart}
+            disabled={!validateButton()}
+            quantity={editCartItem?.quantity}
+            showPersonalize={ingredients.length > 0}
+            onPersonalize={() => setPersonalizeOpen(true)}
+            personalizeSummary={
+              removedIngredients.length
+                ? `${t('without')}: ${removedIngredients.join(', ')}`
+                : ''
+            }
+          />
         </View>
         <View
           style={{
@@ -559,6 +526,15 @@ function ItemDetail(props) {
             backgroundColor: '#1C1C1E'
           }}
         />
+        {ingredients.length ? (
+          <PersonalizeIngredientsModal
+            visible={personalizeOpen}
+            onClose={() => setPersonalizeOpen(false)}
+            onSave={setRemovedIngredients}
+            ingredients={ingredients}
+            removed={removedIngredients}
+          />
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   )

@@ -1,4 +1,4 @@
-//Hooks
+﻿//Hooks
 import { ChangeEvent, useEffect, useState } from 'react';
 
 //Components
@@ -36,7 +36,7 @@ export default function NotificationMain() {
     limit: rowsPerPage,
     search: debouncedSearch || undefined,
   }, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   }) as IQueryResult<IGetNotificationsPaginated | undefined, undefined>;
 
   useEffect(() => {

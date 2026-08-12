@@ -24,6 +24,16 @@ const styles = (props = null) =>
       shadowRadius: verticalScale(6),
       elevation: 12
     },
+    columnContainer: {
+      width: '90%',
+      gap: scale(10)
+    },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: scale(12)
+    },
     subContainer: {
       width: '90%',
       alignItems: 'center',
@@ -61,8 +71,36 @@ const styles = (props = null) =>
       justifyContent: 'center',
       alignItems: 'center'
     },
+    personalizeBtn: {
+      flex: 1,
+      height: scale(42),
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: scale(8),
+      backgroundColor: CARD,
+      borderRadius: scale(999),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: '#3A3A3C',
+      paddingHorizontal: scale(14)
+    },
+    personalizeLabel: {
+      flexShrink: 1
+    },
+    personalizeSummary: {
+      marginTop: scale(-2),
+      paddingHorizontal: scale(4)
+    },
     btnContainer: {
       flex: 1,
+      height: scale(48),
+      backgroundColor: ACCENT,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: scale(999)
+    },
+    btnContainerFull: {
+      width: '100%',
       height: scale(48),
       backgroundColor: ACCENT,
       justifyContent: 'center',

@@ -8,8 +8,6 @@ import { scale } from '../../../utils/scaling'
 import { useTranslation } from 'react-i18next'
 import styles from './styles'
 
-const ACCENT = '#00A8FF'
-
 function IngredientRemove({ ingredients = [], removed = [], onToggle }) {
   const { i18n } = useTranslation()
   const themeContext = useContext(ThemeContext)
@@ -23,33 +21,26 @@ function IngredientRemove({ ingredients = [], removed = [], onToggle }) {
   return (
     <View style={styles(currentTheme).list}>
       {ingredients.map((ingredient) => {
-        const isRemoved = removed.includes(ingredient)
+        const isIncluded = !removed.includes(ingredient)
         return (
           <TouchableOpacity
             key={ingredient}
             activeOpacity={0.75}
             onPress={() => onToggle?.(ingredient)}
-            style={[styles(currentTheme).row, isRemoved && styles(currentTheme).rowActive]}
+            style={[styles(currentTheme).row, !isIncluded && styles(currentTheme).rowActive]}
             accessibilityRole='checkbox'
-            accessibilityState={{ checked: isRemoved }}
+            accessibilityState={{ checked: isIncluded }}
           >
-            <View style={[styles(currentTheme).iconWrap, isRemoved && styles(currentTheme).iconWrapActive]}>
-              <Ionicons
-                name={isRemoved ? 'remove-circle' : 'restaurant-outline'}
-                size={scale(18)}
-                color={isRemoved ? ACCENT : currentTheme.fontSecondColor || '#9CA3AF'}
-              />
+            <View style={[styles(currentTheme).check, isIncluded && styles(currentTheme).checkActive]}>
+              {isIncluded ? <Ionicons name='checkmark' size={scale(14)} color='#FFFFFF' /> : null}
             </View>
             <TextDefault
               bolder
-              style={styles(currentTheme).label}
-              textColor={isRemoved ? ACCENT : currentTheme.fontMainColor}
+              style={[styles(currentTheme).label, !isIncluded && styles(currentTheme).labelExcluded]}
+              textColor={isIncluded ? currentTheme.fontMainColor : currentTheme.fontSecondColor || '#9CA3AF'}
             >
-              {isRemoved ? `Bez: ${ingredient}` : ingredient}
+              {ingredient}
             </TextDefault>
-            <View style={[styles(currentTheme).check, isRemoved && styles(currentTheme).checkActive]}>
-              {isRemoved ? <Ionicons name='checkmark' size={scale(14)} color='#FFFFFF' /> : null}
-            </View>
           </TouchableOpacity>
         )
       })}

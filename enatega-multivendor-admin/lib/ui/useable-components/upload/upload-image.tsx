@@ -51,6 +51,8 @@ function CustomUploadImageComponent({
     'video/webm',
     'video/mp4',
   ],
+  maxFileWidth,
+  maxFileHeight,
 }: IImageUploadComponentProps) {
   // Context
   // const configuration: IConfiguration | undefined =
@@ -91,7 +93,9 @@ function CustomUploadImageComponent({
         // Compress file based on type
         let processedFile: File;
         if (file.type.startsWith('image/')) {
-          processedFile = await compressImage(file, 800, 0.7);
+          const width = maxFileWidth || 800;
+          const height = maxFileHeight || 800;
+          processedFile = await compressImage(file, width, height, 0.7);
         } else if (file.type.startsWith('video/')) {
           processedFile = await compressVideo(file);
         } else {

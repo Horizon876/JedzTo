@@ -25,7 +25,7 @@ function HeadingComponent(props) {
     <View style={{ paddingVertical: scale(2) }}>
       <View style={styles(currentTheme).topContainer}>
         <View style={styles().titleContainer}>
-          <TextDefault numberOfLines={2} textColor='#FFFFFF' H3 bolder>
+          <TextDefault numberOfLines={2} textColor='#FFFFFF' H4 bolder>
             {props?.title}
           </TextDefault>
         </View>

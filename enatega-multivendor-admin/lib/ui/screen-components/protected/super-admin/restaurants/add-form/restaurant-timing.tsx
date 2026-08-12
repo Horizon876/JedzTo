@@ -55,7 +55,12 @@ const RestaurantTiming = ({
     onSetRestaurantsContextData,
     onRestaurantsFormVisible,
   } = useContext(RestaurantsContext);
-  const restaurantId = restaurantsContextData?.restaurant?._id?.code || '';
+  const getRestaurantId = () => {
+    const id = restaurantsContextData?.restaurant?._id;
+    if (!id) return '';
+    return typeof id === 'string' ? id : (id as unknown as { code: string }).code || '';
+  };
+  const restaurantId = getRestaurantId();
 
   // Hooks
   const { showToast } = useToast();
@@ -279,7 +284,10 @@ const RestaurantTiming = ({
                               <button
                                 onClick={() => {
                                   const prev = [...values[dayIndex].times];
-                                  prev.push({ startTime: null, endTime: null });
+                                  prev.push({
+                                    startTime: '00:00',
+                                    endTime: '23:59',
+                                  });
                                   setFieldValue(`${dayIndex}.times`, prev);
                                 }}
                                 type="button"
@@ -303,14 +311,16 @@ const RestaurantTiming = ({
               );
             })}
 
-            <CustomButton
-              className="mb-[2px] mr-auto mt-auto flex h-11 rounded-md border dark:border-dark-600 border-gray-300 bg-[black] px-10 text-white"
-              label={t('Save')}
-              rounded={false}
-              disabled={loading}
-              type="submit"
-              loading={mutationLoading}
-            />
+            <div className="mt-6 flex justify-end">
+              <CustomButton
+                className="h-12 w-fit border-none bg-blue-600 hover:bg-blue-700 px-8 text-white font-medium rounded-xl shadow-md transition-all duration-200"
+                label={t('Zapisz Godziny Otwarcia')}
+                rounded={false}
+                disabled={loading}
+                type="submit"
+                loading={mutationLoading}
+              />
+            </div>
           </Form>
         )}
       </Formik>

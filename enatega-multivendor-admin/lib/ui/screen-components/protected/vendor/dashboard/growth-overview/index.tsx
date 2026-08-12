@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 // Core
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -51,7 +51,7 @@ const VendorGrowthOverViewGraph = () => {
       year: new Date().getFullYear(),
     },
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       debounceMs: 300,
     }
   ) as IQueryResult<
@@ -206,7 +206,7 @@ const VendorGrowthOverViewTabular = ({
       search: debouncedSearch || '',
     },
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       enabled: !!vendorId,
     }
   ) as IQueryResult<

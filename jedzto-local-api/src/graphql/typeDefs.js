@@ -15,6 +15,16 @@ export const typeDefs = `#graphql
     times: [OpeningTimeSlot!]
   }
 
+  input OpeningTimeSlotInput {
+    startTime: [String!]
+    endTime: [String!]
+  }
+
+  input TimingsInput {
+    day: String
+    times: [OpeningTimeSlotInput!]
+  }
+
   # Zones are GeoJSON polygons ({ coordinates: [[[lng, lat], ...]] }), not a
   # single Point — coordinates is JSON so the nested ring arrays survive
   # serialization (the mobile app reads location.coordinates[0] as a ring
@@ -170,6 +180,8 @@ export const typeDefs = `#graphql
     vendorsCount: Int
     restaurantsCount: Int
     ridersCount: Int
+    ordersCount: Int
+    monthlyOrdersCount: Int
     percentageChange: DashboardUsersPercentChange
   }
 
@@ -531,6 +543,7 @@ export const typeDefs = `#graphql
     variation: Variation
     addons: [OrderItemAddon!]
     specialInstructions: String
+    excludedIngredients: [String!]
     isActive: Boolean
     createdAt: String
     updatedAt: String
@@ -605,6 +618,8 @@ export const typeDefs = `#graphql
     isActive: Boolean
     reason: String
     zone: Zone
+    isRinged: Boolean
+    isRiderRinged: Boolean
   }
 
   type OrdersPaginatedResponse {
@@ -729,6 +744,28 @@ export const typeDefs = `#graphql
     title: String
     discount: Float
     enabled: Boolean
+    restaurantId: ID
+    minOrderValue: Float
+    usageLimit: Int
+    usedCount: Int
+    restaurant: Restaurant
+  }
+
+  type CouponsPaginatedResponse {
+    data: [Coupon!]
+    totalCount: Int
+    currentPage: Int
+    totalPages: Int
+  }
+
+  input CouponInput {
+    _id: ID
+    title: String!
+    discount: Float!
+    enabled: Boolean
+    restaurantId: ID
+    minOrderValue: Float
+    usageLimit: Int
   }
 
   type City {
@@ -758,6 +795,7 @@ export const typeDefs = `#graphql
     addons: [OrderAddonInput!]
     quantity: Int
     specialInstructions: String
+    excludedIngredients: [String!]
   }
 
   input OrderAddonInput {
@@ -800,6 +838,7 @@ export const typeDefs = `#graphql
     shopType: String
     salesTax: Float
     cuisines: [String!]
+    commissionRate: Float
   }
 
   input RestaurantProfileInput {
@@ -888,8 +927,8 @@ export const typeDefs = `#graphql
 
   type GeneratedOwnerCredentials {
     userId: ID
-    email: String
-    temporaryPassword: String
+    login: String
+    password: String
     role: String
     restaurantId: ID
   }
@@ -968,6 +1007,8 @@ export const typeDefs = `#graphql
 
     # Enatega-compatible customer app
     configuration: Configuration
+    coupons: [Coupon]
+    couponsPaginated(page: Int, limit: Int, search: String, enabled: Boolean, startDate: String, endDate: String): CouponsPaginatedResponse
     nearByRestaurants(latitude: Float, longitude: Float, shopType: String): NearByRestaurants
     nearByRestaurantsPreview(latitude: Float, longitude: Float, shopType: String, page: Int, limit: Int): NearByRestaurantsPreview
     restaurant(id: String): Restaurant
@@ -1092,8 +1133,12 @@ export const typeDefs = `#graphql
     updateOrderStatus(orderId: ID!, status: String!): Order
 
     # Super Admin — restaurant onboarding
-    createRestaurant(restaurant: RestaurantInput!, ownerName: String!, ownerEmail: String!): CreateRestaurantPayload
+    createRestaurant(restaurant: RestaurantInput!, ownerName: String!, ownerLogin: String!, ownerPassword: String!): CreateRestaurantPayload
+    deleteRestaurant(id: String!): Boolean
     hardDeleteRestaurant(id: String!): Boolean
+    createCoupon(couponInput: CouponInput!): Coupon
+    editCoupon(couponInput: CouponInput!): Coupon
+    deleteCoupon(id: String!): Boolean
     createShopType(dto: CreateShopTypeInput): ShopType
     updateShopType(dto: UpdateShopTypeInput): ShopType
     deleteShopType(id: String!, type: DeleteTypeEnum): ShopType
@@ -1115,6 +1160,10 @@ export const typeDefs = `#graphql
       preparationEtaMinutes: Int
       deliveryEtaMinutes: Int
     ): Order
+    acceptOrder(_id: String!, time: String): Order
+    cancelOrder(_id: String!, reason: String!): Order
+    orderPickedUp(_id: String!): Order
+    muteRing(orderId: String): Boolean
     updateOrderEta(
       id: String!
       preparationEtaMinutes: Int
@@ -1131,6 +1180,7 @@ export const typeDefs = `#graphql
     suspendRestaurant(restaurantId: ID!, isSuspended: Boolean!, reason: String): Restaurant
     setRestaurantPause(restaurantId: ID!, paused: Boolean!, pausedUntil: String): Restaurant
     setRestaurantHolidays(restaurantId: ID!, holidays: [HolidayExceptionInput!]!): Restaurant
+    updateTimings(id: String!, openingTimes: [TimingsInput]): Restaurant
     settleRestaurantPeriod(restaurantId: ID!, periodKey: String!): RestaurantSettlement
     refundOrder(orderId: ID!, amount: Float): Order
     refreshToken(refreshToken: String!, userType: String!): OwnerAuthPayload

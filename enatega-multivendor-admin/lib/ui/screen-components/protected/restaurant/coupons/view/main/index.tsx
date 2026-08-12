@@ -1,4 +1,4 @@
-// Core
+﻿// Core
 import { useContext, useEffect, useState } from 'react';
 
 // Interface and Types
@@ -61,7 +61,7 @@ export default function CouponsMain({
     limit: rowsPerPage,
     search: debouncedSearch || undefined,
   }, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   }) as IQueryResult<
     ICouponRestaurantPaginatedGQLResponse | undefined,
     undefined

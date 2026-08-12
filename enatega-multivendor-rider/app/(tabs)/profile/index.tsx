@@ -31,7 +31,6 @@ export default function Profile() {
   const { workMode, clearWorkMode } = useWorkMode()
 
   const switchRole = async () => {
-    await clearWorkMode()
     router.replace(ROUTES.roleSelect as Href)
   }
 
@@ -53,12 +52,16 @@ export default function Profile() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>{t('Settings')}</Text>
-        <Text style={styles.subtitle}>
-          {t('Current role')}:{' '}
-          <Text style={styles.roleValue}>
-            {workMode === 'delivery' ? t('Delivery') : t('Kitchen')}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={[styles.subtitle, { marginBottom: 0 }]}>
+            {t('Current role')}:{' '}
           </Text>
-        </Text>
+          <View style={{ backgroundColor: ACCENT, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginLeft: 8 }}>
+            <Text style={styles.roleValue}>
+              {workMode === 'delivery' ? t('Delivery') : t('Kitchen')}
+            </Text>
+          </View>
+        </View>
 
         <TouchableOpacity
           onPress={switchRole}

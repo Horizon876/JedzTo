@@ -210,8 +210,7 @@ export default function CustomerSupportMain({ activeTab = 'tickets' }: ICustomer
               limit: 10
             }
           }
-        },
-        fetchPolicy: "network-only"
+        }
       });
 
       // Find the user object
@@ -252,7 +251,7 @@ export default function CustomerSupportMain({ activeTab = 'tickets' }: ICustomer
                     limit: 1, // Just get the most recent message
                   }
                 },
-                fetchPolicy: "network-only"
+                fetchPolicy: 'network-only'
               });
 
               // If messages exist, update the lastMessageAt time

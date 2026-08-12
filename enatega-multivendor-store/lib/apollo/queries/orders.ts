@@ -56,6 +56,7 @@ export const GET_ORDERS = gql`
           quantityMaximum
         }
         specialInstructions
+        excludedIngredients
         isActive
         createdAt
         updatedAt

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { StyleSheet, TouchableOpacity, View } from 'react-native'
+import { TouchableOpacity, View } from 'react-native'
 import InstructionMessageIcon from '../../assets/SVG/instructions-message-icon'
 import ArrowForwardIcon from '../../assets/SVG/arrow-forward-icon'
 import { useStyles } from './styles'
@@ -39,9 +39,7 @@ export const SpecialInstructions = ({ theme, instructions, onSubmitInstructions,
         alignItems: 'center',
         backgroundColor: '#1C1C1E',
         paddingHorizontal: scale(14),
-        paddingVertical: scale(10),
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#2C2C2E'
+        paddingVertical: scale(10)
       }}
     >
       <View style={styles.iconContainer}>

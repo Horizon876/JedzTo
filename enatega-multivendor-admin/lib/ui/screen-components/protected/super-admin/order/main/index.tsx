@@ -38,9 +38,9 @@ export default function OrderSuperAdminMain() {
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<IExtendedOrder | null>(null);
   const [dateFilter, setDateFilter] = useState<IDateFilter>({
-    dateKeyword: 'All',
-    startDate: `${new Date().getFullYear()}-01-01`, // Current year, January 1st
-    endDate: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`, // Today's date
+    dateKeyword: 'Last 30 days',
+    startDate: '',
+    endDate: '',
   });
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(10); // For PrimeReact Table's 'rows' prop

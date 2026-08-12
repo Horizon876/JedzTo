@@ -278,5 +278,19 @@ export const en = {
   Orders: "Orders",
   "Set Preparation Time": "Set Preparation Time",
   "Tax": "Tax",
-  discountAmount: "Discount Amount"
+  discountAmount: "Discount Amount",
+
+  // Kitchen ticket
+  "Kitchen Ticket": "Kitchen Ticket",
+  "Print preview": "Print preview",
+  "How it will look on the printer": "How it will look printed on the thermal printer",
+  PICKUP: "Pickup",
+  DELIVERY: "Delivery",
+  CASH: "Cash",
+  "ONLINE PAYMENT": "Online payment",
+  "Accepted at": "Accepted at",
+  Without: "Without",
+  "Message for the restaurant": "Message for the restaurant",
+  Print: "Print",
+  Close: "Close"
 };

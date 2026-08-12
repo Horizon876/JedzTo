@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // Core
 import { useMutation } from '@apollo/client';
@@ -58,7 +58,7 @@ export default function RidersMain({
     limit: rowsPerPage,
     search: debouncedSearch || undefined,
   }, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   }) as IQueryResult<
     IRidersPaginatedDataResponse | undefined,
     undefined

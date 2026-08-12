@@ -62,6 +62,7 @@ export interface Item {
   variation: Variation;
   addons: Addon[];
   specialInstructions?: string;
+  excludedIngredients?: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

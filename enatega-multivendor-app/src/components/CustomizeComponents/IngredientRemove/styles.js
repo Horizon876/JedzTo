@@ -35,6 +35,10 @@ const styles = (props = null) =>
     label: {
       flex: 1
     },
+    labelExcluded: {
+      textDecorationLine: 'line-through',
+      opacity: 0.7
+    },
     check: {
       width: scale(22),
       height: scale(22),

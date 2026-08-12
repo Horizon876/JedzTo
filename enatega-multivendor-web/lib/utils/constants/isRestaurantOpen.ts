@@ -79,6 +79,10 @@ export function isRestaurantOpen(input: OpenStateInput): boolean {
     if (input.isAvailable === false || input.isActive === false) {
       return false;
     }
+    // Typecast to handle case when input has isBusy
+    if (input && 'isBusy' in input && (input as any).isBusy) {
+      return false;
+    }
   }
 
   const openingTimes = getOpeningTimes(input);

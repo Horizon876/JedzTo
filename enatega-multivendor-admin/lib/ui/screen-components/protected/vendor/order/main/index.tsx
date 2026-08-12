@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+﻿import React, { useContext, useEffect, useMemo, useState } from 'react';
 import Table from '@/lib/ui/useable-components/table';
 import { useQueryGQL } from '@/lib/hooks/useQueryQL';
 import OrderTableHeader from '../header/table-header';
@@ -44,7 +44,7 @@ export default function OrderVendorMain() {
       orderStatus: selectedActions.length ? selectedActions : undefined,
     },
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       enabled: !!restaurantId,
     }
   ) as IQueryResult<IOrdersByRestaurantPaginatedResponse | undefined, undefined>;

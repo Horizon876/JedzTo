@@ -1,4 +1,4 @@
-import { GET_VENDOR_LIVE_MONITOR } from '@/lib/api/graphql';
+﻿import { GET_VENDOR_LIVE_MONITOR } from '@/lib/api/graphql';
 import { VendorLayoutContext } from '@/lib/context/vendor/layout-vendor.context';
 import { useQueryGQL } from '@/lib/hooks/useQueryQL';
 import {
@@ -31,7 +31,7 @@ export default function VendorLiveMonitor({
       ending_date: dateFilter?.endDate,
     },
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       enabled: !!vendorId,
       pollInterval: 30000,
     }

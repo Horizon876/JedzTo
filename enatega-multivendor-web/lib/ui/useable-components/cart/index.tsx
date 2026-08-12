@@ -207,6 +207,11 @@ export default function Cart({ onClose }: CartProps) {
                       ))}
                     </div>
                   )}
+                  {item.excludedIngredients && item.excludedIngredients.length > 0 && (
+                    <div className="text-xs text-red-500 mt-1">
+                      {t("Without")}: {item.excludedIngredients.join(", ")}
+                    </div>
+                  )}
                 </div>
 
                 {/* Quantity Controls */}
@@ -291,35 +296,6 @@ export default function Cart({ onClose }: CartProps) {
             </div>
           )}
 
-          {/* Add Comment Section */}
-          <div className="p-4 bg-whitedark:bg-gray-800 ">
-            <div className="bg-gray-50 dark:bg-gray-800  rounded-lg p-3">
-              <h2 className="font-inter font-semibold text-base text-gray-900 dark:text-white  mb-2">
-                {t("add_comment_for_restaurant_label")}{" "}
-                {getshopTypeTranslated()}
-              </h2>
-              <textarea
-                id="instructions"
-                className="w-full h-20 p-2 bg-white dark:bg-gray-800 border border-gray-300 rounded-md resize-none focus:border-secondary-color focus:outline-none text-sm"
-                placeholder={t("special_requests_placeholder")}
-                onChange={({ target: { value } }) => {
-                  if (value?.length > 500) return;
-                  localStorage.setItem("orderInstructions", value);
-                  setInstructions(value);
-                }}
-                value={instructions}
-              />
-              <div className="flex items-end justify-between mt-2">
-                <span className="text-red-500 text-xs">
-                  {instructions?.length >= 500 &&
-                    t("maximum_limit_reached_label")}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-white ">
-                  {instructions.length}/500
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Fixed Checkout Button */}

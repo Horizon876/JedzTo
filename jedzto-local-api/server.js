@@ -210,7 +210,7 @@ async function start() {
 ║         JedzTo Multi-Vendor API is running               ║
 ╠══════════════════════════════════════════════════════════╣
 ║  GraphQL : http://localhost:${PORT}/graphql                 ║
-║  Mongo   : ${mongo.mode}
+║  Mongo   : ${mongo.mode}${mongo.persistent ? ' (dane na dysku)' : ''}
 ║  Logowanie: sprawdź .env.example — NIGDY nie commituj .env
 ╚══════════════════════════════════════════════════════════╝
 `)

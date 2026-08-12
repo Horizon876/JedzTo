@@ -28,7 +28,7 @@ export const RestaurantsProvider = ({ children }: IRestaurantsProvider) => {
       },
       vendor: {
         ownerName: '',
-        ownerEmail: '',
+        ownerLogin: '',
       },
       isEditing: false,
     });

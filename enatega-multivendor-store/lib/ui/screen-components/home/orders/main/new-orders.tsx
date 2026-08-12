@@ -36,13 +36,8 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
   const { t } = useTranslation();
   const { appTheme } = useApptheme();
   const tabBarHeight = useBottomTabBarHeight();
-  const {
-    loading,
-    activeOrders,
-    refetch,
-    currentTab,
-    setCurrentTab,
-  } = useOrders();
+  const { loading, activeOrders, refetch, currentTab, setCurrentTab } =
+    useOrders();
   useKeepAwake();
 
   // Ref
@@ -52,9 +47,6 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<IOrder | null>(null);
   const [showDetails, setShowDetails] = useState<Record<string, boolean>>({});
-  // Printer States
-
-  //////////
 
   const orders =
     activeOrders?.filter((order) =>
@@ -75,8 +67,8 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
   };
 
   const handleDismissModal = () => {
-    setSelectedOrder(null);
     bottomSheetModalRef.current?.dismiss();
+    setSelectedOrder(null);
   };
 
   const toggleShowDetails = (itemId: string) => {
@@ -102,11 +94,7 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
         alignItems: "center",
       }}
     >
-      <WalletIcon
-        height={100}
-        width={100}
-        color={appTheme.fontMainColor}
-      />
+      <WalletIcon height={100} width={100} color={appTheme.fontMainColor} />
       {orders?.length === 0 ? (
         <Text className="font-[Inter] text-[18px] text-base font-[500] text-gray-600">
           {t(NO_ORDER_PROMPT[route.key])}
@@ -116,6 +104,7 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
       )}
     </View>
   );
+
   return (
     <GestureHandlerRootView style={style.gestureContainer}>
       <BottomSheetModalProvider>
@@ -155,9 +144,9 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
                 showsVerticalScrollIndicator={false}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                initialNumToRender={20} // render more items up front
-                maxToRenderPerBatch={20} // reduce batching delays
-                windowSize={5} // keep more items around viewport
+                initialNumToRender={20}
+                maxToRenderPerBatch={20}
+                windowSize={5}
                 removeClippedSubviews={false}
                 renderItem={renderOrderItem}
                 ListEmptyComponent={renderEmptyState}
@@ -171,6 +160,7 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
         <BottomSheetModal
           ref={bottomSheetModalRef}
           style={{ backgroundColor: appTheme.themeBackground }}
+          onDismiss={() => setSelectedOrder(null)}
           handleComponent={() => (
             <View
               style={{
@@ -200,6 +190,7 @@ function HomeNewOrdersMain(props: IOrderTabsComponentProps) {
                 id={selectedOrder?._id ?? ""}
                 orderId={selectedOrder?.orderId ?? ""}
                 handleDismissModal={handleDismissModal}
+                order={selectedOrder}
               />
             )}
           </BottomSheetView>

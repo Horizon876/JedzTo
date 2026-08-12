@@ -33,12 +33,23 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({
 
     const hydrateAuth = async () => {
       try {
-        const storedToken =
-          (await getSecureItem(RIDER_TOKEN)) ||
-          (await AsyncStorage.getItem(RIDER_TOKEN));
+        // ALWAYS LOGOUT ON APP RESTART
+        await Promise.all([
+          removeSecureItem(RIDER_TOKEN),
+          AsyncStorage.removeItem(RIDER_TOKEN),
+          removeItem(RIDER_ID),
+          removeItem("restaurant-id"),
+          AsyncStorage.removeItem(WORK_MODE),
+        ]);
+        
+        try {
+          await client.clearStore();
+        } catch (cacheError) {
+          console.log("Error clearing Apollo cache on restart:", cacheError);
+        }
 
-        if (isMounted && storedToken) {
-          setToken(storedToken);
+        if (isMounted) {
+          setToken("");
         }
       } finally {
         if (isMounted) {

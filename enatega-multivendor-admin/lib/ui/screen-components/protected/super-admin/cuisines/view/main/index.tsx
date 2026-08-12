@@ -1,4 +1,4 @@
-// GrpphQL
+﻿// GrpphQL
 import { DELETE_CUISINE, GET_CUISINES_PAGINATED } from '@/lib/api/graphql';
 
 // Interfaces
@@ -44,7 +44,7 @@ export default function CuisinesMain({
 
   // Queries
   const { data, fetch } = useLazyQueryQL(GET_CUISINES_PAGINATED, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
     onCompleted: () => setIsLoading(false),
   }) as ILazyQueryResult<
     IGetCuisinesPaginatedData | undefined,

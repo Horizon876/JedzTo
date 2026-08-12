@@ -109,15 +109,24 @@ export function populateCart(restaurant, cart = []) {
       if (quantity <= 0) return null
 
       const unitPriceFixed = Number(unitPrice.toFixed(2))
-      const extras = [...optionsTitle]
-      if (cartItem.specialInstructions) {
-        extras.push(cartItem.specialInstructions)
+      let removedIngredients = Array.isArray(cartItem.removedIngredients)
+        ? cartItem.removedIngredients.filter(Boolean)
+        : []
+      if (!removedIngredients.length && cartItem.specialInstructions) {
+        const match = String(cartItem.specialInstructions).match(/^Bez:\s*(.+?)(?:\.|$)/i)
+        if (match?.[1]) {
+          removedIngredients = match[1]
+            .split(',')
+            .map((part) => part.trim())
+            .filter(Boolean)
+        }
       }
 
       const updatedCartItem = {
         ...cartItem,
         quantity,
-        optionsTitle: extras,
+        optionsTitle,
+        removedIngredients,
         title: `${food.title}${variation.title ? ` (${variation.title})` : ''}`,
         price: unitPriceFixed
       }

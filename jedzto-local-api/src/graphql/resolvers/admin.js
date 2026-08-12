@@ -12,7 +12,9 @@ import {
   requireUser,
   requireRestaurantOwner
 } from '../../auth/jwt.js'
-import { generateTemporaryPassword } from '../../utils/password.js'
+import Stripe from 'stripe'
+import { STRIPE_SECRET_KEY } from '../../config.js'
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null
 import { resolveDefaultEta } from '../../services/eta.js'
 import { markSettlementSettled, currentPeriodKey } from '../../services/settlements.js'
 import { publishOrderChanged, isOnlineCardMethod, kitchenOrdersMongoFilter } from '../../services/orderNotify.js'
@@ -82,12 +84,51 @@ export const adminMutations = {
     return serializeOrder(updated)
   },
 
-  Coupon: (_p, { coupon }, ctx) => {
+  createCoupon: async (_p, { couponInput }, ctx) => {
     assertPublicAccess(ctx)
-    if (coupon?.toUpperCase() === 'JEDZTO') {
-      return { _id: 'c1', title: 'JEDZTO', discount: 10, enabled: true }
-    }
-    throw new GraphQLError('Invalid coupon')
+    requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    const { Coupon } = require('../models')
+    
+    // Walidacja przypisania ID restauracji
+    const restaurantId = couponInput.restaurantId === 'all' ? null : couponInput.restaurantId
+    
+    const doc = new Coupon({
+      title: couponInput.title,
+      discount: couponInput.discount,
+      enabled: couponInput.enabled,
+      restaurantId: restaurantId,
+      minOrderValue: couponInput.minOrderValue,
+      usageLimit: couponInput.usageLimit
+    })
+    await doc.save()
+    return doc.toObject()
+  },
+
+  editCoupon: async (_p, { couponInput }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    const { Coupon } = require('../models')
+    
+    const restaurantId = couponInput.restaurantId === 'all' ? null : couponInput.restaurantId
+
+    const doc = await Coupon.findByIdAndUpdate(couponInput._id, {
+      title: couponInput.title,
+      discount: couponInput.discount,
+      enabled: couponInput.enabled,
+      restaurantId: restaurantId,
+      minOrderValue: couponInput.minOrderValue,
+      usageLimit: couponInput.usageLimit
+    }, { new: true })
+    if (!doc) throw new GraphQLError('Coupon not found')
+    return doc.toObject()
+  },
+
+  deleteCoupon: async (_p, { id }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    const { Coupon } = require('../models')
+    await Coupon.findByIdAndDelete(id)
+    return true
   },
 
   sendChatMessage: async (_p, { orderId, messageInput }, ctx) => {
@@ -161,15 +202,20 @@ export const adminMutations = {
 
     order.orderStatus = orderStatus
     const now = new Date()
-    if (orderStatus === 'ACCEPTED') order.acceptedAt = now
+    if (orderStatus === 'ACCEPTED') {
+      order.acceptedAt = now
+      order.isRinged = false
+    }
     if (orderStatus === 'ASSIGNED') order.assignedAt = now
     if (orderStatus === 'PICKED') order.pickedAt = now
     if (orderStatus === 'DELIVERED') {
       order.deliveredAt = now
       order.completionTime = now
+      order.isRinged = false
     }
     if (orderStatus === 'CANCELLED' || orderStatus === 'REJECTED') {
       order.cancelledAt = now
+      order.isRinged = false
     }
 
     if (
@@ -201,6 +247,73 @@ export const adminMutations = {
     pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
     await publishOrderChanged(order, serialized, 'updateStatus')
     return serialized
+  },
+
+  // Store-app Enatega aliases (accept / cancel / pickup / mute ring)
+  acceptOrder: async (_p, { _id, time }, ctx) => {
+    const minutes = Math.max(0, parseInt(String(time || '0'), 10) || 0)
+    return adminMutations.updateStatus(
+      _p,
+      {
+        id: _id,
+        orderStatus: 'ACCEPTED',
+        preparationEtaMinutes: minutes || undefined,
+        deliveryEtaMinutes: 0
+      },
+      ctx
+    )
+  },
+
+  cancelOrder: async (_p, { _id, reason }, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    const order = await Order.findById(_id)
+    if (!order) throw new GraphQLError('Order not found')
+    if (auth.role === 'RESTAURANT_OWNER') {
+      const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
+      if (String(restaurant?.ownerId) !== String(auth.userId)) {
+        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+      }
+    }
+    order.orderStatus = 'CANCELLED'
+    order.cancelledAt = new Date()
+    order.isRinged = false
+    order.reason = reason || ''
+    await order.save()
+    const serialized = await serializeOrder(order.toObject())
+    pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
+    await publishOrderChanged(order, serialized, 'cancelOrder')
+    return serialized
+  },
+
+  orderPickedUp: async (_p, { _id }, ctx) => {
+    return adminMutations.updateStatus(
+      _p,
+      { id: _id, orderStatus: 'PICKED' },
+      ctx
+    )
+  },
+
+  muteRing: async (_p, { orderId }, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    // Store app may pass display orderId ("JT123...") or Mongo _id.
+    const order =
+      (await Order.findOne({ orderId })) ||
+      (await Order.findById(orderId).catch(() => null))
+    if (!order) throw new GraphQLError('Order not found')
+    if (auth.role === 'RESTAURANT_OWNER') {
+      const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
+      if (String(restaurant?.ownerId) !== String(auth.userId)) {
+        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+      }
+    }
+    order.isRinged = false
+    await order.save()
+    const serialized = await serializeOrder(order.toObject())
+    pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
+    await publishOrderChanged(order, serialized, 'muteRing')
+    return true
   },
 
   updateOrderEta: async (_p, { id: orderId, preparationEtaMinutes, deliveryEtaMinutes }, ctx) => {
@@ -318,11 +431,30 @@ export const adminMutations = {
     const restaurant = await Restaurant.findById(restaurantId)
     if (!restaurant) throw new GraphQLError('Restaurant not found')
     restaurant.holidayExceptions = (holidays || []).map((h) => ({
-      date: h.date,
+      date: String(h.date || '').slice(0, 10),
       closed: h.closed !== false,
-      open: h.open || null,
-      close: h.close || null,
+      open: h.closed === false ? h.open || null : null,
+      close: h.closed === false ? h.close || null : null,
       label: h.label || ''
+    }))
+    await restaurant.save()
+    return buildRestaurantTree(restaurant.toObject(), { audience: 'owner' })
+  },
+
+  updateTimings: async (_p, { id: restaurantId, openingTimes }, ctx) => {
+    assertPublicAccess(ctx)
+    requireRestaurantOwner(ctx, restaurantId)
+    const restaurant = await Restaurant.findById(restaurantId)
+    if (!restaurant) throw new GraphQLError('Restaurant not found')
+
+    restaurant.openingTimes = (openingTimes || []).map((day) => ({
+      day: day.day,
+      times: (day.times || [])
+        .filter((slot) => Array.isArray(slot.startTime) && Array.isArray(slot.endTime))
+        .map((slot) => ({
+          startTime: slot.startTime.map(String),
+          endTime: slot.endTime.map(String)
+        }))
     }))
     await restaurant.save()
     return buildRestaurantTree(restaurant.toObject(), { audience: 'owner' })
@@ -354,6 +486,21 @@ export const adminMutations = {
     if (method === 'COD') throw new GraphQLError('Cannot refund cash (COD) orders via Stripe')
     if (order.paymentStatus === 'REFUNDED') throw new GraphQLError('Order already refunded')
     const refundAmount = amount != null ? Number(amount) : Number(order.orderAmount || 0)
+    
+    if (stripe) {
+      if (!order.stripePaymentIntentId) {
+        throw new GraphQLError('Brak identyfikatora płatności w bazie. Zrób to z panelu Stripe.')
+      }
+      try {
+        await stripe.refunds.create({
+          payment_intent: order.stripePaymentIntentId,
+          amount: Math.round(refundAmount * 100)
+        })
+      } catch (err) {
+        throw new GraphQLError('Stripe Refund Error: ' + err.message)
+      }
+    }
+
     order.paymentStatus = 'REFUNDED'
     order.refundedAt = new Date()
     order.refundAmount = refundAmount
@@ -425,20 +572,25 @@ export const adminMutations = {
     return buildRestaurantTreeById(restaurant._id)
   },
 
-  createRestaurant: async (_p, { restaurant, ownerName, ownerEmail }, ctx) => {
+  createRestaurant: async (_p, { restaurant, ownerName, ownerLogin, ownerPassword }, ctx) => {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
-    const email = (ownerEmail || '').toLowerCase().trim()
-    if (!email) throw new GraphQLError('Owner email is required')
+
+    const login = (ownerLogin || '').trim()
+    if (!login) throw new GraphQLError('Owner login is required')
+    if (ownerPassword.length < 6) throw new GraphQLError('Password must be at least 6 characters')
+
+    // Store login as email@jedzto.local — the User model requires a unique email field.
+    // The ownerLogin resolver accepts both bare login and full email variants.
+    const email = `${login}@jedzto.local`
     if (await User.findOne({ email })) {
-      throw new GraphQLError('A user with this email already exists')
+      throw new GraphQLError('A user with this login already exists')
     }
 
-    const temporaryPassword = generateTemporaryPassword()
     const owner = await User.create({
       email,
-      password: temporaryPassword,
-      name: ownerName,
+      password: ownerPassword,
+      name: ownerName || login,
       role: 'RESTAURANT_OWNER'
     })
 
@@ -456,7 +608,8 @@ export const adminMutations = {
         minimumOrder: restaurant.minimumOrder ?? 25,
         tax: restaurant.salesTax ?? 8,
         shopType: restaurant.shopType || 'restaurant',
-        cuisines: restaurant.cuisines || []
+        cuisines: restaurant.cuisines || [],
+        commissionRate: restaurant.commissionRate ?? 10
       })
     } catch (err) {
       await User.deleteOne({ _id: owner._id })
@@ -470,8 +623,8 @@ export const adminMutations = {
       restaurant: await buildRestaurantTree(created.toObject()),
       owner: {
         userId: id(owner),
-        email: owner.email,
-        temporaryPassword,
+        login,
+        password: ownerPassword,
         role: owner.role,
         restaurantId: id(created)
       }
@@ -611,7 +764,8 @@ export const adminMutations = {
             }
           : { _id: line.variation, title: 'Standard', price: 0, discounted: 0 },
         addons: [],
-        specialInstructions: line.specialInstructions || ''
+        specialInstructions: line.specialInstructions || '',
+        excludedIngredients: line.excludedIngredients || []
       })
     }
 
@@ -650,6 +804,7 @@ export const adminMutations = {
       platformCommission,
       orderStatus: 'PENDING',
       paymentStatus: 'PENDING',
+      isRinged: !isOnlineCardMethod(paymentMethod),
       tipping: args.tipping || 0,
       taxationAmount: args.taxationAmount || 0,
       deliveryCharges: args.deliveryCharges || 0,

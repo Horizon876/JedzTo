@@ -259,7 +259,10 @@ const TimingAddForm = () => {
                               <button
                                 onClick={() => {
                                   const prev = [...values[dayIndex].times];
-                                  prev.push({ startTime: null, endTime: null });
+                                  prev.push({
+                                    startTime: '00:00',
+                                    endTime: '23:59',
+                                  });
                                   setFieldValue(`${dayIndex}.times`, prev);
                                 }}
                                 type="button"

@@ -16,8 +16,8 @@ layer(primereact);
 }
 
 :root {
-  --primary-color: #00a8ff;
-  --primary-dark: #0086cc;
+  --primary-color: #0066FF; /* Vibrant Blue for JedzTo premium feel */
+  --primary-dark: #0052cc;
   --secondary-color: #30d158;
   --cash-color: #ff9f0a;
   --foreground-rgb: 255, 255, 255;
@@ -35,6 +35,20 @@ body,
   padding: 0;
   height: 100%;
   width: 100%;
+}
+
+/* Login password: hide native browser reveal so our eye button works */
+.login-password-input::-ms-reveal,
+.login-password-input::-ms-clear {
+  display: none;
+}
+
+.login-password-input::-webkit-credentials-auto-fill-button,
+.login-password-input::-webkit-strong-password-auto-fill-button {
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
 }
 
 /* Optional: Set box-sizing to border-box globally for consistent sizing */

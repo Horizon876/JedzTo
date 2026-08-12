@@ -9,7 +9,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import SplashVideo from "./SplashVideo";
+import AnimatedLogo from "./AnimatedLogo";
 
 export default function AnimatedSplashScreen({
   children,
@@ -52,9 +52,9 @@ export default function AnimatedSplashScreen({
     }
   }, []);
 
-  const videoElement = useMemo(() => {
+  const logoElement = useMemo(() => {
     return (
-      <SplashVideo
+      <AnimatedLogo
         onLoaded={onImageLoaded}
         onFinish={() => {
           setSplashVideoComplete(true);
@@ -81,7 +81,7 @@ export default function AnimatedSplashScreen({
           { backgroundColor: "black" },
         ]}
       >
-        {videoElement}
+        {logoElement}
       </Animated.View>
     </View>
   );

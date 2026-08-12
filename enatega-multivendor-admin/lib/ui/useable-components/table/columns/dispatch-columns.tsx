@@ -1,4 +1,4 @@
-// Interfaces
+﻿// Interfaces
 import {
   IActiveOrders,
   IAssignRider,
@@ -150,7 +150,7 @@ export const DISPATCH_TABLE_COLUMNS = () => {
       variables: {
         id: rowData._id,
       },
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       onSubscriptionData: () => {
         // fetchActiveOrders({
         //   page: 1,

@@ -60,6 +60,63 @@ const CONFIG = {
 }
 
 // ---------------------------------------------------------------------------
+// Coupons
+// ---------------------------------------------------------------------------
+async function coupons(ctx) {
+  assertPublicAccess(ctx)
+  const { Coupon } = require('../../models')
+  const docs = await Coupon.find().lean()
+  return docs.map(d => ({
+    _id: d._id.toString(),
+    title: d.title,
+    discount: d.discount,
+    enabled: d.enabled,
+    restaurantId: d.restaurantId ? d.restaurantId.toString() : null,
+    minOrderValue: d.minOrderValue,
+    usageLimit: d.usageLimit,
+    usedCount: d.usedCount
+  }))
+}
+
+async function couponsPaginated(ctx, args) {
+  assertPublicAccess(ctx)
+  const { Coupon } = require('../../models')
+  
+  const { page = 1, limit = 10, search, enabled } = args
+  const filter = {}
+  if (search) {
+    filter.title = { $regex: search, $options: 'i' }
+  }
+  if (enabled !== undefined) {
+    filter.enabled = enabled
+  }
+
+  const [docs, totalCount] = await Promise.all([
+    Coupon.find(filter)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    Coupon.countDocuments(filter)
+  ])
+
+  return {
+    data: docs.map(d => ({
+      _id: d._id.toString(),
+      title: d.title,
+      discount: d.discount,
+      enabled: d.enabled,
+      restaurantId: d.restaurantId ? d.restaurantId.toString() : null,
+      minOrderValue: d.minOrderValue,
+      usageLimit: d.usageLimit,
+      usedCount: d.usedCount
+    })),
+    totalCount,
+    currentPage: page,
+    totalPages: Math.ceil(totalCount / limit)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard analytics helpers
 // ---------------------------------------------------------------------------
 
@@ -71,12 +128,17 @@ const percentChange = (current, previous) => {
 async function dashboardCounts(year) {
   const scope = (from, to) => (from ? { createdAt: { $gte: from, $lt: to } } : {})
   const countAll = async (range) => {
-    const [users, owners, restaurants] = await Promise.all([
+    const now = new Date()
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    
+    const [users, owners, restaurants, orders, monthlyOrders] = await Promise.all([
       User.countDocuments({ role: 'CUSTOMER', ...range }),
       User.countDocuments({ role: 'RESTAURANT_OWNER', ...range }),
-      Restaurant.countDocuments({ ...range })
+      Restaurant.countDocuments({ ...range }),
+      Order.countDocuments({ ...range }),
+      Order.countDocuments({ createdAt: { $gte: firstDayOfMonth } })
     ])
-    return { usersCount: users, vendorsCount: owners, restaurantsCount: restaurants, ridersCount: 0 }
+    return { usersCount: users, vendorsCount: owners, restaurantsCount: restaurants, ordersCount: orders, monthlyOrdersCount: monthlyOrders, ridersCount: 0 }
   }
 
   if (!year) return { ...(await countAll({})), percentageChange: null }
@@ -936,5 +998,8 @@ export const queries = {
       endingDate: ending_date,
       dateKeyword
     })
-  }
+  },
+
+  coupons: async (_p, _args, ctx) => coupons(ctx),
+  couponsPaginated: async (_p, args, ctx) => couponsPaginated(ctx, args)
 }

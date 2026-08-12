@@ -63,6 +63,7 @@ buck-out/
 # Expo
 .expo/
 web-build/
+.metro-cache/
 
 # Local credentials
 *.pem

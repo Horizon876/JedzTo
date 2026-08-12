@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 
 // Prime React
 import { DataTableRowClickEvent } from 'primereact/datatable';
@@ -54,7 +54,7 @@ export default function UsersMain({
         registrationMethod,
         status,
       },
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
     }
   );
 

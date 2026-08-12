@@ -7,6 +7,7 @@
     "api:dev": "npm --prefix jedzto-local-api run dev",
     "app": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-expo-lan.ps1 -Target app",
     "kitchen": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-expo-lan.ps1 -Target kitchen",
+    "fix:metro": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/fix-metro-cache.ps1",
     "admin": "npm --prefix enatega-multivendor-admin run dev",
     "web": "npm --prefix enatega-multivendor-web run dev -- --port 3001",
     "install:api": "npm --prefix jedzto-local-api install",

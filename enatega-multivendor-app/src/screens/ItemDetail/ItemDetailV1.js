@@ -353,26 +353,6 @@ function ItemDetail(props) {
                 </View>
               ))}
             </View>
-            <View style={styles(currentTheme).line}></View>
-            <View style={styles(currentTheme).inputContainer}>
-              <TitleComponent
-                title={t('specialInstructions')}
-                subTitle={t('anySpecificPreferences')}
-                status={t('optional')}
-              />
-              <TextField
-                style={styles(currentTheme).input}
-                placeholder={t('noMayo')}
-                textAlignVertical="center"
-                value={specialInstructions}
-                onChangeText={setSpecialInstructions}
-                maxLength={144}
-                textColor={currentTheme.fontMainColor}
-                baseColor={currentTheme.lightHorizontalLine}
-                errorColor={currentTheme.textErrorColor}
-                tintColor={currentTheme.themeBackground}
-              />
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </View>

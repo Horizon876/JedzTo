@@ -18,6 +18,7 @@ import useDebounce from '@/lib/hooks/useDebounce';
 
 // Custom Components
 import RestaurantDuplicateDialog from '../duplicate-dialog';
+import RestaurantEditDialog from '../../edit-dialog';
 import RestaurantsTableHeader from '../header/table-header';
 import Table from '@/lib/ui/useable-components/table';
 import CustomDialog from '@/lib/ui/useable-components/delete-dialog';
@@ -61,6 +62,7 @@ export default function RestaurantsMain() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [deleteId, setDeleteId] = useState('');
   const [duplicateId, setDuplicateId] = useState('');
+  const [editRestaurantData, setEditRestaurantData] = useState<IRestaurantResponse | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<
     IRestaurantResponse[]
   >([]);
@@ -166,6 +168,14 @@ export default function RestaurantsMain() {
       },
     },
     {
+      label: t('Edit'),
+      command: (data?: IRestaurantResponse) => {
+        if (data) {
+          router.push(`/general/stores/add?id=${data._id}`);
+        }
+      },
+    },
+    {
       label: t('Duplicate'),
       command: (data?: IRestaurantResponse) => {
         if (data) {
@@ -247,6 +257,13 @@ export default function RestaurantsMain() {
         onHide={() => {
           setDuplicateId('');
         }}
+      />
+
+      <RestaurantEditDialog
+        restaurantData={editRestaurantData}
+        visible={!!editRestaurantData}
+        onHide={() => setEditRestaurantData(null)}
+        onSuccess={() => refetch()}
       />
     </div>
   );

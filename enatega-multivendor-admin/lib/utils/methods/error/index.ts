@@ -3,12 +3,11 @@ import { ApolloError } from '@apollo/client';
 export const onErrorMessageMatcher = <T extends string>(
   type: T | undefined,
   message: string | undefined | string[],
-  errorMessages: Record<T, string[]>
+  errorMessages: Partial<Record<T, string[]>>
 ): boolean => {
   if (!type) return true;
   return errorMessages[type]?.some((emessage) => emessage === message) ?? false;
 };
-
 
 
 

@@ -89,6 +89,18 @@ const FOOD_SIZE_LADDER = [
 
 const SKIP_SIZE_TITLE = /napój|woda|cola|frytk|krążk|dodatk/i
 
+/** Defaults for classic demo dishes when DB was seeded before ingredients existed. */
+const DEFAULT_INGREDIENTS_BY_TITLE = {
+  Margherita: ['Sos pomidorowy', 'Mozzarella', 'Bazylia'],
+  Capricciosa: ['Sos pomidorowy', 'Mozzarella', 'Szynka', 'Pieczarki', 'Oliwki'],
+  Pepperoni: ['Sos pomidorowy', 'Mozzarella', 'Salami pepperoni'],
+  'Zielona Special': ['Sos pomidorowy', 'Mozzarella', 'Szpinak', 'Feta', 'Pesto'],
+  'Classic Cheeseburger': ['Bułka', 'Wołowina 150 g', 'Cheddar', 'Sos house', 'Sałata', 'Pomidor'],
+  'Przedmieście Smash': ['Bułka', 'Wołowina smash', 'Bekon', 'Cheddar', 'Sos house'],
+  'BBQ Bacon': ['Bułka', 'Wołowina', 'Bekon', 'Sos BBQ', 'Cebula'],
+  'Vege Falafel': ['Bułka', 'Falafel', 'Hummus', 'Pikle', 'Sałata']
+}
+
 function parseIngredientsFromDescription(description = '') {
   return String(description)
     .split(',')
@@ -105,6 +117,29 @@ function buildSizeVariations(basePrice) {
   }))
 }
 
+function publishedFoodsMissingIngredients(restaurant, liveFoods) {
+  const published = restaurant?.publishedMenu?.categories || []
+  const publishedById = new Map()
+  for (const category of published) {
+    for (const food of category.foods || []) {
+      if (food?._id) publishedById.set(String(food._id), food)
+    }
+  }
+
+  return liveFoods.some((food) => {
+    const liveIngredients = Array.isArray(food.ingredients)
+      ? food.ingredients.filter(Boolean)
+      : []
+    if (!liveIngredients.length) return false
+    const publishedFood = publishedById.get(String(food._id))
+    if (!publishedFood) return true
+    const publishedIngredients = Array.isArray(publishedFood.ingredients)
+      ? publishedFood.ingredients.filter(Boolean)
+      : []
+    return publishedIngredients.length === 0
+  })
+}
+
 /**
  * Backfills ingredients + size variations on already-seeded menus, then
  * republishes affected restaurants so the customer app sees the changes.
@@ -112,14 +147,23 @@ function buildSizeVariations(basePrice) {
 export async function ensureMenuItemCustomization() {
   const foods = await Food.find({}).lean()
   const touchedRestaurants = new Set()
+  const foodsByRestaurant = new Map()
 
   for (const food of foods) {
+    if (food.restaurantId) {
+      const key = String(food.restaurantId)
+      if (!foodsByRestaurant.has(key)) foodsByRestaurant.set(key, [])
+      foodsByRestaurant.get(key).push(food)
+    }
+
     const patch = {}
     const ingredients = Array.isArray(food.ingredients) ? food.ingredients.filter(Boolean) : []
     if (!ingredients.length) {
+      const fromTitle = DEFAULT_INGREDIENTS_BY_TITLE[food.title]
       const parsed = parseIngredientsFromDescription(food.description)
+      if (fromTitle?.length) patch.ingredients = fromTitle
       // Only treat comma-separated descriptions as ingredient lists.
-      if (parsed.length > 1) patch.ingredients = parsed
+      else if (parsed.length > 1) patch.ingredients = parsed
     }
 
     const variations = food.variations || []
@@ -138,7 +182,24 @@ export async function ensureMenuItemCustomization() {
 
     if (!Object.keys(patch).length) continue
     await Food.updateOne({ _id: food._id }, { $set: patch })
+    if (patch.ingredients) {
+      food.ingredients = patch.ingredients
+    }
     if (food.restaurantId) touchedRestaurants.add(String(food.restaurantId))
+  }
+
+  // Republish when live foods have ingredients but the customer snapshot does not.
+  const restaurants = await Restaurant.find({
+    _id: { $in: [...foodsByRestaurant.keys()] }
+  })
+    .select('_id publishedMenu')
+    .lean()
+
+  for (const restaurant of restaurants) {
+    const liveFoods = foodsByRestaurant.get(String(restaurant._id)) || []
+    if (publishedFoodsMissingIngredients(restaurant, liveFoods)) {
+      touchedRestaurants.add(String(restaurant._id))
+    }
   }
 
   for (const restaurantId of touchedRestaurants) {

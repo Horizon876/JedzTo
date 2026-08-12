@@ -1,4 +1,4 @@
-// Core
+﻿// Core
 import { useEffect, useState } from 'react';
 
 // Interface and Types
@@ -51,7 +51,7 @@ export default function StaffMain({
     limit: rowsPerPage,
     search: debouncedSearch || undefined,
   }, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   }) as IQueryResult<IStaffPaginatedGQLResponse | undefined, undefined>;
 
   // For global search

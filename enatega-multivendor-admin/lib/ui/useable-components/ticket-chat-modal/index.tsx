@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_TICKET_MESSAGES,
@@ -46,7 +46,7 @@ export default function TicketChatModal({
     {
       variables: { ticketId },
       skip: !visible || !ticketId,
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
     }
   );
 
@@ -64,7 +64,7 @@ export default function TicketChatModal({
         },
       },
       skip: !visible || !ticketId,
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       pollInterval: 0, // We'll manually control polling
       onError: (error) => {
         showToast({
@@ -306,7 +306,7 @@ export default function TicketChatModal({
             }}
             className="text-white hover:text-gray-300"
           >
-            <span className="sr-only">Close</span>✕
+            <span className="sr-only">Close</span>âś•
           </button>
         </div>
 

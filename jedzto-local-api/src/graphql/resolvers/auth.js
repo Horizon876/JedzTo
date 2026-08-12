@@ -126,12 +126,18 @@ export const authMutations = {
 
   ownerLogin: async (_p, { email, password }, ctx) => {
     assertPublicAccess(ctx)
+
+    // If the caller supplied a bare login (no "@"), treat it as ownerLogin@jedzto.local
+    // — that's the internal email format used when super-admin creates a restaurant.
+    // Full email addresses (e.g. super-admin) continue to work unchanged.
+    const resolvedEmail = email.includes('@') ? email.toLowerCase() : `${email}@jedzto.local`
+
     const user = await User.findOne({
-      email: email.toLowerCase(),
+      email: resolvedEmail,
       role: { $in: ['SUPER_ADMIN', 'RESTAURANT_OWNER'] }
     })
     if (!user || !(await user.comparePassword(password))) {
-      throw new GraphQLError('Invalid email or password')
+      throw new GraphQLError('Invalid login or password')
     }
     return ownerResponse(user)
   },

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useContext, useMemo } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
@@ -18,7 +18,7 @@ export default function PauseOrdersScreen() {
   const { data, refetch } = useQuery(GET_RESTAURANT_BY_ID, {
     variables: { id: restaurantId },
     skip: !restaurantId,
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   });
 
   const restaurant = data?.restaurant;

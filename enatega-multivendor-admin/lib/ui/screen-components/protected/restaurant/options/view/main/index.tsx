@@ -1,4 +1,4 @@
-// Core
+﻿// Core
 import { useContext, useEffect, useState } from 'react';
 
 // Interface and Types
@@ -60,7 +60,7 @@ export default function OptionMain({
       search: debouncedSearch || undefined,
     },
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       enabled: !!restaurantId,
       onCompleted: onFetchCategoriesByRestaurantCompleted,
       onError: onErrorFetchCategoriesByRestaurant,

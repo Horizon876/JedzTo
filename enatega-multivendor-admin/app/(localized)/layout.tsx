@@ -42,12 +42,12 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <FontawesomeConfig />
       </head>
-      <body className={'flex flex-col flex-wrap'}>
+      <body className={'flex flex-col flex-wrap bg-dark-950 text-white min-h-screen'}>
         <PrimeReactProvider value={value}>
           <ApolloProvider client={client}>
             <ConfigurationProvider>

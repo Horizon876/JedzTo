@@ -98,7 +98,8 @@ const styles = (props = null) =>
     },
     imageFallback: {
       width: '100%',
-      height: Math.round(Dimensions.get('window').height * 0.28),
+      height: Math.round(Dimensions.get('window').height * 0.26),
+      marginTop: scale(12),
       backgroundColor: SURFACE,
       alignItems: 'center',
       justifyContent: 'center',

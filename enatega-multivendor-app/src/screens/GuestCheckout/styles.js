@@ -17,7 +17,7 @@ const styles = (props = null) =>
       flex: 1,
       backgroundColor: PAGE,
       paddingHorizontal: scale(16),
-      paddingTop: scale(12),
+      paddingTop: scale(28),
       paddingBottom: scale(16),
       justifyContent: 'space-between'
     },

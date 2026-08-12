@@ -46,6 +46,7 @@ import { FoodSchema } from '@/lib/utils/schema';
 
 // Prime React
 import { Dropdown, DropdownChangeEvent } from 'primereact/dropdown';
+import { Chips } from 'primereact/chips';
 
 // Icons
 import { faAdd } from '@fortawesome/free-solid-svg-icons';
@@ -62,6 +63,7 @@ const initialValues: IFoodDetailsForm = {
   image: '',
   category: null,
   subCategory: null,
+  ingredients: [],
 };
 export default function FoodDetails({
   stepperProps,
@@ -161,6 +163,7 @@ export default function FoodDetails({
       image: values.image,
       isOutOfStock: false,
       isActive: true,
+      ingredients: values.ingredients || [],
       __typename: foodContextData?.food?.data?.__typename ?? 'Food',
       variations:
         (foodContextData?.food?.variations ?? []).length > 0
@@ -370,6 +373,28 @@ export default function FoodDetails({
                             )
                               ? 'red'
                               : '',
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="ingredients" className="text-sm font-[500]">
+                          {t('Ingredients')}
+                        </label>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 mb-1">
+                          {t('Ingredients hint')}
+                        </p>
+                        <Chips
+                          id="ingredients"
+                          name="ingredients"
+                          value={values.ingredients || []}
+                          onChange={(e) => setFieldValue('ingredients', e.value || [])}
+                          className="w-full"
+                          placeholder={t('Ingredients placeholder')}
+                          pt={{
+                            container: { className: 'w-full dark:bg-dark-950 dark:text-white border-gray-300 dark:border-dark-600' },
+                            input: { className: 'dark:bg-dark-950 dark:text-white' },
+                            token: { className: 'dark:bg-dark-800' }
                           }}
                         />
                       </div>

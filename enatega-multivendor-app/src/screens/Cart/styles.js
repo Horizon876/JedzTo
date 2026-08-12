@@ -106,8 +106,14 @@ const styles = (props = null) =>
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: scale(6),
+      marginTop: 0,
       marginBottom: scale(14)
+    },
+    totalLabel: {
+      fontSize: scale(20)
+    },
+    totalValue: {
+      fontSize: scale(20)
     },
     button: {
       backgroundColor: ACCENT,

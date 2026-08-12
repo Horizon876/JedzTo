@@ -67,6 +67,8 @@ export const placeOrder = `
           quantityMinimum
           quantityMaximum
         }
+        specialInstructions
+        excludedIngredients
       }
       user{
         _id

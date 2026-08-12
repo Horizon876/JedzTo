@@ -114,12 +114,30 @@ const CustomGoogleMapsLocationBounds: React.FC<
   const { getCurrentLocation } = useLocation();
 
   // API
+  const getRestaurantId = useCallback(() => {
+    const id = restaurantsContextData?.restaurant?._id;
+    if (!id) return '';
+    return typeof id === 'string' ? id : (id as any).code || '';
+  }, [restaurantsContextData?.restaurant?._id]);
+
+  const removeMarker = () => {
+    setMarker({ lat: 0, lng: 0 });
+  };
+  const onDragEnd = (mapMouseEvent: google.maps.MapMouseEvent) => {
+    const newLatLng = {
+      lat: mapMouseEvent?.latLng?.lat() ?? 0,
+      lng: mapMouseEvent?.latLng?.lng() ?? 0,
+    };
+    setMarker(newLatLng);
+    setCenter(newLatLng);
+  };
+
   const { loading: isFetchingRestaurantProfile } = useQuery(
     GET_RESTAURANT_PROFILE,
     {
-      variables: { id: restaurantsContextData?.restaurant?._id?.code ?? '' },
-      fetchPolicy: 'network-only',
-      skip: !restaurantsContextData?.restaurant?._id?.code,
+      variables: { id: getRestaurantId() },
+      fetchPolicy: 'cache-and-network',
+      skip: !getRestaurantId(),
       onCompleted: onRestaurantProfileFetchCompleted,
       onError: onErrorFetchRestaurantProfile,
     }
@@ -127,9 +145,9 @@ const CustomGoogleMapsLocationBounds: React.FC<
   const { loading: isFetchingRestaurantDeliveryZoneInfo } = useQuery(
     GET_RESTAURANT_DELIVERY_ZONE_INFO,
     {
-      variables: { id: restaurantsContextData?.restaurant?._id?.code ?? '' },
-      fetchPolicy: 'network-only',
-      skip: !restaurantsContextData?.restaurant?._id?.code,
+      variables: { id: getRestaurantId() },
+      fetchPolicy: 'cache-and-network',
+      skip: !getRestaurantId(),
       onCompleted: onRestaurantZoneInfoFetchCompleted,
       onError: onErrorFetchRestaurantZoneInfo,
     }
@@ -426,9 +444,15 @@ const CustomGoogleMapsLocationBounds: React.FC<
       return [];
     }
   }
+
   const handleDistanceChange = (val: number) => {
-    const newDistance = val || 0;
-    setDistance(newDistance);
+    const newRadius = val || 0;
+    setDistance(newRadius);
+
+    if (deliveryZoneType === 'radius') {
+      const newPath = getPolygonPathFromCircle(center, newRadius * 1000);
+      setPath(newPath);
+    }
   };
   const locationCallback = (error: string | null, data?: ILocation) => {
     if (error) {
@@ -489,14 +513,10 @@ const CustomGoogleMapsLocationBounds: React.FC<
     listenersRef?.current?.forEach((lis) => lis?.remove());
     polygonRef.current = null;
   }, []);
-  const removeMarker = () => {
-    setMarker({ lat: 0, lng: 0 });
-  };
-  const onDragEnd = (mapMouseEvent: google.maps.MapMouseEvent) => {
-    const newLatLng = {
-      lat: mapMouseEvent?.latLng?.lat() ?? 0,
-      lng: mapMouseEvent?.latLng?.lng() ?? 0,
-    };
+
+  const onMarkerDragEnd = (e: google.maps.MapMouseEvent) => {
+    if (!e.latLng) return;
+    const newLatLng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
 
     setMarker(newLatLng);
     setCenter(newLatLng);
@@ -510,7 +530,7 @@ const CustomGoogleMapsLocationBounds: React.FC<
   // Submit Handler
   const onLocationSubmitHandler = () => {
     try {
-      if (!restaurantsContextData?.restaurant?._id?.code) {
+      if (!getRestaurantId()) {
         showToast({
           type: 'error',
           title: t('Location & Zone'),
@@ -531,7 +551,7 @@ const CustomGoogleMapsLocationBounds: React.FC<
       }
 
       let variables: IUpdateRestaurantDeliveryZoneVariables = {
-        id: restaurantsContextData?.restaurant?._id?.code ?? '',
+        id: getRestaurantId(),
         location,
         boundType: deliveryZoneType,
         address: restaurantsContextData?.restaurant?.autoCompleteAddress,
@@ -592,13 +612,43 @@ const CustomGoogleMapsLocationBounds: React.FC<
   }, [selectedPlaceObject, search, fetch]);
 
   useEffect(() => {
-    if (!hideControls) getCurrentLocation(locationCallback);
-  }, []);
+    if (navigator.geolocation) {
+      getCurrentLocation()
+        .then((location: ILocation) => {
+          setCenter({
+            lat: location?.latitude,
+            lng: location?.longitude,
+          });
 
-  useEffect(() => {
-    const zoomVal = calculateZoom(distance);
-    setZoom(zoomVal);
-  }, [distance, zoom]);
+          setMarker({
+            lat: location?.latitude,
+            lng: location?.longitude,
+          });
+        })
+        .catch((error) => {
+          console.error(error);
+          setCenter({
+            lat: -25.2744, // Central latitude of Australia
+            lng: 133.7751, // Central longitude of Australia
+          });
+
+          setMarker({
+            lat: -25.2744, // Marker at the same central point
+            lng: 133.7751, // Marker at the same central point
+          });
+        });
+    } else {
+      setCenter({
+        lat: -25.2744, // Central latitude of Australia
+        lng: 133.7751, // Central longitude of Australia
+      });
+
+      setMarker({
+        lat: -25.2744, // Marker at the same central point
+        lng: 133.7751, // Marker at the same central point
+      });
+    }
+  }, []);
 
   return (
     <div>
@@ -834,10 +884,10 @@ const CustomGoogleMapsLocationBounds: React.FC<
             }}
           />
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-6 flex justify-end">
             <CustomButton
-              className="h-10 w-fit border-gray-300 border dark:border-dark-600 bg-black px-8 text-white"
-              label={t('Save')}
+              className="h-12 w-fit border-none bg-blue-600 hover:bg-blue-700 px-8 text-white font-medium rounded-xl shadow-md transition-all duration-200"
+              label={t('Zapisz Lokalizację')}
               type="button"
               loading={isSubmitting}
               onClick={onLocationSubmitHandler}

@@ -1,4 +1,4 @@
-// GraphQL
+﻿// GraphQL
 import { GET_ACTIVE_ORDERS, SUBSCRIPTION_DISPATCH_ORDER } from '@/lib/api/graphql';
 
 //Components
@@ -56,7 +56,7 @@ export default function DispatchMain() {
       search: search,
       actions: selectedActions,
     },
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   });
   const showLoading =
     !hasDataRef.current && active_orders_loading;
@@ -70,7 +70,7 @@ export default function DispatchMain() {
     }
   }, [active_orders_data]);
 
-  // 🔥 SUBSCRIPTION (will attempt to use, but has fallback)
+  // đź”Ą SUBSCRIPTION (will attempt to use, but has fallback)
   const { data: subscriptionData } = useSubscription(
     SUBSCRIPTION_DISPATCH_ORDER,
     {

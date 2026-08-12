@@ -61,7 +61,7 @@ export default function VendorDetails({
       ...restaurantsContextData,
       vendor: {
         ownerName: formData.ownerName.trim(),
-        ownerEmail: formData.ownerEmail.trim(),
+        ownerLogin: formData.ownerEmail.trim(),
       },
     });
 
@@ -71,10 +71,10 @@ export default function VendorDetails({
   // Use Effects — prefill when navigating back to this step.
   useEffect(() => {
     const vendor = restaurantsContextData?.vendor;
-    if (vendor?.ownerName || vendor?.ownerEmail) {
+    if (vendor?.ownerName || vendor?.ownerLogin) {
       setFormValues({
         ownerName: vendor.ownerName ?? '',
-        ownerEmail: vendor.ownerEmail ?? '',
+        ownerEmail: vendor.ownerLogin ?? '',
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

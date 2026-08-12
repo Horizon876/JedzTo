@@ -224,6 +224,14 @@ export const formatReceipt = (order) => {
 
       const addonsSection = addonsText ? `\n - ${addonsText}` : "";
 
+      const excluded = (item.excludedIngredients || []).filter(Boolean);
+      const excludedSection =
+        excluded.length > 0 ? `\n <b>*** WITHOUT: ${excluded.join(", ")} ***</b>` : "";
+
+      const noteSection = item.specialInstructions
+        ? `\n - Note: ${item.specialInstructions}`
+        : "";
+
       const itemPrice = item.variation.price; /*+
         item.addons
           .map((addon) =>
@@ -233,15 +241,18 @@ export const formatReceipt = (order) => {
 
       return `${item.quantity}x ${String(item.title)}${variationText}   [R]${currencySymbol}${itemPrice.toFixed(
         2
-      )}${addonsSection}`;
+      )}${addonsSection}${excludedSection}${noteSection}`;
     })
     .join("\n");
 
   const text = `
 [R]Date: ${new Date().toLocaleString()}
   
-[C]*** ORDER RECEIPT ***
+[C]*** KITCHEN TICKET ***
 [C]================================
+
+[C]<b>${order.isPickedUp ? "PICK UP" : "DELIVERY"}</b>
+[C]<b>${String(paymentMethod || "COD").toUpperCase() === "COD" ? "CASH" : "ONLINE PAYMENT"}</b>
 
 [L]--- Customer Details -----------------------
 [L]Customer: ${name || email || "-"}
@@ -273,4 +284,63 @@ ${instructions ? `[L]${instructions}` : ""}
 `;
 
   return text;
+};
+
+/** Plain-text kitchen ticket for on-screen print preview (no ESC/POS tags). */
+export const formatKitchenTicketPreview = (order: any) => {
+  const isPickup = Boolean(order?.isPickedUp);
+  const method = String(order?.paymentMethod || "COD").toUpperCase();
+  const isCash = method === "COD";
+  const acceptedAt = order?.acceptedAt
+    ? new Date(order.acceptedAt)
+    : new Date();
+  const dateStr = Number.isNaN(acceptedAt.getTime())
+    ? "-"
+    : `${acceptedAt.toLocaleDateString()} ${acceptedAt.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+
+  const line = "--------------------------------";
+  const items = (order?.items || [])
+    .filter(Boolean)
+    .map((item: any) => {
+      const title = `${item.quantity}x ${item.title || ""}`;
+      const variation = item.variation?.title
+        ? `   (${item.variation.title})`
+        : "";
+      const addons = (item.addons || [])
+        .flatMap((addon: any) =>
+          (addon.options || []).map((opt: any) => `  + ${opt.title}`),
+        )
+        .join("\n");
+      const excluded = (item.excludedIngredients || []).filter(Boolean);
+      const without =
+        excluded.length > 0 ? `\n  *** BEZ: ${excluded.join(", ")} ***` : "";
+      const note = item.specialInstructions
+        ? `\n  Uwaga: ${item.specialInstructions}`
+        : "";
+
+      return `${title}${variation}${addons ? `\n${addons}` : ""}${without}${note}`;
+    })
+    .join("\n\n");
+
+  const message = order?.instructions
+    ? `\n${line}\nWIADOMOSC DO RESTAURACJI:\n${order.instructions}\n`
+    : "";
+
+  return [
+    "        KARTKA KUCHENNA",
+    line,
+    isPickup ? "          ODBIOR" : "         DOSTAWA",
+    isCash ? "         GOTOWKA" : "     PLATNOSC ONLINE",
+    line,
+    `Nr: #${order?.orderId || "-"}`,
+    `Przyjeto: ${dateStr}`,
+    line,
+    "POZYCJE:",
+    items || "(brak)",
+    message,
+    line,
+  ].join("\n");
 };

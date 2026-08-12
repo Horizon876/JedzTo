@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+﻿import React, { useContext, useEffect, useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_REVIEWS_PAGINATED } from '@/lib/api/graphql/queries/ratings';
 import CustomDataView from '@/lib/ui/useable-components/data-view';
@@ -50,7 +50,7 @@ const RatingMain: React.FC = () => {
       minRating,
       maxRating,
     },
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
     skip: !restaurantId,
   });
 

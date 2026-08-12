@@ -184,7 +184,7 @@ function NewRestaurantCard(props) {
             {isRestaurantClosed ? (
               <View style={styles(currentTheme).closedOverlay}>
                 <TextDefault H4 textColor={currentTheme.white} bold>
-                  {t('Closed')}
+                  {props?.isBusy ? 'Nie można zamówić' : t('Closed')}
                 </TextDefault>
               </View>
             ) : null}

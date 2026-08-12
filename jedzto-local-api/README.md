@@ -19,7 +19,12 @@ npm start
 
 API: `http://localhost:8001/graphql`
 
-Jeśli lokalne MongoDB (`mongodb://127.0.0.1:27017/jedzto`) nie działa, API automatycznie startuje **mongodb-memory-server** (dane w pamięci — znikają po restarcie procesu).
+Jeśli lokalne MongoDB (`mongodb://127.0.0.1:27017/jedzto`) nie działa, API startuje
+**trwały lokalny Mongo** w katalogu `.data/mongodb` (dane przeżywają restart procesu).
+
+Na produkcji ustaw prawdziwy `MONGODB_URI` (np. Atlas) i `ALLOW_MEMORY_MONGO=0`.
+
+Aby wyzerować lokalne dane: usuń katalog `jedzto-local-api/.data/mongodb` i zrestartuj API.
 
 
 ## Seed accounts

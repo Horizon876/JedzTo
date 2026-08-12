@@ -45,12 +45,13 @@ export const SUBSCRIBE_PLACE_ORDER = gql`
               description
               price
             }
-            description
-            title
-            quantityMinimum
-            quantityMaximum
-          }
+          description
+          title
+          quantityMinimum
+          quantityMaximum
+        }
           specialInstructions
+          excludedIngredients
           isActive
           createdAt
           updatedAt
@@ -78,6 +79,7 @@ export const SUBSCRIBE_PLACE_ORDER = gql`
         preparationTime
         acceptedAt
         isRinged
+        instructions
         rider {
           _id
           name

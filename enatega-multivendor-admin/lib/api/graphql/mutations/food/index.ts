@@ -12,6 +12,7 @@ export const CREATE_FOOD = gql`
           title
           description
           subCategory
+          ingredients
           variations {
             _id
             title
@@ -42,6 +43,7 @@ export const EDIT_FOOD = gql`
           title
           description
           subCategory
+          ingredients
           variations {
             _id
             title

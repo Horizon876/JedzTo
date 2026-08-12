@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { IMAGE_LINK } from '../../utils/constants'
 import CachedImage from '../CachedImage'
 import { formatMoney } from '../../utils/formatMoney'
+import { foodNeedsCustomization } from '../../utils/foodCustomization'
 
 const ACCENT = '#00A8FF'
 const MUTED = '#8E8E93'
@@ -30,7 +31,22 @@ const CartItem = (props) => {
   const linePrice = Number(props?.dealPrice || 0)
   const priceLabel = formatMoney(linePrice, configuration.currencySymbol)
 
+  const removedIngredients =
+    props?.removedIngredients?.length > 0
+      ? props.removedIngredients
+      : (() => {
+          const match = String(props?.cartItem?.specialInstructions || '').match(/^Bez:\s*(.+?)(?:\.|$)/i)
+          if (!match?.[1]) return []
+          return match[1]
+            .split(',')
+            .map((part) => part.trim())
+            .filter(Boolean)
+        })()
+
+  const canEdit = foodNeedsCustomization(props?.food)
+
   const navigateToItemDetail = () => {
+    if (!canEdit) return
     const restaurant = props?.restaurantData
     if (!restaurant || !props?.food) return
     navigation.navigate('ItemDetail', {
@@ -59,6 +75,12 @@ const CartItem = (props) => {
             <TextDefault numberOfLines={1} textColor='#FFFFFF' bolder style={styles().titleText} isRTL>
               {props?.dealName}
             </TextDefault>
+
+            {removedIngredients.length > 0 ? (
+              <TextDefault textColor={MUTED} small isRTL numberOfLines={2} style={{ marginTop: scale(2) }}>
+                {t('without')}: {removedIngredients.join(', ')}
+              </TextDefault>
+            ) : null}
 
             {props?.optionsTitle?.length > 0 ? (
               <View style={styles().additionalItem}>
@@ -92,11 +114,13 @@ const CartItem = (props) => {
               <TextDefault textColor='#FFFFFF' bolder small isRTL>
                 {priceLabel}
               </TextDefault>
-              <TouchableOpacity onPress={navigateToItemDetail} activeOpacity={0.7}>
-                <TextDefault textColor={MUTED} bolder small isRTL>
-                  {t('edit')}
-                </TextDefault>
-              </TouchableOpacity>
+              {canEdit ? (
+                <TouchableOpacity onPress={navigateToItemDetail} activeOpacity={0.7}>
+                  <TextDefault textColor={MUTED} bolder small isRTL>
+                    {t('edit')}
+                  </TextDefault>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         </View>

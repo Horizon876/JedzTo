@@ -233,8 +233,10 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={styles.flex}>
-        <AnimatedSplashScreen>
+      <View style={{ flex: 1, backgroundColor: Theme[theme].themeBackground }}>
+        <View style={{ flex: 1, maxWidth: 600, width: '100%', alignSelf: 'center', backgroundColor: Theme[theme].themeBackground, shadowColor: '#000', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
+          <GestureHandlerRootView style={styles.flex}>
+            <AnimatedSplashScreen>
           <ApolloProvider client={client}>
             <ThemeContext.Provider
               value={{ ThemeValue: theme, dispatch: themeSetter }}
@@ -263,6 +265,8 @@ export default function App() {
           </ApolloProvider>
         </AnimatedSplashScreen>
       </GestureHandlerRootView>
+        </View>
+      </View>
     </ErrorBoundary>
   )
 }

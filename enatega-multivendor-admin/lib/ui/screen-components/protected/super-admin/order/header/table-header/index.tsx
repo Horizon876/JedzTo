@@ -80,11 +80,10 @@ const OrderSuperAdminTableHeader: React.FC<IOrderSuperAdminHeaderProps> = ({
 
         <DateFilterCustomTab
           options={[
-            t('All'),
-            t('Today'),
-            t('Week'),
-            t('Month'),
-            t('Year'),
+            'All',
+            'Today',
+            'Last 7 days',
+            'Last 30 days',
             'Custom',
           ]}
           selectedTab={dateFilter.dateKeyword}

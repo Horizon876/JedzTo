@@ -56,6 +56,14 @@ export default function MakeSidebar() {
       isClickable: true,
     },
     {
+      text: 'Restaurants',
+      label: t('Restaurants'),
+      route: '/general/stores',
+      isParent: true,
+      icon: faStore,
+      isClickable: true,
+    },
+    {
       text: 'Finance',
       label: t('Finance'),
       route: '/wallet',
@@ -74,24 +82,10 @@ export default function MakeSidebar() {
           route: '/wallet/earnings',
           isParent: false,
         },
-        {
-          text: 'Withdrawal Request',
-          label: t('Withdrawal Request'),
-          route: '/wallet/withdraw-requests',
-          isParent: false,
-        },
       ]),
       shouldShow: function () {
         return this.subMenu ? this.subMenu.length > 0 : false;
       },
-    },
-    {
-      text: 'Restaurants',
-      label: t('Restaurants'),
-      route: '/general/stores',
-      isParent: true,
-      icon: faStore,
-      isClickable: true,
     },
     {
       text: 'Orders',
@@ -108,105 +102,6 @@ export default function MakeSidebar() {
       isParent: true,
       icon: faTicket,
       isClickable: true,
-    },
-    {
-      text: 'More',
-      label: t('More'),
-      route: '/management',
-      isParent: true,
-      icon: faEllipsis,
-      subMenu: useCheckAllowedRoutes([
-        {
-          text: 'Vendors',
-          label: t('Vendors'),
-          route: '/general/vendors',
-          isParent: false,
-        },
-        {
-          text: 'Riders',
-          label: t('Riders'),
-          route: '/general/riders',
-          isParent: false,
-        },
-        {
-          text: 'Users',
-          label: t('Users'),
-          route: '/general/users',
-          isParent: false,
-        },
-        {
-          text: 'Staff',
-          label: t('Staff'),
-          route: '/general/staff',
-          isParent: false,
-        },
-        {
-          text: 'Configuration',
-          label: t('Configuration'),
-          route: '/management/configurations',
-          isParent: false,
-        },
-        {
-          text: 'Cuisine',
-          label: t('Cuisine'),
-          route: '/management/cuisines',
-          isParent: false,
-        },
-        {
-          text: 'Shop Type',
-          label: t('ShopType'),
-          route: '/management/shop-types',
-          isParent: false,
-        },
-        {
-          text: 'Banners',
-          label: t('Banners'),
-          route: '/management/banners',
-          isParent: false,
-        },
-        {
-          text: 'Tipping',
-          label: t('Tipping'),
-          route: '/management/tippings',
-          isParent: false,
-        },
-        {
-          text: 'Commission Rate',
-          label: t('Commission Rate'),
-          route: '/management/commission-rates',
-          isParent: false,
-        },
-        {
-          text: 'Notification',
-          label: t('Notification'),
-          route: '/management/notifications',
-          isParent: false,
-        },
-        {
-          text: 'Audit Logs',
-          label: t('Audit Logs'),
-          route: '/audit-logs',
-          isParent: false,
-        },
-        {
-          text: 'CustomerSupport',
-          label: t('CustomerSupport'),
-          route: '/customerSupport',
-          isParent: false,
-        },
-      ]),
-      shouldShow: function () {
-        return this.subMenu ? this.subMenu.length > 0 : false;
-      },
-    },
-    {
-      text: 'CustomerSupport',
-      label: t('CustomerSupport'),
-      route: '/customerSupport',
-      icon: faHeadset,
-      isClickable: true,
-      isParent: true,
-      shouldShow: () => false,
     },
   ];
 

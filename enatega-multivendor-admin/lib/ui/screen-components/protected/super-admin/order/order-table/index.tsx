@@ -77,7 +77,7 @@ export default function OrderTable({
       (order: IOrder): IExtendedOrder => ({
         ...order,
         itemsTitle:
-          order?.items
+          (order?.items || [])
             .map((item) => item?.title)
             .join(', ')
             .slice(0, 15) + '...',

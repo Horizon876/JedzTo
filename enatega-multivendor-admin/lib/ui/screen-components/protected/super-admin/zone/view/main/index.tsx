@@ -1,4 +1,4 @@
-// Core
+﻿// Core
 import { useMutation } from '@apollo/client';
 import { useEffect, useState } from 'react';
 
@@ -56,7 +56,7 @@ export default function ZoneMain({
     limit: rowsPerPage,
     search: debouncedSearch || undefined,
   }, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
   }) as IQueryResult<IZonesPaginatedResponse | undefined, undefined>;
 
   //Mutation

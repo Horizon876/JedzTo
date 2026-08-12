@@ -3,9 +3,6 @@ import { IDropdownSelectItem } from '../global.interface';
 // Errors
 export interface IRestaurantFormErrors {
   name: string[];
-  username: string[];
-  password: string[];
-  confirmPassword: string[];
   address: string[];
   deliveryTime: string[];
   minOrder: string[];
@@ -15,6 +12,15 @@ export interface IRestaurantFormErrors {
   image: string[];
   logo: string[];
   phoneNumber: string[];
+  ownerName: string[];
+  ownerLogin: string[];
+  ownerPassword: string[];
+  ownerPasswordConfirm: string[];
+  commissionRate?: string[];
+  // Legacy fields used by vendor-scoped restaurant forms (still in use)
+  username?: string[];
+  password?: string[];
+  confirmPassword?: string[];
 }
 
 export interface IRestaurantForm {
@@ -24,13 +30,14 @@ export interface IRestaurantForm {
   confirmPassword?: string;
   phoneNumber?:string;
   address: string;
-  deliveryTime: number;
-  minOrder: number;
-  salesTax: number;
-  shopType: IDropdownSelectItem | null;
-  cuisines: IDropdownSelectItem[];
+  deliveryTime?: number;
+  minOrder?: number;
+  salesTax?: number;
+  shopType?: IDropdownSelectItem | null;
+  cuisines?: IDropdownSelectItem[];
   image: string;
   logo: string;
+  commissionRate?: number;
 }
 
 

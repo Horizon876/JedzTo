@@ -302,7 +302,7 @@ function RestaurantDetailHeader({
               minimumFontScale={0.8}
               textColor={currentTheme.main}
             >
-              {!isOpen ? t('Closed') : t('Open')}
+              {restaurant?.isBusy ? 'Nie można zamówić' : (!isOpen ? t('Closed') : t('Open'))}
             </TextDefault>
           </TouchableOpacity>
         </View>

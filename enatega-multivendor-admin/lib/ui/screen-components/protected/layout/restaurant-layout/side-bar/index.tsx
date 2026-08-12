@@ -14,6 +14,7 @@ import {
   faRectangleList,
   faStore,
   faUtensils,
+  faPowerOff,
 } from '@fortawesome/free-solid-svg-icons';
 import SidebarItem from './side-bar-item';
 import { useUserContext } from '@/lib/hooks/useUser';
@@ -88,21 +89,14 @@ export default function MakeSidebar() {
       ],
     },
     {
-      text: t('Delivery'),
+      text: t('Delivery & Timing'),
       route: '/admin/store/general/delivery-areas',
       isParent: true,
       icon: faMapLocationDot,
-      isClickable: true,
-    },
-    {
-      text: t('Venue'),
-      route: '/admin/store/general',
-      isParent: true,
-      icon: faStore,
       subMenu: [
         {
-          text: t('Profile'),
-          route: '/admin/store/profile',
+          text: t('Areas'),
+          route: '/admin/store/general/delivery-areas',
           isParent: false,
         },
         {
@@ -115,21 +109,6 @@ export default function MakeSidebar() {
           route: '/admin/store/general/holidays',
           isParent: false,
         },
-        {
-          text: t('PauseOrders'),
-          route: '/admin/store/general/pause',
-          isParent: false,
-        },
-        {
-          text: t('Location'),
-          route: '/admin/store/general/location',
-          isParent: false,
-        },
-        {
-          text: t('Payment'),
-          route: '/admin/store/general/payment',
-          isParent: false,
-        },
       ],
     },
     {
@@ -140,23 +119,11 @@ export default function MakeSidebar() {
       isClickable: true,
     },
     {
-      text: lastRoute ? t(`Back to ${lastRoute}`) : 'Back',
-      route: '/home',
+      text: t('PauseOrders'),
+      route: '/admin/store/general/pause',
       isParent: true,
-      icon: faArrowLeft,
+      icon: faPowerOff,
       isClickable: true,
-      onClick: () => {
-        const updatedStack = [...routeStack];
-        updatedStack.pop();
-        onUseLocalStorage('save', 'routeStack', JSON.stringify(updatedStack));
-        setRouteStack(updatedStack);
-      },
-      isLastItem: true,
-      shouldShow: () => {
-        return !(
-          user?.userType === 'RESTAURANT' || user?.userType === 'VENDOR'
-        );
-      },
     },
   ];
 

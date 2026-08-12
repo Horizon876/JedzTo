@@ -279,4 +279,20 @@ export const pl = {
   Orders: "Zamówienia",
   "Set Preparation Time": "Ustaw czas przygotowania",
   Tax: "Podatek",
+  discountAmount: "Kwota rabatu",
+  "AcceptAndPrint": "Akceptuj i drukuj",
+
+  // Kartka kuchenna
+  "Kitchen Ticket": "Kartka kuchenna",
+  "Print preview": "Podgląd wydruku",
+  "How it will look on the printer": "Tak będzie wyglądać wydruk na drukarce termicznej",
+  PICKUP: "Odbiór",
+  DELIVERY: "Dostawa",
+  CASH: "Gotówka",
+  "ONLINE PAYMENT": "Płatność online",
+  "Accepted at": "Przyjęto o",
+  Without: "Bez",
+  "Message for the restaurant": "Wiadomość do restauracji",
+  Print: "Drukuj",
+  Close: "Zamknij",
 };

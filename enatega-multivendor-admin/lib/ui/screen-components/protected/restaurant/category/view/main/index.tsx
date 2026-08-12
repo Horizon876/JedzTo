@@ -1,4 +1,4 @@
-// Core
+﻿// Core
 import { useContext, useEffect, useState } from 'react';
 
 // Interface and Types
@@ -55,7 +55,7 @@ export default function CategoryMain({
   } = useContext(RestaurantLayoutContext);
   const restaurantId = restaurantLayoutContextData?.restaurantId || '';
   const shopType = restaurantLayoutContextData?.shopType || '';
-  // console.log("🚀 ~ restaurantLayoutContextData:", restaurantLayoutContextData)
+  // console.log("đźš€ ~ restaurantLayoutContextData:", restaurantLayoutContextData)
 
   // Hooks
   const { showToast } = useToast();
@@ -78,7 +78,7 @@ export default function CategoryMain({
       search: debouncedSearch || undefined,
     },
     {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       enabled: !!restaurantId,
       onCompleted: onFetchCategoriesByRestaurantCompleted,
       onError: onErrorFetchCategoriesByRestaurant,
@@ -90,7 +90,7 @@ export default function CategoryMain({
 
   const { data: subCategoriesData, loading: loadingSubCategories } =
     useQueryGQL(GET_SUBCATEGORIES, {
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       onError: (error) => {
         showToast({
           type: 'error',

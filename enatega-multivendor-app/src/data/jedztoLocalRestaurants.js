@@ -27,9 +27,16 @@ let foodSeq = 1
 let catSeq = 1
 let varSeq = 1
 
-const food = (title, description, price, image = IMG.food) => {
+const food = (title, description, price, image = IMG.food, ingredients) => {
   const id = `jedzto-food-${foodSeq++}`
   const variationId = `jedzto-var-${varSeq++}`
+  const resolvedIngredients =
+    Array.isArray(ingredients) && ingredients.length
+      ? ingredients
+      : String(description || '')
+          .split(',')
+          .map((part) => part.trim())
+          .filter(Boolean)
   return {
     _id: id,
     title,
@@ -37,6 +44,7 @@ const food = (title, description, price, image = IMG.food) => {
     image,
     subCategory: null,
     isOutOfStock: false,
+    ingredients: resolvedIngredients,
     variations: [
       {
         _id: variationId,

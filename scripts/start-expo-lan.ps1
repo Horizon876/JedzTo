@@ -47,6 +47,25 @@ function Get-LanIp {
     return $ip
 }
 
+function Stop-PortListeners([int]$Port) {
+    try {
+        $pids = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty OwningProcess -Unique
+        foreach ($procId in $pids) {
+            if ($procId -and $procId -ne 0) {
+                Write-Host "Zamykam proces PID $procId na porcie $Port..." -ForegroundColor DarkYellow
+                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+            }
+        }
+    } catch {}
+}
+
+function Ensure-Dir([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path)) {
+        New-Item -ItemType Directory -Force -Path $Path | Out-Null
+    }
+}
+
 if ($Target -eq 'app') {
     $project = Join-Path $root 'enatega-multivendor-app'
     $port = 8081
@@ -64,13 +83,23 @@ try { $host.ui.RawUI.WindowTitle = $title } catch {}
 $lanIp = Get-LanIp
 $url = "exp://${lanIp}:${port}"
 
+# Per-target temp dirs — NEVER share one metro-cache between Expo apps.
+# Shared %USERPROFILE%\.jedzto-temp\metro-cache caused recurring EPERM on Windows.
+$tempRoot = Join-Path $env:USERPROFILE ".jedzto-temp\$Target"
+Ensure-Dir $tempRoot
+Ensure-Dir (Join-Path $tempRoot "metro-cache")
+
 $env:EXPO_OFFLINE = '1'
 $env:REACT_NATIVE_PACKAGER_HOSTNAME = $lanIp
-# Metro / Expo sometimes prefer these too
 $env:EXPO_DEV_SERVER_HOSTNAME = $lanIp
-# Point the mobile apps at this machine's API (jedzto-local-api on :8001)
 $env:EXPO_PUBLIC_JEDZTO_API_HOST = $lanIp
-$env:TMPDIR = $env:TEMP
+$env:TMPDIR = $tempRoot
+$env:TEMP = $tempRoot
+$env:TMP = $tempRoot
+
+# Free the port from a previous crashed Metro before starting.
+Stop-PortListeners -Port $port
+Start-Sleep -Milliseconds 400
 
 Write-Host "=====================================================" -ForegroundColor Cyan
 Write-Host " $title" -ForegroundColor Cyan
@@ -78,13 +107,13 @@ Write-Host "=====================================================" -ForegroundCo
 Write-Host " LAN IP : $lanIp" -ForegroundColor Green
 Write-Host " API    : http://${lanIp}:8001/graphql" -ForegroundColor Green
 Write-Host " Port   : $port" -ForegroundColor Green
+Write-Host " Temp   : $tempRoot" -ForegroundColor DarkGray
 Write-Host " QR URL : $url" -ForegroundColor Yellow
 Write-Host ""
 Write-Host " Zeskanuj PONIZSZY kod (albo otwarty plik PNG)." -ForegroundColor Yellow
 Write-Host " Ignoruj QR z Expo, jesli pokazuje localhost/127.0.0.1." -ForegroundColor DarkYellow
 Write-Host "=====================================================" -ForegroundColor Cyan
 
-# Always regenerate a scannable PNG with the correct exp:// URL
 try {
     npx --yes qrcode -o $qrFile -w 512 $url | Out-Null
     Write-Host "Zapisano QR: $qrFile" -ForegroundColor Green
@@ -93,7 +122,6 @@ try {
     Write-Host "Nie udalo sie wygenerowac PNG QR: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-# Also print ASCII QR in terminal (best-effort)
 try {
     npx --yes qrcode $url
 } catch {}
@@ -101,4 +129,4 @@ try {
 Write-Host ""
 Write-Host "Start Expo: $project" -ForegroundColor DarkGray
 Set-Location $project
-npx expo start --lan --port $port
+npx expo start --lan --port $port --clear

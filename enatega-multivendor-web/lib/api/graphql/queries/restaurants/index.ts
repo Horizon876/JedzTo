@@ -47,6 +47,7 @@ export const RESTAURANTS_FRAGMENT = gql`
       }
     }
     isAvailable
+    isBusy
     isActive
   }
 `;
@@ -78,6 +79,7 @@ export const RESTAURANTS_CAROUSEL_FRAGMENT = gql`
       }
     }
     isAvailable
+    isBusy
     isActive
   }
 `;
@@ -182,6 +184,7 @@ export const GET_RESTAURANT_BY_ID_SLUG = gql`
           title
           image
           description
+          ingredients
           isOutOfStock
           subCategory
           variations {
@@ -216,6 +219,7 @@ export const GET_RESTAURANT_BY_ID_SLUG = gql`
       }
       rating
       isAvailable
+    isBusy
       openingTimes {
         day
         times {

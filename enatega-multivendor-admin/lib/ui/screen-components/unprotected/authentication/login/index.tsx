@@ -1,73 +1,60 @@
 'use client';
 
-// Core
 import { useRouter } from 'next/navigation';
-
-// Components
 import CustomButton from '@/lib/ui/useable-components/button';
 
-// Prime React
-import { Card } from 'primereact/card';
-import { Divider } from 'primereact/divider';
+const ACCENT = '#00A8FF';
+const PAGE = '#121212';
+const SURFACE = '#1C1C1E';
+const MUTED = '#8E8E93';
 
 export default function LoginMain() {
   const router = useRouter();
 
   return (
-    <div className="flex h-full w-screen items-center justify-center gap-4">
-      <div className="w-1/3">
-        <Card>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col text-center">
-              <span className="text-2xl">Welcome!</span>
-              <span className="text-sm text-gray-400">
-                Sign up or Login to continue
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center justify-center gap-2">
-              <CustomButton
-                className="border-gray-30 h-12 w-full border bg-transparent text-black dark:text-white hover:bg-gray-100"
-                label="Login with Google"
-                rounded={true}
-                icon="pi pi-google"
-              />
-
-              <CustomButton
-                className="border-gray-30 px-32: h-12 w-full bg-black text-white hover:bg-gray-100 hover:text-black"
-                label="Login with Apple"
-                rounded={true}
-                icon="pi pi-apple"
-              />
-            </div>
-
-            <Divider />
-
-            <div className="flex flex-col items-center justify-center gap-2">
-              <CustomButton
-                className="border-gray-30 h-12 w-full border bg-primary-color text-white hover:bg-gray-100 hover:text-black"
-                label="Login"
-                rounded={true}
-                onClick={() => router.push('/authentication/login')}
-              />
-
-              <CustomButton
-                className="border-gray-30 h-12 w-full border bg-secondary-color text-white hover:bg-gray-100 hover:text-black"
-                label="Sign up"
-                rounded={true}
-                onClick={() => router.push('/authentication/sign-up')}
-              />
-            </div>
-
-            <div className="text-center">
-              <span className="text-sm text-gray-400">
-                By signing up, you agree to our&nbsp;
-                <span className="font-bold">Terms and Conditions&nbsp;</span>
-                and<span className="font-bold">&nbsp;Privacy Policy.</span>
-              </span>
-            </div>
+    <div
+      className="flex min-h-screen w-screen items-center justify-center px-4"
+      style={{
+        background: `radial-gradient(ellipse at top, #1a2a35 0%, ${PAGE} 55%)`,
+      }}
+    >
+      <div className="w-full max-w-[420px]">
+        <div className="mb-10 flex flex-col items-center text-center">
+          <div
+            className="mb-3 text-5xl font-black tracking-tight"
+            style={{ color: ACCENT }}
+          >
+            Jedz<span className="text-white">To</span>
           </div>
-        </Card>
+          <p className="text-sm" style={{ color: MUTED }}>
+            Panel administracyjny
+          </p>
+        </div>
+
+        <div
+          className="rounded-2xl border p-6 sm:p-8"
+          style={{
+            backgroundColor: SURFACE,
+            borderColor: '#2C2C2E',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
+          }}
+        >
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-white">Witaj</h1>
+            <p className="mt-1 text-sm" style={{ color: MUTED }}>
+              Zaloguj się, aby kontynuować
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <CustomButton
+              className="h-12 w-full border-0 bg-primary-color font-bold text-white hover:opacity-90"
+              label="Zaloguj"
+              rounded={true}
+              onClick={() => router.push('/authentication/login')}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

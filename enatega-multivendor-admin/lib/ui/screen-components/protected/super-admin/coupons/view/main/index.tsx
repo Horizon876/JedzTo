@@ -53,9 +53,9 @@ export default function CouponsMain({
       discount: 0,
       enabled: false,
       title: '',
-      lifeTimeActive: false,
-      startDate: '',
-      endDate: '',
+      restaurantId: null,
+      minOrderValue: 0,
+      usageLimit: null,
     },
   });
   const [globalFilterValue, setGlobalFilterValue] = useState('');
@@ -71,7 +71,7 @@ export default function CouponsMain({
 
   // Queries
   const { data, fetch } = useLazyQueryQL(GET_COUPONS_PAGINATED, {
-    fetchPolicy: 'network-only',
+    fetchPolicy: 'cache-and-network',
     onCompleted: () => setIsLoading(false),
   }) as ILazyQueryResult<
     IGetCouponsPaginatedData | undefined,
@@ -124,9 +124,9 @@ export default function CouponsMain({
         discount: 0,
         enabled: false,
         title: '',
-        lifeTimeActive: false,
-        startDate: '',
-        endDate: '',
+        restaurantId: null,
+        minOrderValue: 0,
+        usageLimit: null,
       },
     });
   }
@@ -223,9 +223,9 @@ export default function CouponsMain({
               discount: 0,
               enabled: false,
               title: '',
-              lifeTimeActive: false,
-              endDate: '',
-              startDate: '',
+              restaurantId: null,
+              minOrderValue: 0,
+              usageLimit: null,
             },
           })
         }

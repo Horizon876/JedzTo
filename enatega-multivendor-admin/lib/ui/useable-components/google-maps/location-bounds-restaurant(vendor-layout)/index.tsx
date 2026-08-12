@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // Core imports
 import {
@@ -117,7 +117,7 @@ const CustomGoogleMapsLocationBounds: React.FC<
     GET_RESTAURANT_PROFILE,
     {
       variables: { id: restaurantContextData?.id ?? '' },
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       skip: !restaurantContextData?.id,
       onCompleted: onRestaurantProfileFetchCompleted,
       onError: onErrorFetchRestaurantProfile,
@@ -127,7 +127,7 @@ const CustomGoogleMapsLocationBounds: React.FC<
     GET_RESTAURANT_DELIVERY_ZONE_INFO,
     {
       variables: { id: restaurantContextData?.id ?? '' },
-      fetchPolicy: 'network-only',
+      fetchPolicy: 'cache-and-network',
       skip: !restaurantContextData?.id,
       onCompleted: onRestaurantZoneInfoFetchCompleted,
       onError: onErrorFetchRestaurantZoneInfo,

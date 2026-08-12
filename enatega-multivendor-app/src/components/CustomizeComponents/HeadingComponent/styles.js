@@ -6,20 +6,22 @@ const styles = (props = null) =>
     topContainer: {
       width: '100%',
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       justifyContent: 'space-between',
       gap: scale(12),
       zIndex: 2
     },
     titleContainer: {
       flex: 1,
+      justifyContent: 'center',
       paddingRight: scale(8)
     },
     priceContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-end',
-      gap: scale(6)
+      gap: scale(6),
+      alignSelf: 'center'
     },
     descContainer: {
       width: '100%',

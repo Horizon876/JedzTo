@@ -2,6 +2,7 @@
 import RestaurantProvider from "@/lib/context/global/restaurant";
 import { AuthContext } from "@/lib/context/global/auth.context";
 import { SoundProvider } from "@/lib/context/global/sound.context";
+import { KitchenTicketProvider } from "@/lib/context/global/kitchen-ticket.context";
 import { useApptheme } from "@/lib/context/theme.context";
 
 // Expo
@@ -23,30 +24,28 @@ export default function ProtectedLayout() {
   return (
     <RestaurantProvider.Provider>
       <SoundProvider>
-        <>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              headerStyle: {
-                backgroundColor: appTheme.screenBackground,
-              },
-              headerTitleAlign: "center",
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="order-detail"
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="chat" options={{ headerShown: false }} />
-          </Stack>
-          {/* <Stack.Screen
-            name="bank-management"
-            options={{ headerShown: true }}
-          /> */}
-          <StatusBar style={currentTheme as StatusBarStyle} />
-          <FlashMessage position="bottom" />
-        </>
+        <KitchenTicketProvider>
+          <>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                headerStyle: {
+                  backgroundColor: appTheme.screenBackground,
+                },
+                headerTitleAlign: "center",
+              }}
+            >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="order-detail"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen name="chat" options={{ headerShown: false }} />
+            </Stack>
+            <StatusBar style={currentTheme as StatusBarStyle} />
+            <FlashMessage position="bottom" />
+          </>
+        </KitchenTicketProvider>
       </SoundProvider>
     </RestaurantProvider.Provider>
   );

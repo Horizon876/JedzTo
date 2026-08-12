@@ -1,13 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState } from "react";
 
-import {
-  Platform,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Pressable, Text, TouchableOpacity, View } from "react-native";
 
 // Hooks
 import useAcceptOrder from "@/lib/hooks/useAcceptOrder";
@@ -19,70 +12,53 @@ import { TIMES } from "@/lib/utils/constants";
 // Interface
 import { ISetOrderTimeComponentProps } from "@/lib/utils/interfaces";
 
-// UI
-
 // Icons
 import { useApptheme } from "@/lib/context/theme.context";
 import { useSoundContext } from "@/lib/context/global/sound.context";
+import { useKitchenTicketContext } from "@/lib/context/global/kitchen-ticket.context";
 import { useTranslation } from "react-i18next";
 import CustomContinueButton from "../custom-continue-button";
 import { CircleCrossIcon } from "../svg";
-import usePrintOrder from "@/lib/hooks/usePrintOrder";
 
 const SetTimeScreenAndAcceptOrder = ({
   id,
   orderId,
   handleDismissModal,
+  order,
 }: ISetOrderTimeComponentProps) => {
   // Hooks
   const { appTheme } = useApptheme();
   const { silenceRing } = useSoundContext();
+  const { showTicket } = useKitchenTicketContext();
   const { t } = useTranslation();
 
   // States
   const [selectedTime, setSelectedTime] = useState(TIMES[0]);
-  const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
 
   const { muteRing, loading: loadingRing } = useOrderRing();
   const { acceptOrder, loading: loadingAcceptOrder } = useAcceptOrder();
-  const { printOrder } = usePrintOrder();
-  const isSubmitting = loadingAcceptOrder || loadingRing || isAcceptingOrder;
+  const isSubmitting = loadingAcceptOrder || loadingRing;
 
   const onAcceptOrderHandler = async () => {
     if (isSubmitting) return;
+
+    const ticketPayload = order
+      ? { ...order, acceptedAt: new Date().toISOString() }
+      : null;
 
     try {
       await silenceRing();
       await acceptOrder(id, selectedTime?.toString() || "0");
       muteRing(orderId).catch(() => {});
-      handleDismissModal();
     } catch {
-      // FlashMessageComponent({ message: err?.message ?? "Order accept failed" });
+      // Still show print preview so kitchen can see the ticket.
     } finally {
+      // Close the prep-time sheet first — a native Modal can't reliably
+      // appear on top of an open BottomSheetModal.
       handleDismissModal();
-    }
-  };
-  const onAcceptAndPrintOrderHandler = async () => {
-    if (isSubmitting) return;
-
-    try {
-      setIsAcceptingOrder(true);
-      const status = await printOrder(id);
-
-      if (status) {
-        // null means it's ioS so ignore printing and true mean print wa successfull
-        await silenceRing();
-        await acceptOrder(id, selectedTime?.toString() || "0");
-        muteRing(orderId).catch(() => {});
+      if (ticketPayload) {
+        setTimeout(() => showTicket(ticketPayload), 350);
       }
-
-      setIsAcceptingOrder(false);
-      handleDismissModal();
-    } catch {
-      // FlashMessageComponent({ message: err?.message ?? "Order accept failed" });
-    } finally {
-      setIsAcceptingOrder(false);
-      handleDismissModal();
     }
   };
 
@@ -132,20 +108,9 @@ const SetTimeScreenAndAcceptOrder = ({
           isLoading={loadingAcceptOrder || loadingRing}
           style={{ backgroundColor: appTheme.primary }}
           onPress={onAcceptOrderHandler}
-          title={t("Done")}
+          title={t("Accept")}
         />
       </View>
-      {Platform.OS === "android" && (
-        <View>
-          <CustomContinueButton
-            disabled={isSubmitting}
-            isLoading={isSubmitting}
-            style={{ backgroundColor: appTheme.primary }}
-            onPress={onAcceptAndPrintOrderHandler}
-            title={t("AcceptAndPrint")}
-          />
-        </View>
-      )}
     </View>
   );
 };

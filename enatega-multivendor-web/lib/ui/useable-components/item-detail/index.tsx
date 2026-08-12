@@ -61,6 +61,18 @@ export default function FoodItemDetail(props: IFoodItemDetalComponentProps) {
     Record<string, Option | Option[]>
   >({});
 
+  // State for excluded ingredients
+  const [excludedIngredients, setExcludedIngredients] = useState<string[]>([]);
+
+  // Toggle ingredient exclusion
+  const handleToggleIngredient = (ingredient: string) => {
+    setExcludedIngredients((prev) => 
+      prev.includes(ingredient) 
+        ? prev.filter((i) => i !== ingredient)
+        : [...prev, ingredient]
+    );
+  };
+
   // State for clear cart modal
   const [showClearCartModal, setShowClearCartModal] = useState(false);
 
@@ -211,7 +223,8 @@ export default function FoodItemDetail(props: IFoodItemDetalComponentProps) {
         foodItem.restaurant,
         quantity,
         formattedAddons,
-        // Special instructions - could add a field for this
+        "", // Special instructions
+        excludedIngredients
       );
       // save restaurant id to local storage for product recommendation
       if (!isRecommendedProduct) {
@@ -335,9 +348,35 @@ export default function FoodItemDetail(props: IFoodItemDetalComponentProps) {
           {CURRENCY_SYMBOL}
           {selectedVariation?.price.toFixed(2)}
         </p>
-        <p className="font-inter font-normal text-gray-500 dark:text-gray-300 text-[12px] md:text-[13px] lg:text-[14px] leading-[18px] md:leading-[20px]">
+        <p className="font-inter font-normal text-gray-500 dark:text-gray-300 text-[12px] md:text-[13px] lg:text-[14px] leading-[18px] md:leading-[20px] mb-4">
           {foodItem?.description}
         </p>
+
+        {/* Ingredients Section */}
+        {foodItem?.ingredients && foodItem.ingredients.length > 0 && (
+          <div className="mb-4 text-start">
+            <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded-t-md">
+              <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                {t("Ingredients")}
+              </h3>
+            </div>
+            <div className="border border-gray-100 dark:border-gray-700 rounded-b-md p-2 flex flex-col gap-2">
+              {foodItem.ingredients.map((ingredient, index) => (
+                <label key={index} className="flex items-center space-x-3 cursor-pointer p-1">
+                  <input
+                    type="checkbox"
+                    checked={!excludedIngredients.includes(ingredient)}
+                    onChange={() => handleToggleIngredient(ingredient)}
+                    className="form-checkbox h-5 w-5 text-black rounded border-gray-300 focus:ring-black accent-black"
+                  />
+                  <span className="text-gray-700 dark:text-gray-300 select-none text-sm rtl:pr-3">
+                    {ingredient}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Divider />
 

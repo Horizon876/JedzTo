@@ -11,10 +11,7 @@ export const CouponFormSchema = Yup.object().shape({
     .min(1, 'The minimum starting value is one')
     .max(100, 'You cannot exceed from 100 as this is a %age field'),
   enabled: Yup.boolean().required('Required').required('Please choose one'),
-  lifeTimeActive: Yup.boolean(),
-  endDate: Yup.date().when('lifeTimeActive', {
-    is: false,
-    then: (schema) => schema.required('End Date is required'),
-    otherwise: (schema) => schema.notRequired(),
-  }),
+  restaurantId: Yup.string().nullable(),
+  minOrderValue: Yup.number().min(0).default(0),
+  usageLimit: Yup.number().nullable().min(1),
 });

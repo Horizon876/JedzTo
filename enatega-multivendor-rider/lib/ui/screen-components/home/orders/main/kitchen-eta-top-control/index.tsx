@@ -5,7 +5,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native'
+import { FontAwesome5 } from '@expo/vector-icons'
 import { useMutation, useQuery } from '@apollo/client'
 import { useTranslation } from 'react-i18next'
 
@@ -30,6 +32,9 @@ export default function KitchenEtaTopControl() {
   const { restaurantId, kitchenEtaMinutes } = useContext(UserContext)
   const [minutes, setMinutes] = useState(45)
   const [savedMinutes, setSavedMinutes] = useState(45)
+  const [isBusy, setIsBusy] = useState(false)
+  const [savedIsBusy, setSavedIsBusy] = useState(false)
+  
   const skipNextSave = useRef(true)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -48,6 +53,8 @@ export default function KitchenEtaTopControl() {
     return null
   })()
 
+  const serverIsBusy = data?.restaurant?.isBusy
+
   const [saveTimes, { loading: saving }] = useMutation(
     UPDATE_RESTAURANT_ORDER_TIMES,
     {
@@ -59,6 +66,10 @@ export default function KitchenEtaTopControl() {
         skipNextSave.current = true
         setMinutes(clamped)
         setSavedMinutes(clamped)
+        if (r?.isBusy != null) {
+          setIsBusy(r.isBusy)
+          setSavedIsBusy(r.isBusy)
+        }
       },
     }
   )
@@ -81,12 +92,19 @@ export default function KitchenEtaTopControl() {
   }, [serverEta])
 
   useEffect(() => {
+    if (serverIsBusy == null) return
+    skipNextSave.current = true
+    setIsBusy(serverIsBusy)
+    setSavedIsBusy(serverIsBusy)
+  }, [serverIsBusy])
+
+  useEffect(() => {
     if (!restaurantId) return
     if (skipNextSave.current) {
       skipNextSave.current = false
       return
     }
-    if (minutes === savedMinutes) return
+    if (minutes === savedMinutes && isBusy === savedIsBusy) return
 
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
@@ -96,6 +114,7 @@ export default function KitchenEtaTopControl() {
           defaultEta: minutes,
           pickupTime: minutes,
           deliveryTime: 0,
+          isBusy,
         },
       })
     }, SAVE_DEBOUNCE_MS)
@@ -103,36 +122,82 @@ export default function KitchenEtaTopControl() {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [minutes, restaurantId, saveTimes, savedMinutes])
+  }, [minutes, isBusy, restaurantId, saveTimes, savedMinutes, savedIsBusy])
 
   if (!restaurantId) return null
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.label} numberOfLines={1}>
-        {t('Estimated delivery time')}
-      </Text>
-      <View style={styles.controls}>
-        <TouchableOpacity
-          style={styles.step}
-          onPress={() => setMinutes((prev) => clampEta(prev - 5))}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.stepText}>−</Text>
-        </TouchableOpacity>
-        <View style={styles.valueBox}>
-          {saving ? (
-            <ActivityIndicator size="small" color={ACCENT} />
-          ) : (
-            <Text style={styles.value}>{minutes} min</Text>
-          )}
+    <View style={[styles.wrap, { flexDirection: 'row', justifyContent: 'center', gap: 24 }]}>
+      <View style={{ alignItems: 'center', gap: 8 }}>
+        <Text style={styles.label} numberOfLines={1}>
+          {t('Estimated delivery time')}
+        </Text>
+        <View style={styles.controls}>
+          <TouchableOpacity
+            style={styles.step}
+            onPress={() => setMinutes((prev) => clampEta(prev - 5))}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.stepText}>−</Text>
+          </TouchableOpacity>
+          <View style={styles.valueBox}>
+            {saving && minutes !== savedMinutes ? (
+              <ActivityIndicator size="small" color={ACCENT} />
+            ) : (
+              <Text style={styles.value}>{minutes} min</Text>
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.step}
+            onPress={() => setMinutes((prev) => clampEta(prev + 5))}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.stepText}>+</Text>
+          </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={{ alignItems: 'center', gap: 8 }}>
+        <Text style={styles.label} numberOfLines={1}>
+          Wstrzymaj przyjmowanie zamówień
+        </Text>
         <TouchableOpacity
-          style={styles.step}
-          onPress={() => setMinutes((prev) => clampEta(prev + 5))}
+          style={[
+            styles.step,
+            {
+              width: 'auto',
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              gap: 8,
+              backgroundColor: isBusy ? '#00E676' : '#FF453A',
+            },
+          ]}
+          onPress={() => {
+            if (!isBusy) {
+              Alert.alert(
+                'Wstrzymać zamówienia?',
+                'Czy na pewno chcesz wstrzymać przyjmowanie nowych zamówień?',
+                [
+                  { text: 'Anuluj', style: 'cancel' },
+                  { text: 'Zatwierdź', style: 'destructive', onPress: () => setIsBusy(true) },
+                ]
+              )
+            } else {
+              setIsBusy(false)
+            }
+          }}
           activeOpacity={0.85}
         >
-          <Text style={styles.stepText}>+</Text>
+          {saving && isBusy !== savedIsBusy ? (
+             <ActivityIndicator size="small" color="#fff" />
+          ) : (
+             <>
+               <FontAwesome5 name={isBusy ? "play-circle" : "pause-circle"} size={16} color="#fff" />
+               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                 {isBusy ? 'Wzłów' : 'Wstrzymaj'}
+               </Text>
+             </>
+          )}
         </TouchableOpacity>
       </View>
     </View>

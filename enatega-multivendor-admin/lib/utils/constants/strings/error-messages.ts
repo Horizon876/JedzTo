@@ -61,19 +61,21 @@ export const VendorErrors: IVendorErrors = {
 
 export const RestaurantErrors: IRestaurantFormErrors = {
   name: ['Required', 'Name cannot be only spaces'],
+  address: ['Required', 'Address cannot be only spaces'],
+  commissionRate: ['Wymagane', 'Minimalna prowizja to 0', 'Maksymalna prowizja to 100'],
+  image: ['Required', 'Invalid image URL'],
+  logo: ['Required', 'Invalid logo URL'],
+  ownerName: ['Wymagane', 'Maksymalnie 70 znaków'],
+  ownerLogin: ['Login jest wymagany', 'Login musi mieć co najmniej 3 znaki', 'Login może zawierać tylko litery, cyfry i znaki: . _ -'],
+  ownerPassword: ['Hasło jest wymagane', 'Hasło musi mieć co najmniej 6 znaków'],
+  ownerPasswordConfirm: ['Hasła nie są zgodne'],
+  // Legacy fields for vendor-scoped restaurant forms
   username: ['Required', 'Invalid email'],
   password: ['Required', ...PasswordErrors],
   confirmPassword: ['Required', 'Password must match'],
-  address: ['Required', 'Name cannot be only spaces'],
-  deliveryTime: ['Required', 'The value must be greater than or equal to 1'],
-  minOrder: ['Required'],
-  salesTax: ['Required'],
-  shopType: ['Required'],
-  cuisines: ['Required', 'Cuisines field must have at least 1 items'],
-  image: ['Required', 'Invalid image URL'],
-  logo: ['Required', 'Invalid logo URL'],
-  phoneNumber: ['Required', 'Minimum 5 Numbers are Required'],
 };
+
+
 
 export const RestaurantOwnerDetailsErrors: IRestaurantOwnerDetailsFormErrors = {
   ownerName: ['Required', 'Name cannot be only spaces'],

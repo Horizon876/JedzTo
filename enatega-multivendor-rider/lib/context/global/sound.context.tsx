@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { useContext, useEffect, useRef, useState, createContext } from 'react'
-import { useAudioPlayer, AudioSource } from 'expo-audio'
+import { useContext, useEffect, useRef, createContext } from 'react'
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio'
 
 import {
   ISoundContext,
@@ -12,85 +12,87 @@ import { IOrder } from '@/lib/utils/interfaces/order.interface'
 
 const SoundContext = createContext<ISoundContext>({} as ISoundContext)
 
-export const SoundProvider = ({ children }: ISoundContextProviderProps) => {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const playingRef = useRef(false)
+async function configureKitchenAudio() {
+  await setAudioModeAsync({
+    allowsRecording: false,
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    interruptionMode: 'duckOthers',
+    // Kitchen tablets must use the loudspeaker, not the earpiece.
+    shouldRouteThroughEarpiece: false,
+  })
+}
 
+export const SoundProvider = ({ children }: ISoundContextProviderProps) => {
+  const soundRef = useRef<ReturnType<typeof createAudioPlayer> | null>(null)
   const { assignedOrders } = useUserContext()
   const { workMode } = useWorkMode()
-  const player = useAudioPlayer(
-    require('@/lib/assets/sound/beep3.mp3') as AudioSource
-  )
+
+  const pendingSignature =
+    assignedOrders
+      ?.filter((o: IOrder) => o.orderStatus === 'PENDING')
+      .map((o: IOrder) => o._id)
+      .join(',') ?? ''
+
+  const hasPendingKitchenOrders =
+    workMode === 'kitchen' && pendingSignature.length > 0
+
+  const stopSound = async () => {
+    const player = soundRef.current
+    soundRef.current = null
+    if (!player) return
+
+    try {
+      player.loop = false
+    } catch {
+      // ignore
+    }
+    try {
+      player.pause()
+    } catch {
+      // ignore
+    }
+    try {
+      await player.seekTo(0)
+    } catch {
+      // ignore
+    }
+    try {
+      player.remove()
+    } catch {
+      // ignore
+    }
+  }
 
   const playSound = async () => {
     try {
+      await stopSound()
+      await configureKitchenAudio()
+
+      const player = createAudioPlayer(
+        require('@/lib/assets/sound/beep3.mp3')
+      )
       player.loop = true
-      if (!playingRef.current) {
-        player.play()
-        playingRef.current = true
-        setIsPlaying(true)
-      }
+      player.volume = 1
+      player.play()
+      soundRef.current = player
     } catch (err) {
-      console.log('Error playing sound:', err)
+      console.log('Kitchen ring failed:', err)
     }
   }
-
-  const stopSound = async () => {
-    try {
-      if (playingRef.current) {
-        player.pause()
-        playingRef.current = false
-        setIsPlaying(false)
-      }
-    } catch (err) {
-      console.log('Error stopping sound:', err)
-    }
-  }
-
-  useEffect(() => {
-    const playingSubscription = player.addListener(
-      'playingChange',
-      ({ playing }: { playing: boolean }) => {
-        playingRef.current = playing
-        setIsPlaying(playing)
-      }
-    )
-
-    return () => {
-      playingSubscription?.remove()
-    }
-  }, [player])
 
   useEffect(() => {
     // Sound only for kitchen while a PENDING order waits for accept/reject.
-    // Delivery mode stays silent.
-    const hasPending =
-      workMode === 'kitchen' &&
-      Boolean(assignedOrders?.some((o: IOrder) => o.orderStatus === 'PENDING'))
-
-    if (hasPending) {
+    if (hasPendingKitchenOrders) {
       void playSound()
     } else {
       void stopSound()
     }
-    // Depend on a stable signature so list refreshes don't restart audio.
-  }, [
-    workMode,
-    assignedOrders
-      ?.filter((o: IOrder) => o.orderStatus === 'PENDING')
-      .map((o: IOrder) => o._id)
-      .join(',') ?? '',
-  ])
 
-  useEffect(() => {
     return () => {
-      try {
-        player.pause()
-      } catch {
-        // ignore
-      }
+      void stopSound()
     }
-  }, [player])
+  }, [workMode, pendingSignature, hasPendingKitchenOrders])
 
   return (
     <SoundContext.Provider value={{ playSound, stopSound }}>

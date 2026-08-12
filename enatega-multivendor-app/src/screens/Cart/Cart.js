@@ -176,6 +176,7 @@ function Cart(props) {
       title: cartTitle,
       headerRight: null,
       headerBackVisible: false,
+      headerShadowVisible: false,
       headerTitleAlign: 'center',
       headerTitleStyle: {
         color: currentTheme.newFontcolor,
@@ -187,7 +188,10 @@ function Cart(props) {
         paddingRight: scale(25)
       },
       headerStyle: {
-        backgroundColor: currentTheme.newheaderBG
+        backgroundColor: currentTheme.newheaderBG,
+        elevation: 0,
+        shadowOpacity: 0,
+        borderBottomWidth: 0
       },
       headerLeft: () => (
         <TouchableOpacity
@@ -360,6 +364,7 @@ function Cart(props) {
                     quantity={food.quantity}
                     dealName={food.title}
                     optionsTitle={food.optionsTitle}
+                    removedIngredients={food.removedIngredients}
                     itemImage={food.image}
                     food={food.food}
                     cartItem={food.cartItem}
@@ -410,10 +415,10 @@ function Cart(props) {
                   </View>
                 ) : null}
                 <View style={styles(currentTheme).totalRow}>
-                  <TextDefault textColor='#FFFFFF' bolder H4 isRTL>
+                  <TextDefault textColor='#FFFFFF' bolder H3 isRTL style={styles().totalLabel}>
                     {t('total')}
                   </TextDefault>
-                  <TextDefault textColor='#00A8FF' bolder H4 isRTL>
+                  <TextDefault textColor='#00A8FF' bolder H3 isRTL style={styles().totalValue}>
                     {formatMoney(payableTotal)}
                   </TextDefault>
                 </View>

@@ -2,6 +2,7 @@ import { IExtendedOrder } from '@/lib/utils/interfaces';
 import { useTranslations } from 'next-intl';
 import { useMutation } from '@apollo/client';
 import { REFUND_ORDER } from '@/lib/api/graphql/mutations/settlements';
+import useToast from '@/lib/hooks/useToast';
 import { Button } from 'primereact/button';
 
 export const ORDER_SUPER_ADMIN_COLUMNS = () => {
@@ -18,8 +19,11 @@ export const ORDER_SUPER_ADMIN_COLUMNS = () => {
   };
 
   const RefundCell = ({ order }: { order: IExtendedOrder }) => {
+    const { showToast } = useToast();
     const [refund, { loading }] = useMutation(REFUND_ORDER, {
       refetchQueries: ['AllOrdersPaginated', 'allOrdersPaginated'],
+      onCompleted: () => showToast({ type: 'success', title: 'Sukces', message: 'Zwrot został wykonany.' }),
+      onError: (error) => showToast({ type: 'error', title: 'Błąd', message: error.message }),
     });
     const method = String(order.paymentMethod || '').toUpperCase();
     const paid = String(order.paymentStatus || '').toUpperCase() === 'PAID';

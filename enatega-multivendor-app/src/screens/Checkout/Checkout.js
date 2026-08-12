@@ -533,7 +533,8 @@ function Checkout(props) {
               options: options.map(({ _id }) => _id)
             }))
           : [],
-        specialInstructions: food?.specialInstructions
+        specialInstructions: food?.specialInstructions,
+        excludedIngredients: food?.removedIngredients || []
       }
     })
   }
@@ -833,6 +834,11 @@ function Checkout(props) {
                           <TextDefault numberOfLines={1} bolder style={styles().itemTitle} isRTL>
                             {food.title}
                           </TextDefault>
+                          {food.removedIngredients?.length > 0 ? (
+                            <TextDefault numberOfLines={2} style={styles().itemQty} isRTL>
+                              {t('without')}: {food.removedIngredients.join(', ')}
+                            </TextDefault>
+                          ) : null}
                           {food.optionsTitle?.length > 0 ? (
                             <TextDefault numberOfLines={2} style={styles().itemQty} isRTL>
                               {food.optionsTitle.join(', ')}

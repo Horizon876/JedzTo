@@ -4,7 +4,7 @@
 import { useContext } from 'react';
 
 // Context imports
-import { RestaurantsContext } from '@/lib/context/super-admin/restaurants.context';
+import { useRouter } from 'next/navigation';
 
 // Component imports
 import HeaderText from '@/lib/ui/useable-components/header-text';
@@ -17,9 +17,8 @@ import { useTranslations } from 'next-intl';
 export default function RestaurantsScreenHeader() {
   // Hooks
   const t = useTranslations();
+  const router = useRouter();
 
-  // Context
-  const { onRestaurantsFormVisible } = useContext(RestaurantsContext);
   return (
     <div className="sticky top-0 z-10 w-full flex-shrink-0 bg-white dark:bg-dark-950 p-3 shadow-sm">
       <div className="flex w-full justify-between">
@@ -29,7 +28,7 @@ export default function RestaurantsScreenHeader() {
           icon={faAdd}
           iconStyles={{ color: 'white' }}
           title={t('Add Store')}
-          onClick={() => onRestaurantsFormVisible(true)}
+          onClick={() => router.push('/general/stores/add')}
         />
       </div>
     </div>

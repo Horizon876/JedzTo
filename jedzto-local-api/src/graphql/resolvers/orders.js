@@ -110,7 +110,12 @@ export async function serializeOrder(order) {
     pickedAt: iso(order.pickedAt),
     deliveredAt: iso(order.deliveredAt),
     cancelledAt: iso(order.cancelledAt),
-    assignedAt: iso(order.assignedAt)
+    assignedAt: iso(order.assignedAt),
+    isRinged:
+      order.isRinged == null
+        ? String(order.orderStatus || '').toUpperCase() === 'PENDING'
+        : Boolean(order.isRinged),
+    isRiderRinged: Boolean(order.isRiderRinged)
   }
 }
 

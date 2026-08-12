@@ -1,4 +1,4 @@
-// Core
+﻿// Core
 import { ApolloError, useMutation } from '@apollo/client';
 import { Form, Formik } from 'formik';
 import { useContext, useEffect, useState } from 'react';
@@ -60,7 +60,7 @@ export default function VendorUpdateForms() {
   // API
   // Mutations
   const [updateVendor] = useMutation(EDIT_VENDOR, {
-    //  refetchQueries: [{ query: GET_VENDORS, fetchPolicy: 'network-only' }],
+    //  refetchQueries: [{ query: GET_VENDORS, fetchPolicy: 'cache-and-network' }],
     onError,
     onCompleted: () => {},
   });

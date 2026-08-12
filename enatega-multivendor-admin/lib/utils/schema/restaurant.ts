@@ -1,52 +1,45 @@
 import * as Yup from 'yup';
-import { IDropdownSelectItem } from '../interfaces';
+
 import { imageUrlSchema } from './image-url';
 
-// Shared by legacy vendor-scoped "add restaurant" forms that still collect a
-// restaurant-level username/password. The Super Admin "create restaurant"
-// wizard (jedzto-local-api flow) no longer collects these — the owner
-// account is generated automatically — so they stay optional here and are
-// only enforced when actually provided.
+// Validation schema for the Super Admin "create restaurant" wizard.
+// Owner account is now created with an admin-specified login + password
+// (no longer email-based with auto-generated password).
 export const RestaurantSchema = Yup.object().shape({
   name: Yup.string()
     .max(35)
     .trim()
     .matches(/\S/, 'Name cannot be only spaces')
     .required('Required'),
-  username: Yup.string().email('Invalid email'),
-  password: Yup.string()
-    .min(6, 'At least 6 characters')
-    .matches(/[a-z]/, 'At least one lowercase letter (a-z)')
-    .matches(/[A-Z]/, 'At least one uppercase letter (A-Z)')
-    .matches(/[0-9]/, 'At least one number (0-9)')
-    .matches(
-      /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/,
-      'At least one special character'
-    ),
-  confirmPassword: Yup.string()
+
+  ownerName: Yup.string().required('Wymagane').max(70, 'Maksymalnie 70 znaków'),
+
+  ownerLogin: Yup.string()
+    .required('Login jest wymagany')
+    .min(3, 'Login musi mieć co najmniej 3 znaki')
+    .max(50, 'Login może mieć maksymalnie 50 znaków')
+    .matches(/^[a-zA-Z0-9._-]+$/, 'Login może zawierać tylko litery, cyfry i znaki: . _ -'),
+
+  ownerPassword: Yup.string()
+    .required('Hasło jest wymagane')
+    .min(6, 'Hasło musi mieć co najmniej 6 znaków'),
+
+  ownerPasswordConfirm: Yup.string()
     .nullable()
-    .oneOf([Yup.ref('password'), null, ''], 'Password must match'),
-    address: Yup.string()
-    .max(100, 'Maximum 100 characters allowed')
+    .oneOf([Yup.ref('ownerPassword'), null, ''], 'Hasła nie są zgodne'),
+
+  address: Yup.string()
+    .max(200, 'Maximum 200 characters allowed')
     .trim()
     .matches(/\S/, 'Address cannot be only spaces')
-    .matches(/[a-zA-Z]/, 'Address must contain at least one letter.')
     .required('Required'),
-  
-  deliveryTime: Yup.number()
-    .required('Required')
-    .min(1, 'The value must be greater than or equal to 1'),
-  minOrder: Yup.number()
-    .required('Required')
-    .min(1, 'The value must be greater than or equal to 1'),
-  salesTax: Yup.number().required('Required'),
-  shopType: Yup.mixed<IDropdownSelectItem>().required('Required'),
-  cuisines: Yup.array()
-    .of(Yup.mixed<IDropdownSelectItem>())
-    .min(1, 'Cuisines field must have at least 1 items')
-    .required('Required'),
+
+  commissionRate: Yup.number()
+    .required('Wymagane')
+    .min(0, 'Minimalna prowizja to 0')
+    .max(100, 'Maksymalna prowizja to 100'),
 
   image: imageUrlSchema(),
   logo: imageUrlSchema('Invalid logo URL'),
-  phoneNumber: Yup.string().required('Required').min(5,"Minimum 5 Numbers are Required"),
+
 });

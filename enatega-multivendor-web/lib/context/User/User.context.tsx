@@ -59,6 +59,7 @@ export interface CartItem {
     }>;
   }>;
   specialInstructions?: string;
+  excludedIngredients?: string[];
   title?: string; // Added after querying food info
   foodTitle?: string;
   variationTitle?: string;
@@ -172,7 +173,8 @@ export interface UserContextType {
         _id: string;
       }>;
     }>,
-    specialInstructions?: string
+    specialInstructions?: string,
+    excludedIngredients?: string[]
   ) => Promise<void>;
   checkItemCart: (itemId: string) => {
     exist: boolean;
@@ -602,7 +604,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = (props) => {
           _id: string;
         }>;
       }> = [],
-      specialInstructions: string = ""
+      specialInstructions: string = "",
+      excludedIngredients: string[] = []
     ) => {
       // Check if we need to clear the cart (different restaurant)
       const needsClear = Boolean(restaurantId && restaurant !== restaurantId);
@@ -618,6 +621,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = (props) => {
         },
         addons,
         specialInstructions,
+        excludedIngredients,
       };
 
       // Set restaurant first

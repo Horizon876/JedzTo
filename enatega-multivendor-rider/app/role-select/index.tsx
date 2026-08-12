@@ -40,10 +40,6 @@ export default function RoleSelectScreen() {
     return <Redirect href={ROUTES.login as Href} />
   }
 
-  if (workMode) {
-    return <Redirect href={ROUTES.home as Href} />
-  }
-
   const choose = async (mode: 'kitchen' | 'delivery') => {
     await setWorkMode(mode)
     router.replace(ROUTES.home as Href)
@@ -93,17 +89,19 @@ export default function RoleSelectScreen() {
           paddingVertical: 28,
           paddingHorizontal: 16,
           marginBottom: 14,
-          backgroundColor: ACCENT,
+          backgroundColor: workMode === 'kitchen' ? ACCENT : SURFACE,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: workMode === 'kitchen' ? 'transparent' : HAIRLINE,
         }}
       >
-        <Text style={{ fontSize: 22, fontWeight: '800', color: '#FFFFFF' }}>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: workMode === 'kitchen' ? '#FFFFFF' : ACCENT }}>
           {t('Kitchen')}
         </Text>
         <Text
           style={{
             marginTop: 8,
             textAlign: 'center',
-            color: 'rgba(255,255,255,0.92)',
+            color: workMode === 'kitchen' ? 'rgba(255,255,255,0.92)' : MUTED,
             fontSize: 14,
             lineHeight: 20,
           }}
@@ -120,16 +118,16 @@ export default function RoleSelectScreen() {
           borderRadius: 14,
           paddingVertical: 28,
           paddingHorizontal: 16,
-          backgroundColor: SURFACE,
+          backgroundColor: workMode === 'delivery' ? ACCENT : SURFACE,
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: HAIRLINE,
+          borderColor: workMode === 'delivery' ? 'transparent' : HAIRLINE,
         }}
       >
         <Text
           style={{
             fontSize: 22,
             fontWeight: '800',
-            color: ACCENT,
+            color: workMode === 'delivery' ? '#FFFFFF' : ACCENT,
           }}
         >
           {t('Delivery')}
@@ -138,7 +136,7 @@ export default function RoleSelectScreen() {
           style={{
             marginTop: 8,
             textAlign: 'center',
-            color: MUTED,
+            color: workMode === 'delivery' ? 'rgba(255,255,255,0.92)' : MUTED,
             fontSize: 14,
             lineHeight: 20,
           }}

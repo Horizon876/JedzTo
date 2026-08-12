@@ -77,9 +77,9 @@ export const COUPONS_TABLE_COLUMNS = ({
       title: rowData?.title,
       discount: rowData?.discount,
       enabled: !rowData?.enabled,
-      lifeTimeActive: rowData?.lifeTimeActive,
-      startDate: rowData?.startDate,
-      endDate: rowData?.endDate,
+      restaurantId: rowData?.restaurantId,
+      minOrderValue: rowData?.minOrderValue,
+      usageLimit: rowData?.usageLimit,
     };
     await editCoupon({
       variables: {
@@ -107,38 +107,17 @@ export const COUPONS_TABLE_COLUMNS = ({
         },
       },
       {
-        headerName: t('lifetime_active'),
-        propertyName: 'lifeTimeActive',
+        headerName: t('Minimum Order Value'),
+        propertyName: 'minOrderValue',
         body: (rowData: ICoupon) => {
-          return <span>{rowData.lifeTimeActive ? t('Yes') : t('No')}</span>;
+          return <span>{rowData.minOrderValue} zł</span>;
         },
       },
       {
-        headerName: t('Start Date'),
-        propertyName: 'startDate',
+        headerName: t('Usage Limit'),
+        propertyName: 'usageLimit',
         body: (rowData: ICoupon) => {
-          if (rowData.lifeTimeActive) return <span>{t('Lifetime')}</span>;
-          return (
-            <span>
-              {rowData.startDate
-                ? new Date(Number(rowData.startDate)).toLocaleDateString()
-                : '-'}{' '}
-            </span>
-          );
-        },
-      },
-      {
-        headerName: t('End Date'),
-        propertyName: 'endDate',
-        body: (rowData: ICoupon) => {
-          if (rowData.lifeTimeActive) return <span>{t('Lifetime')}</span>;
-          return (
-            <span>
-              {rowData.endDate
-                ? new Date(Number(rowData.endDate)).toLocaleDateString()
-                : '-'}
-            </span>
-          );
+          return <span>{rowData.usageLimit !== null ? rowData.usageLimit : t('No limit')}</span>;
         },
       },
       {

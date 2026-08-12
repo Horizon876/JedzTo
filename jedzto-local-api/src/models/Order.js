@@ -14,7 +14,8 @@ const orderItemSchema = new mongoose.Schema(
       discounted: { type: Number, default: 0 }
     },
     addons: { type: Array, default: [] },
-    specialInstructions: { type: String, default: '' }
+    specialInstructions: { type: String, default: '' },
+    excludedIngredients: { type: [String], default: [] }
   },
   { _id: true }
 )
@@ -94,7 +95,10 @@ const orderSchema = new mongoose.Schema(
     platformCommission: { type: Number, default: null },
     stripePaymentIntentId: { type: String, default: null },
     refundedAt: { type: Date, default: null },
-    refundAmount: { type: Number, default: null }
+    refundAmount: { type: Number, default: null },
+    /** Kitchen tablet alarm — true until muted/accepted. */
+    isRinged: { type: Boolean, default: true },
+    isRiderRinged: { type: Boolean, default: false }
   },
   { timestamps: true }
 )

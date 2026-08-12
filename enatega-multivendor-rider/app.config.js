@@ -42,7 +42,14 @@ module.exports = {
           supportsPictureInPicture: true
         }
       ],
-      'expo-secure-store'
+      'expo-secure-store',
+      [
+        'expo-audio',
+        {
+          microphonePermission: false,
+          enableBackgroundPlayback: true
+        }
+      ]
     ],
     platforms: ['ios', 'android'],
     ios: {
@@ -55,14 +62,19 @@ module.exports = {
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
           '$(PRODUCT_NAME) uses your location for features like finding orders nearby and tracking customer orders!',
-        UIBackgroundModes: ['location', 'fetch', 'remote-notification'],
+        UIBackgroundModes: ['location', 'fetch', 'remote-notification', 'audio'],
         ITSAppUsesNonExemptEncryption: false
       }
     },
     android: {
       versionCode: 86,
       googleServicesFile: './google-services.json',
-      permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION'],
+      permissions: [
+        'ACCESS_COARSE_LOCATION',
+        'ACCESS_FINE_LOCATION',
+        'MODIFY_AUDIO_SETTINGS',
+        'FOREGROUND_SERVICE'
+      ],
       config: {
         googleMaps: {
           ...(androidGoogleMapsApiKey ? { apiKey: androidGoogleMapsApiKey } : {})

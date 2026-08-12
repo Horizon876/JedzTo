@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import {
   View,
   Modal,
@@ -7,7 +7,8 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  Keyboard
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -22,10 +23,35 @@ const MAX_LENGTH = 230
 
 export const InstructionsModal = ({ isVisible, hideModal, onSubmit, value, setValue, t }) => {
   const insets = useSafeAreaInsets()
+  const inputRef = useRef(null)
+  const closingRef = useRef(false)
   const length = useMemo(() => String(value || '').length, [value])
 
+  useEffect(() => {
+    if (isVisible) closingRef.current = false
+  }, [isVisible])
+
+  const handleClose = () => {
+    if (closingRef.current) return
+    closingRef.current = true
+    inputRef.current?.blur?.()
+    Keyboard.dismiss()
+    hideModal?.()
+  }
+
+  const handleSubmit = () => {
+    inputRef.current?.blur?.()
+    Keyboard.dismiss()
+    onSubmit?.()
+  }
+
   return (
-    <Modal visible={isVisible} animationType='slide' presentationStyle='fullScreen'>
+    <Modal
+      visible={isVisible}
+      animationType='slide'
+      presentationStyle='fullScreen'
+      onRequestClose={handleClose}
+    >
       <View style={[styles.screen, { paddingTop: insets.top + scale(4) }]}>
         <KeyboardAvoidingView
           style={styles.flex}
@@ -35,7 +61,8 @@ export const InstructionsModal = ({ isVisible, hideModal, onSubmit, value, setVa
           <View style={styles.header}>
             <TouchableOpacity
               activeOpacity={0.75}
-              onPress={hideModal}
+              onPress={handleClose}
+              onPressIn={handleClose}
               style={styles.backButton}
               accessibilityRole='button'
               accessibilityLabel={t('cancel')}
@@ -51,10 +78,12 @@ export const InstructionsModal = ({ isVisible, hideModal, onSubmit, value, setVa
           <ScrollView
             style={styles.flex}
             contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, scale(16)) + scale(12) }]}
-            keyboardShouldPersistTaps='handled'
+            keyboardShouldPersistTaps='always'
+            keyboardDismissMode='none'
             showsVerticalScrollIndicator={false}
           >
             <TextInput
+              ref={inputRef}
               value={value}
               onChangeText={setValue}
               autoFocus
@@ -70,7 +99,7 @@ export const InstructionsModal = ({ isVisible, hideModal, onSubmit, value, setVa
               {length}/{MAX_LENGTH}
             </TextDefault>
 
-            <TouchableOpacity activeOpacity={0.85} onPress={onSubmit} style={styles.primaryButton}>
+            <TouchableOpacity activeOpacity={0.85} onPress={handleSubmit} style={styles.primaryButton}>
               <TextDefault bolder textColor='#FFFFFF' center H5>
                 {t('Done')}
               </TextDefault>
@@ -96,7 +125,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: scale(14),
     paddingBottom: scale(10),
-    minHeight: scale(48)
+    minHeight: scale(48),
+    zIndex: 2
   },
   backButton: {
     width: scale(40),

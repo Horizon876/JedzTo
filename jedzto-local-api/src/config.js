@@ -1,8 +1,21 @@
 import 'dotenv/config'
+import path from 'path'
 
 export const PORT = Number(process.env.PORT || 8001)
+export const NODE_ENV = process.env.NODE_ENV || 'development'
 export const MONGODB_URI =
   process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/jedzto'
+
+/** Allow on-disk mongodb-memory-server when real Mongo is down (dev only). */
+export const ALLOW_MEMORY_MONGO =
+  process.env.ALLOW_MEMORY_MONGO != null
+    ? process.env.ALLOW_MEMORY_MONGO !== '0'
+    : NODE_ENV !== 'production'
+
+/** Persistent data directory for local Mongo fallback (survives API restart). */
+export const MONGO_MEMORY_DB_PATH =
+  process.env.MONGO_MEMORY_DB_PATH ||
+  path.resolve(process.cwd(), '.data', 'mongodb')
 
 const DEFAULT_JWT_SECRET = 'jedzto-local-dev-secret'
 export const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET
@@ -10,7 +23,7 @@ export const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET
 // Fail fast in production when running with the default dev secret — a
 // leaked or trivially guessable secret lets anyone forge valid tokens.
 if (
-  process.env.NODE_ENV === 'production' &&
+  NODE_ENV === 'production' &&
   JWT_SECRET === DEFAULT_JWT_SECRET
 ) {
   console.error(

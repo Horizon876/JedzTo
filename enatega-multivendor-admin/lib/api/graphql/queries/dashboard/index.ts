@@ -8,7 +8,8 @@ export const GET_DASHBOARD_USERS = gql`
       vendorsCount
       restaurantsCount
       ridersCount
-      
+      ordersCount
+      monthlyOrdersCount
     }
   }
 `;

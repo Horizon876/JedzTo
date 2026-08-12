@@ -498,6 +498,7 @@ export default function OrderCheckoutScreen() {
             }))
           : [],
         specialInstructions: food.specialInstructions,
+        excludedIngredients: food.excludedIngredients || [],
       };
     });
   }
@@ -1174,6 +1175,11 @@ export default function OrderCheckoutScreen() {
                               );
                             },
                           )}
+                          {item?.excludedIngredients && item.excludedIngredients.length > 0 && (
+                            <p className="text-red-500 tracking-normal font-inter text-xs sm:text-[12px] md:text-[12px]">
+                              {t("Without")}: {item.excludedIngredients.join(", ")}
+                            </p>
+                          )}
                         </div>
                         <p className="text-secondary-color font-semibold text-sm sm:text-base md:text-[11px] lg:text-[12px] xl:text-[14px]">
                           {CURRENCY_SYMBOL}
@@ -1208,19 +1214,6 @@ export default function OrderCheckoutScreen() {
                 {t("add_more_items_button")}
               </button>
             </div>
-
-            {orderInstructions && orderInstructions.length > 0 ? (
-              <>
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 text-base sm:text-lg md:text-[16px] lg:text-[18px]">
-                  {t("order_instruction_label")}
-                </h2>
-                <p className="text-gray-500 dark:text-gray-400 mb-4 leading-5 sm:leading-5 tracking-normal font-inter text-xs sm:text-sm md:text-sm align-middle mt-2">
-                  {orderInstructions}
-                </p>
-              </>
-            ) : (
-              ""
-            )}
 
             {/* <!-- Payment Details --> */}
             <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 text-base sm:text-lg md:text-[16px] lg:text-[18px]">

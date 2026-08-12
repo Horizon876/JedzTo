@@ -90,7 +90,7 @@ async function confirmPaidFromRequest({ sessionId, orderId }) {
     const metaOrderId = session.metadata?.orderId || orderId
     if (sessionLooksPaid(session) && metaOrderId) {
       order = (await findOrder(metaOrderId)) || order
-      if (order) order = await markStripeOrderPaid(order, serializeOrder)
+      if (order) order = await markStripeOrderPaid(order, serializeOrder, session.payment_intent)
     }
   } else if (order) {
     // already_paid / manual confirm path
