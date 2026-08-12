@@ -18,12 +18,13 @@ export const mapFood = (f) => ({
   createdAt: f.createdAt?.toISOString?.() || f.createdAt,
   updatedAt: f.updatedAt?.toISOString?.() || f.updatedAt,
   variations: (f.variations || []).map((v) => ({
-    _id: id(v) || String(v._id),
-    id: id(v) || String(v._id),
+    _id: id(v) || id(v?._id),
+    id: id(v) || id(v?._id),
     title: v.title,
     price: v.price,
     discounted: v.discounted || 0,
-    addons: v.addons || [],
+    // GraphQL declares addons as [ID!] — never return raw ObjectIds.
+    addons: (v.addons || []).map((a) => id(a) || id(a?._id) || String(a)).filter(Boolean),
     isOutOfStock: Boolean(v.isOutOfStock)
   }))
 })

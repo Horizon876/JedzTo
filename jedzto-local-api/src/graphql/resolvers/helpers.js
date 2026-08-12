@@ -8,15 +8,27 @@
 import { GraphQLError } from 'graphql'
 import { withCurrentEta, computeCurrentEta, resolveDefaultEta } from '../../services/eta.js'
 import { rewriteUploadUrl } from '../../utils/publicUrl.js'
-import { rewriteUploadUrlsDeep } from '../../services/menu.js'
+import { mapFood } from '../../services/menu.js'
 import { canAcceptOrders } from '../../services/restaurantAvailability.js'
 
 // ---------------------------------------------------------------------------
 // Scalar helpers
 // ---------------------------------------------------------------------------
 
-/** Stringify a Mongoose document _id to a plain string (or null). */
-export const id = (doc) => (doc?._id ? String(doc._id) : null)
+/** Stringify a Mongoose ObjectId / document _id for GraphQL ID fields. */
+export const id = (doc) => {
+  if (doc == null || doc === '') return null
+  if (typeof doc === 'string' || typeof doc === 'number') return String(doc)
+  if (typeof doc.toHexString === 'function') return doc.toHexString()
+  if (doc._id != null) return id(doc._id)
+  try {
+    const asString = String(doc)
+    if (asString && asString !== '[object Object]') return asString
+  } catch {
+    /* ignore */
+  }
+  return null
+}
 
 /** Safely parse a number, returning `fallback` for non-finite values. */
 export const toCoord = (value, fallback = 0) => {
@@ -205,7 +217,20 @@ export const toPreview = (r) => {
 export function publishedCategories(restaurant) {
   const snapshot = restaurant?.publishedMenu
   if (!snapshot || !Array.isArray(snapshot.categories)) return []
-  return rewriteUploadUrlsDeep(snapshot.categories)
+  // Snapshot is stored as plain Mongo documents — ObjectId values must be
+  // stringified before GraphQL's ID scalar sees them (otherwise: "ID cannot
+  // represent value: { buffer: … }").
+  return snapshot.categories.map((category) => ({
+    _id: id(category) || (category?._id ? String(category._id) : null),
+    title: category.title,
+    image: rewriteUploadUrl(category.image || ''),
+    restaurantId:
+      id({ _id: category.restaurantId }) ||
+      (category.restaurantId ? String(category.restaurantId) : null),
+    foods: (category.foods || []).map((food) => mapFood(food)),
+    createdAt: category.createdAt?.toISOString?.() || category.createdAt || null,
+    updatedAt: category.updatedAt?.toISOString?.() || category.updatedAt || null
+  }))
 }
 
 /**
