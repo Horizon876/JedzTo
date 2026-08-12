@@ -101,6 +101,9 @@ export default function RestaurantsMain() {
     {
       fetchPolicy: 'cache-and-network',
       debounceMs: 300,
+      // Keep rows visible even if a non-critical nested field errors
+      // (Apollo's default "none" would otherwise wipe the whole table).
+      errorPolicy: 'all',
     }
   ) as IQueryResult<IRestaurantsResponseGraphQL | undefined, undefined>;
 

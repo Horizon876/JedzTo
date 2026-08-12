@@ -42,6 +42,7 @@ export const useQueryGQL = <
     skip: !enabled,
     fetchPolicy,
     pollInterval,
+    errorPolicy: (options as { errorPolicy?: 'none' | 'ignore' | 'all' }).errorPolicy,
     onCompleted,
     onError,
   });

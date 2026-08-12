@@ -160,7 +160,10 @@ export async function listRestaurants({ shopType, latitude, longitude } = {}) {
 
 /**
  * Loads the owner once per restaurant object, even when both `owner` and
- * `username` are selected (they used to fire one full-document query each).
+ * `username` are selected. Must cache a real Promise — caching the Mongoose
+ * Query itself causes "Query was already executed" when GraphQL awaits it
+ * twice (owner + username in parallel), which Apollo then treats as a hard
+ * failure and the admin stores table renders empty.
  */
 const ownerOf = (parent) => {
   if (!parent.ownerId) return Promise.resolve(null)
@@ -168,6 +171,7 @@ const ownerOf = (parent) => {
     parent.__ownerPromise = User.findById(parent.ownerId)
       .select('email isActive')
       .lean()
+      .exec()
   }
   return parent.__ownerPromise
 }
