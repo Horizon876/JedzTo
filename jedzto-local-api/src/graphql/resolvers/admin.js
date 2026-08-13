@@ -28,7 +28,7 @@ import { normalizePhone } from '../../utils/phone.js'
 import { resolveDefaultEta } from '../../services/eta.js'
 import { markSettlementSettled, currentPeriodKey } from '../../services/settlements.js'
 import { publishOrderChanged, isOnlineCardMethod } from '../../services/orderNotify.js'
-import { priceOrder } from '../../services/pricing.js'
+import { priceOrder, lookupCoupon } from '../../services/pricing.js'
 import { withCurrentEta } from '../../services/eta.js'
 import { restaurantUnavailableReason } from '../../services/restaurantAvailability.js'
 import {
@@ -145,6 +145,30 @@ export const adminMutations = {
     await publishOrderChanged(order, serialized, 'abortOrder')
     return serialized
   },
+
+  /** Customer checkout — validate code + phone (one redemption per number). */
+  coupon: async (_p, { coupon, restaurantId, phone, itemsTotal }, ctx) => {
+    assertPublicAccess(ctx)
+    const phoneKey = normalizePhone(phone)
+    if (!phoneKey) {
+      return {
+        success: false,
+        message: 'Aby użyć kuponu, zweryfikuj numer telefonu',
+        coupon: null
+      }
+    }
+    const result = await lookupCoupon(restaurantId, coupon, {
+      phone: phoneKey,
+      itemsTotal
+    })
+    return {
+      success: result.ok,
+      message: result.message,
+      coupon: result.coupon ? couponShape(result.coupon) : null
+    }
+  },
+  // Legacy alias (capital C).
+  Coupon: async (_p, args, ctx) => adminMutations.coupon(_p, args, ctx),
 
   createCoupon: async (_p, { couponInput }, ctx) => {
     assertPublicAccess(ctx)
