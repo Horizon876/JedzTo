@@ -12,12 +12,18 @@
  */
 
 import crypto from 'crypto'
-import { ALLOW_TEST_OTP } from '../config.js'
+import { ALLOW_TEST_OTP, SMS_GATEWAY_ENABLED } from '../config.js'
 
 const TTL_MS = 10 * 60 * 1000
 const MAX_ATTEMPTS = 5
 const RESEND_INTERVAL_MS = 30 * 1000
-const TEST_OTP = '123456'
+export const TEST_OTP = '123456'
+
+export const OTP_PURPOSE = {
+  EMAIL: 'email',
+  PHONE: 'phone',
+  PASSWORD_RESET: 'reset'
+}
 
 /** @type {Map<string, { hash: string, expiresAt: number, attempts: number, issuedAt: number }>} */
 const store = new Map()
@@ -46,7 +52,12 @@ export const issueOtp = (purpose, identifier) => {
   const existing = store.get(key)
   if (existing && now - existing.issuedAt < RESEND_INTERVAL_MS) return null
 
-  const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+  // Until SMS_GATEWAY_ENABLED=1, phone codes stay fixed so the app can verify
+  // numbers (e.g. before applying a coupon) without a gateway.
+  const useFixedPhoneOtp = !SMS_GATEWAY_ENABLED && purpose === OTP_PURPOSE.PHONE
+  const code = useFixedPhoneOtp
+    ? TEST_OTP
+    : String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
   store.set(key, { hash: hash(code), expiresAt: now + TTL_MS, attempts: 0, issuedAt: now })
   return code
 }
@@ -61,6 +72,10 @@ export const consumeOtp = (purpose, identifier, code) => {
 
   // Development-only escape hatch so local test flows keep working.
   if (ALLOW_TEST_OTP && candidate === TEST_OTP) return true
+  // Pre-SMS phone verification (coupons etc.): fixed code until gateway is on.
+  if (!SMS_GATEWAY_ENABLED && purpose === OTP_PURPOSE.PHONE && candidate === TEST_OTP) {
+    return true
+  }
 
   const key = keyFor(purpose, identifier)
   const entry = store.get(key)
@@ -82,10 +97,4 @@ export const consumeOtp = (purpose, identifier, code) => {
 
   store.delete(key)
   return true
-}
-
-export const OTP_PURPOSE = {
-  EMAIL: 'email',
-  PHONE: 'phone',
-  PASSWORD_RESET: 'reset'
 }

@@ -25,7 +25,7 @@ import {
   upsertSettlementPreview,
   currentPeriodKey
 } from '../../services/settlements.js'
-import { STRIPE_PUBLISHABLE_KEY, ALLOW_TEST_OTP, NODE_ENV } from '../../config.js'
+import { STRIPE_PUBLISHABLE_KEY, ALLOW_TEST_OTP, SMS_GATEWAY_ENABLED, NODE_ENV } from '../../config.js'
 import { containsFilter, clampPageSize, clampNonNegative } from '../../utils/sanitize.js'
 import { googleReviewsPayload } from '../../services/googleReviews.js'
 import {
@@ -73,7 +73,9 @@ const CONFIG = {
   privacyPolicy: 'https://jedzto.pl/privacy',
   // Only ever exposed while the dev OTP bypass is active; in production the
   // client must not be told any code at all.
-  testOtp: ALLOW_TEST_OTP ? '123456' : '',
+  // Fixed phone OTP is active until SMS_GATEWAY_ENABLED=1; expose it so
+  // staging/QA can confirm the current code. Empty once a real gateway is on.
+  testOtp: ALLOW_TEST_OTP || !SMS_GATEWAY_ENABLED ? '123456' : '',
   skipMobileVerification: NODE_ENV !== 'production',
   skipEmailVerification: NODE_ENV !== 'production',
   costType: 'fixed',

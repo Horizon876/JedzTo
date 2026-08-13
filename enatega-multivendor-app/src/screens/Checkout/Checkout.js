@@ -8,7 +8,7 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { Placeholder, PlaceholderLine, Fade } from 'rn-placeholder'
 import { Modalize } from 'react-native-modalize'
 import { deliveryQuote } from '../../apollo/queries'
-import { applyCoupon, placeOrder } from '../../apollo/mutations'
+import { applyCoupon, placeOrder, sendOtpToPhoneNumber, updateUser, VERIFY_OTP } from '../../apollo/mutations'
 import { scale } from '../../utils/scaling'
 import { stripeCurrencies, paypalCurrencies } from '../../utils/currencies'
 import { formatMoney } from '../../utils/formatMoney'
@@ -54,6 +54,12 @@ const PLACEORDER = gql`
 const APPLY_COUPON = gql`
   ${applyCoupon}
 `
+const SEND_OTP_TO_PHONE = gql`
+  ${sendOtpToPhoneNumber}
+`
+const UPDATE_USER = gql`
+  ${updateUser}
+`
 const DELIVERY_QUOTE = gql`
   ${deliveryQuote}
 `
@@ -83,6 +89,10 @@ function Checkout(props) {
   const [orderDate] = useState(new Date())
   const [deliveryCharges, setDeliveryCharges] = useState(0)
   const [voucherCode, setVoucherCode] = useState('')
+  const [voucherPhone, setVoucherPhone] = useState('')
+  const [voucherOtp, setVoucherOtp] = useState('')
+  const [voucherOtpSent, setVoucherOtpSent] = useState(false)
+  const [voucherPhoneVerified, setVoucherPhoneVerified] = useState(false)
   const tip = null
   const [paymentMode, setPaymentMode] = useState(null)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -167,6 +177,116 @@ function Checkout(props) {
     onCompleted: onCouponCompleted,
     onError: onCouponError
   })
+
+  const [sendVoucherOtp, { loading: voucherOtpSending }] = useMutation(SEND_OTP_TO_PHONE, {
+    onCompleted: () => {
+      setVoucherOtpSent(true)
+      FlashMessage({ message: t('otpSentToPhone') })
+    },
+    onError: (error) => {
+      FlashMessage({
+        message:
+          error?.graphQLErrors?.[0]?.message ||
+          error?.networkError?.result?.errors?.[0]?.message ||
+          t('somethingWentWrong')
+      })
+    }
+  })
+
+  const [verifyVoucherOtp, { loading: voucherOtpVerifying }] = useMutation(VERIFY_OTP, {
+    onError: (error) => {
+      FlashMessage({
+        message:
+          error?.graphQLErrors?.[0]?.message ||
+          error?.networkError?.result?.errors?.[0]?.message ||
+          t('wrongOtp')
+      })
+    }
+  })
+
+  const [mutateVoucherUser, { loading: voucherUserUpdating }] = useMutation(UPDATE_USER, {
+    onError: (error) => {
+      FlashMessage({
+        message:
+          error?.graphQLErrors?.[0]?.message ||
+          error?.networkError?.result?.errors?.[0]?.message ||
+          t('somethingWentWrong')
+      })
+    }
+  })
+
+  const phoneAlreadyVerified = Boolean(profile?.phoneIsVerified && profile?.phone)
+  const canApplyVoucher = phoneAlreadyVerified || voucherPhoneVerified
+
+  const resetVoucherPhoneState = useCallback(() => {
+    setVoucherOtp('')
+    setVoucherOtpSent(false)
+    setVoucherPhoneVerified(false)
+    setVoucherPhone(profile?.phone || '')
+  }, [profile?.phone])
+
+  const openVoucherModal = useCallback(() => {
+    setVoucherCode('')
+    resetVoucherPhoneState()
+    if (profile?.phoneIsVerified && profile?.phone) {
+      setVoucherPhoneVerified(true)
+    }
+    voucherModalRef.current?.open()
+  }, [profile?.phone, profile?.phoneIsVerified, resetVoucherPhoneState])
+
+  const handleSendVoucherOtp = useCallback(() => {
+    const phone = String(voucherPhone || '').trim()
+    if (!phone) {
+      FlashMessage({ message: t('mobileErr1') })
+      return
+    }
+    sendVoucherOtp({ variables: { phone } })
+  }, [sendVoucherOtp, t, voucherPhone])
+
+  const handleVerifyVoucherOtp = useCallback(async () => {
+    const phone = String(voucherPhone || '').trim()
+    const otp = String(voucherOtp || '').trim()
+    if (!phone) {
+      FlashMessage({ message: t('mobileErr1') })
+      return
+    }
+    if (!/^\d{6}$/.test(otp)) {
+      FlashMessage({ message: t('wrongOtp') })
+      return
+    }
+
+    const { data: verifyData } = await verifyVoucherOtp({
+      variables: { otp, phone }
+    })
+    if (!verifyData?.verifyOtp?.result) {
+      FlashMessage({ message: t('wrongOtp') })
+      return
+    }
+
+    if (profile?.name) {
+      try {
+        await mutateVoucherUser({
+          variables: {
+            name: profile.name,
+            phone,
+            phoneIsVerified: true
+          }
+        })
+      } catch (_) {
+        // Local verified flag still unlocks coupon apply for this session.
+      }
+    }
+
+    setVoucherPhoneVerified(true)
+    FlashMessage({ message: t('numberVerified') })
+  }, [
+    mutateVoucherUser,
+    profile?.name,
+    t,
+    verifyVoucherOtp,
+    voucherOtp,
+    voucherPhone
+  ])
 
   const [mutateOrder, { loading: mutateOrderLoading }] = useMutation(PLACEORDER, {
     onCompleted,
@@ -300,12 +420,6 @@ function Checkout(props) {
     // Depend on restaurant id only — `data` from useRestaurant used to be a new
     // object every render and this effect + updateCart caused an infinite loop.
   }, [cartRestaurant, data?.restaurant?._id])
-
-  useEffect(() => {
-    if (quoteData?.deliveryQuote?.available && quoteData.deliveryQuote.minOrder != null) {
-      setMinimumOrder(quoteData.deliveryQuote.minOrder)
-    }
-  }, [quoteData?.deliveryQuote?.available, quoteData?.deliveryQuote?.minOrder])
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
   const populatedCart = useMemo(() => populateCart(restaurant, cart), [cart, restaurant])
 
@@ -601,11 +715,7 @@ function Checkout(props) {
       setLoadingData(false)
       return
     }
-    setMinimumOrder(
-      quoteData?.deliveryQuote?.available && quoteData.deliveryQuote.minOrder != null
-        ? quoteData.deliveryQuote.minOrder
-        : currentRestaurant.minimumOrder
-    )
+    setMinimumOrder(currentRestaurant.minimumOrder)
     try {
       if (cartCount && cart) {
         const transformCart = populateCart(currentRestaurant, cart)
@@ -923,7 +1033,7 @@ function Checkout(props) {
                   <TouchableOpacity
                     activeOpacity={0.75}
                     style={styles(currentTheme).surfaceRow}
-                    onPress={() => onModalOpen(voucherModalRef)}
+                    onPress={openVoucherModal}
                   >
                     <MaterialCommunityIcons
                       name='ticket-confirmation-outline'
@@ -1109,7 +1219,7 @@ function Checkout(props) {
           modalStyle={styles(currentTheme).modal}
           overlayStyle={styles().overlay}
           handleStyle={styles().handle}
-          modalHeight={320}
+          adjustToContentHeight
           handlePosition='inside'
           openAnimationConfig={{
             timing: { duration: 320 },
@@ -1120,7 +1230,7 @@ function Checkout(props) {
             spring: { speed: 20, bounciness: 8 }
           }}
         >
-          <View style={styles().modalContainer}>
+          <View style={[styles().modalContainer, { paddingBottom: scale(28) }]}>
             <View style={styles(currentTheme).modalHeader}>
               <View style={styles(currentTheme).modalheading}>
                 <MaterialCommunityIcons name='ticket-confirmation-outline' size={22} color='#00A8FF' />
@@ -1130,35 +1240,119 @@ function Checkout(props) {
               </View>
               <Feather name='x' size={22} color='#8E8E93' onPress={() => onModalClose(voucherModalRef)} />
             </View>
-            <View style={{ gap: 8 }}>
-              <TextDefault bold textColor='#8E8E93' isRTL>
-                {t('enterCode')}
-              </TextDefault>
-              <TextInput
-                placeholder={t('inputCode')}
-                placeholderTextColor='#8E8E93'
-                value={voucherCode}
-                onChangeText={setVoucherCode}
-                autoCapitalize='characters'
-                style={styles(currentTheme).modalInput}
-              />
-            </View>
-            <TouchableOpacity
-              disabled={!voucherCode || couponLoading}
-              activeOpacity={0.85}
-              onPress={() => {
-                mutateCoupon({ variables: { coupon: voucherCode, restaurantId: data?.restaurant?._id } })
-              }}
-              style={[styles().button, (!voucherCode || couponLoading) && styles().buttonDisabled]}
-            >
-              {!couponLoading ? (
-                <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
-                  {t('apply')}
+
+            {!canApplyVoucher ? (
+              <View style={{ gap: scale(12) }}>
+                <TextDefault bold textColor='#8E8E93' isRTL>
+                  {t('voucherVerifyPhoneFirst')}
                 </TextDefault>
-              ) : (
-                <Spinner backColor={'transparent'} spinnerColor='#fff' />
-              )}
-            </TouchableOpacity>
+                <TextDefault bold textColor='#8E8E93' isRTL>
+                  {t('phoneNumber')}
+                </TextDefault>
+                <TextInput
+                  placeholder={t('phoneNumber')}
+                  placeholderTextColor='#8E8E93'
+                  value={voucherPhone}
+                  onChangeText={setVoucherPhone}
+                  keyboardType='phone-pad'
+                  autoComplete='tel'
+                  textContentType='telephoneNumber'
+                  style={styles(currentTheme).modalInput}
+                />
+                <TouchableOpacity
+                  disabled={!voucherPhone || voucherOtpSending}
+                  activeOpacity={0.85}
+                  onPress={handleSendVoucherOtp}
+                  style={[
+                    styles().button,
+                    (!voucherPhone || voucherOtpSending) && styles().buttonDisabled
+                  ]}
+                >
+                  {!voucherOtpSending ? (
+                    <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
+                      {voucherOtpSent ? t('resendOtpBtn') : t('voucherSendCode')}
+                    </TextDefault>
+                  ) : (
+                    <Spinner backColor={'transparent'} spinnerColor='#fff' />
+                  )}
+                </TouchableOpacity>
+
+                {voucherOtpSent ? (
+                  <View style={{ gap: scale(8) }}>
+                    <TextDefault bold textColor='#8E8E93' isRTL>
+                      {t('voucherEnterSmsCode')}
+                    </TextDefault>
+                    <TextInput
+                      placeholder='123456'
+                      placeholderTextColor='#8E8E93'
+                      value={voucherOtp}
+                      onChangeText={setVoucherOtp}
+                      keyboardType='number-pad'
+                      maxLength={6}
+                      style={styles(currentTheme).modalInput}
+                    />
+                    <TouchableOpacity
+                      disabled={voucherOtp.length !== 6 || voucherOtpVerifying || voucherUserUpdating}
+                      activeOpacity={0.85}
+                      onPress={handleVerifyVoucherOtp}
+                      style={[
+                        styles().button,
+                        (voucherOtp.length !== 6 ||
+                          voucherOtpVerifying ||
+                          voucherUserUpdating) &&
+                          styles().buttonDisabled
+                      ]}
+                    >
+                      {!(voucherOtpVerifying || voucherUserUpdating) ? (
+                        <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
+                          {t('verifyPhone')}
+                        </TextDefault>
+                      ) : (
+                        <Spinner backColor={'transparent'} spinnerColor='#fff' />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+              </View>
+            ) : (
+              <View style={{ gap: scale(8) }}>
+                <TextDefault bold textColor='#8E8E93' isRTL>
+                  {t('voucherPhoneVerified')}
+                </TextDefault>
+                <TextDefault bold textColor='#8E8E93' isRTL>
+                  {t('enterCode')}
+                </TextDefault>
+                <TextInput
+                  placeholder={t('inputCode')}
+                  placeholderTextColor='#8E8E93'
+                  value={voucherCode}
+                  onChangeText={setVoucherCode}
+                  autoCapitalize='characters'
+                  style={styles(currentTheme).modalInput}
+                />
+                <TouchableOpacity
+                  disabled={!voucherCode || couponLoading}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    mutateCoupon({
+                      variables: {
+                        coupon: voucherCode,
+                        restaurantId: data?.restaurant?._id
+                      }
+                    })
+                  }}
+                  style={[styles().button, (!voucherCode || couponLoading) && styles().buttonDisabled]}
+                >
+                  {!couponLoading ? (
+                    <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
+                      {t('apply')}
+                    </TextDefault>
+                  ) : (
+                    <Spinner backColor={'transparent'} spinnerColor='#fff' />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </Modalize>
       </View>

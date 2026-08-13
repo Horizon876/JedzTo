@@ -627,6 +627,10 @@ export const en = {
   enterAmount: 'ENTER AMOUNT',
   applyVoucher: 'Apply a Voucher',
   inputCode: 'Input Code',
+  voucherVerifyPhoneFirst: 'To add a coupon, verify your phone number first.',
+  voucherSendCode: 'Send code',
+  voucherEnterSmsCode: 'Enter SMS code',
+  voucherPhoneVerified: 'Phone verified — you can add a coupon.',
   AddTip: 'Add Tip',
   permanentDeleteMessage:
     'Are you sure you want to delete your account? This action cannot be undone. Deleting your account will permanently remove all of your data, including your orders and preferences. If you proceed, you will lose access to your account and its benefits.',

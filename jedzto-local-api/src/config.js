@@ -48,8 +48,12 @@ export const SEED_ON_START = NODE_ENV === 'production' ? false : process.env.SEE
 export const LOCAL_API_OPEN =
   NODE_ENV === 'production' ? false : process.env.LOCAL_API_OPEN !== '0'
 
-// Dev convenience: accept the well-known 123456 OTP. Always off in production,
-// otherwise every account can be taken over via resetPassword.
+// When unset, phone OTP stays fixed at 123456 (UI + logs) until an SMS
+// gateway is connected. Set SMS_GATEWAY_ENABLED=1 for random codes.
+export const SMS_GATEWAY_ENABLED = process.env.SMS_GATEWAY_ENABLED === '1'
+
+// Dev convenience: accept the well-known 123456 OTP for email/reset too.
+// Always off in production (password-reset takeover risk).
 export const ALLOW_TEST_OTP =
   NODE_ENV === 'production' ? false : process.env.ALLOW_TEST_OTP !== '0'
 
