@@ -1,26 +1,32 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useContext } from 'react'
 import { DeviceEventEmitter } from 'react-native'
 import { useQuery } from '@apollo/client'
 import gql from 'graphql-tag'
 import { restaurant } from '../../apollo/queries'
-import { LocationContext } from '../../context/Location'
 import {
   getJedzToLocalRestaurantById,
   isJedzToLocalRestaurantId,
   jedzToLocalRestaurantsEnabled
 } from '../../utils/jedztoLocalRestaurants'
 import { RESTAURANT_TIMES_UPDATED_EVENT } from '../../components/RestaurantTimesSync/RestaurantTimesSync'
+import { LocationContext } from '../../context/Location'
 
 export const RESTAURANT = gql`
   ${restaurant}
 `
 
 export default function useRestaurant(id) {
-  const { location } = useContext(LocationContext)
+  const { location } = useContext(LocationContext) || {}
   const latitude =
-    location?.latitude != null ? Number(location.latitude) : undefined
+    location?.latitude != null && location?.latitude !== ''
+      ? Number(location.latitude)
+      : undefined
   const longitude =
-    location?.longitude != null ? Number(location.longitude) : undefined
+    location?.longitude != null && location?.longitude !== ''
+      ? Number(location.longitude)
+      : undefined
+  const hasCoords =
+    Number.isFinite(latitude) && Number.isFinite(longitude)
 
   const useLocal =
     jedzToLocalRestaurantsEnabled() && isJedzToLocalRestaurantId(id)
@@ -38,7 +44,10 @@ export default function useRestaurant(id) {
   const { data, refetch, networkStatus, loading, error } = useQuery(
     RESTAURANT,
     {
-      variables: { id, latitude, longitude },
+      variables: {
+        id,
+        ...(hasCoords ? { latitude, longitude } : {})
+      },
       fetchPolicy: 'cache-and-network',
       nextFetchPolicy: 'cache-first',
       skip: useLocal || !id
