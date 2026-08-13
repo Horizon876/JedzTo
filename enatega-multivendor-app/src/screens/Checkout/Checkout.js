@@ -69,7 +69,7 @@ function Checkout(props) {
 
   const configuration = useContext(ConfigurationContext)
   const { reFetchOrders } = useContext(OrdersContext)
-  const { isLoggedIn, profile, clearCart, restaurant: cartRestaurant, cart, cartCount, updateCart, isPickup, setIsPickup, instructions, coupon, setCoupon } = useContext(UserContext)
+  const { isLoggedIn, profile, clearCart, restaurant: cartRestaurant, cart, cartCount, updateCart, isPickup, setIsPickup, instructions, coupon, setCoupon, refetchProfile } = useContext(UserContext)
 
   const themeContext = useContext(ThemeContext)
   const { location } = useContext(LocationContext)
@@ -208,7 +208,8 @@ function Checkout(props) {
     }
   })
 
-  const canApplyVoucher = voucherPhoneVerified
+  const phoneAlreadyVerified = Boolean(profile?.phoneIsVerified && profile?.phone)
+  const canApplyVoucher = phoneAlreadyVerified || voucherPhoneVerified
 
   const resetVoucherPhoneState = useCallback(() => {
     setVoucherOtp('')
@@ -220,8 +221,12 @@ function Checkout(props) {
   const openVoucherModal = useCallback(() => {
     setVoucherCode('')
     resetVoucherPhoneState()
+    if (profile?.phoneIsVerified && profile?.phone) {
+      setVoucherPhoneVerified(true)
+      setVoucherPhone(profile.phone)
+    }
     voucherModalRef.current?.open()
-  }, [resetVoucherPhoneState])
+  }, [profile?.phone, profile?.phoneIsVerified, resetVoucherPhoneState])
 
   const handleSendVoucherOtp = useCallback(() => {
     const phone = String(voucherPhone || '').trim()
@@ -252,18 +257,20 @@ function Checkout(props) {
       return
     }
 
-    if (profile?.name) {
-      try {
-        await mutateVoucherUser({
-          variables: {
-            name: profile.name,
-            phone,
-            phoneIsVerified: true
-          }
-        })
-      } catch (_) {
-        // Local verified flag still unlocks coupon apply for this session.
+    const name = String(profile?.name || '').trim() || 'Gość'
+    try {
+      await mutateVoucherUser({
+        variables: {
+          name,
+          phone,
+          phoneIsVerified: true
+        }
+      })
+      if (typeof refetchProfile === 'function') {
+        await refetchProfile()
       }
+    } catch (_) {
+      // Local verified flag still unlocks coupon apply for this session.
     }
 
     setVoucherPhoneVerified(true)
@@ -271,6 +278,7 @@ function Checkout(props) {
   }, [
     mutateVoucherUser,
     profile?.name,
+    refetchProfile,
     t,
     verifyVoucherOtp,
     voucherOtp,
