@@ -7,7 +7,8 @@ import React, {
 } from 'react'
 import { View, TouchableOpacity, StatusBar, Linking } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps'
+import SafeMapView from '../../components/Map/SafeMapView'
+import MapboxTileOverlay from '../../components/Map/MapboxTileOverlay'
 import { theme } from '../../utils/themeColors'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import styles from './styles'
@@ -128,19 +129,21 @@ export default function SelectLocation(props) {
     <>
       <View style={styles().flex}>
         <View style={styles().mapView}>
-          <MapView
+          <SafeMapView
             ref={mapRef}
             initialRegion={coordinates}
             region={coordinates}
             style={{ flex: 1 }}
-            provider={PROVIDER_GOOGLE}
             showsTraffic={false}
             maxZoomLevel={15}
             customMapStyle={ themeContext.ThemeValue === 'Dark'  ? darkMapStyle  : customMapStyle }
             onRegionChangeComplete={onRegionChangeComplete}
+            fallback={
+              <View style={{ flex: 1, backgroundColor: currentTheme.themeBackground }} />
+            }
           >
             <MapboxTileOverlay styleId={themeContext.ThemeValue === 'Dark' ? 'dark-v11' : 'streets-v12'} />
-          </MapView>
+          </SafeMapView>
           <View style={styles().mainContainer}>
             <CustomMarker
               width={40}

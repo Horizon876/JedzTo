@@ -21,7 +21,8 @@ import SearchModal from '../../components/Address/SearchModal'
 import { Feather } from '@expo/vector-icons'
 import ModalDropdown from '../../components/Picker/ModalDropdown'
 import { useNavigation } from '@react-navigation/native'
-import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps'
+import SafeMapView from '../../components/Map/SafeMapView'
+import { Marker } from 'react-native-maps'
 import screenOptions from './screenOptions'
 import { useLocation } from '../../ui/hooks'
 import UserContext from '../../context/User'
@@ -219,9 +220,8 @@ export default function AddNewAddress(props) {
     <>
       <View style={styles().flex}>
         <View style={[styles().mapView, { height: '55%', zIndex: -10 }]}>
-          <MapView
+          <SafeMapView
             ref={mapRef}
-            provider={PROVIDER_GOOGLE}
             style={{ flex: 1, width: '100%', height: '100%' }}
             initialRegion={{
               latitude: initialLocation.latitude,
@@ -251,9 +251,10 @@ export default function AddNewAddress(props) {
             minZoomLevel={1}
             mapType='standard'
             onMapReady={() => setMapReady(true)}
+            fallback={<View style={{ flex: 1, backgroundColor: currentTheme.themeBackground }} />}
           >
             <MapboxTileOverlay styleId={themeContext.ThemeValue === 'Dark' ? 'dark-v11' : 'streets-v12'} />
-          </MapView>
+          </SafeMapView>
           
           {/* Marker overlay with pointer events disabled */}
           <View style={styles().mainContainer} pointerEvents='none'>

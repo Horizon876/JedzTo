@@ -44,7 +44,7 @@ module.exports = () => {
     },
     platforms: ['ios', 'android'],
     orientation: 'portrait',
-    icon: './assets/icon.png',
+    icon: './assets/appIcon.png',
     assetBundlePatterns: ['**/*'],
     userInterfaceStyle: 'automatic',
     ios: {
@@ -60,7 +60,7 @@ module.exports = () => {
       supportsTablet: true,
       userInterfaceStyle: 'automatic',
       bundleIdentifier: 'com.enatega.multivendor',
-      icon: './assets/icon.png',
+      icon: './assets/appIcon.png',
       googleServicesFile: './GoogleService-Info.plist',
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
@@ -123,7 +123,7 @@ module.exports = () => {
         }
       ],
       adaptiveIcon: {
-        foregroundImage: './assets/icon.png',
+        foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#000000'
       }
     },

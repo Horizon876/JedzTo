@@ -1,10 +1,10 @@
 import React, { useContext, useMemo } from 'react'
 import { TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import TextDefault from '../../Text/TextDefault/TextDefault'
+import SafeMapView from '../../Map/SafeMapView'
 import MapboxTileOverlay from '../../Map/MapboxTileOverlay'
 import ThemeContext from '../../../ui/ThemeContext/ThemeContext'
 import darkMapStyle from '../../../utils/DarkMapStyles'
@@ -33,12 +33,15 @@ const NoDeliveryArea = ({ currentTheme, location, onChangeAddress, onOrderPickup
     }
   }, [location?.latitude, location?.longitude])
 
+  const mapFallback = (
+    <View style={[themedStyles.map, { backgroundColor: isDark ? '#1C1C1E' : '#E5E7EB' }]} />
+  )
+
   return (
     <View style={themedStyles.root}>
       <View style={themedStyles.mapSection}>
-        <MapView
+        <SafeMapView
           style={themedStyles.map}
-          provider={PROVIDER_GOOGLE}
           initialRegion={mapRegion}
           region={mapRegion}
           customMapStyle={isDark ? darkMapStyle : customMapStyle}
@@ -50,9 +53,10 @@ const NoDeliveryArea = ({ currentTheme, location, onChangeAddress, onOrderPickup
           pitchEnabled={false}
           scrollEnabled={false}
           zoomEnabled={false}
+          fallback={mapFallback}
         >
           <MapboxTileOverlay styleId={isDark ? 'dark-v11' : 'streets-v12'} />
-        </MapView>
+        </SafeMapView>
 
         <View pointerEvents="none" style={themedStyles.pinWrap}>
           <View style={themedStyles.pinColumn}>

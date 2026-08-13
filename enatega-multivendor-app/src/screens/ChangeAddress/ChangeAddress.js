@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps'
+import SafeMapView from '../../components/Map/SafeMapView'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { useTranslation } from 'react-i18next'
@@ -724,10 +724,9 @@ export default function ChangeAddress() {
     <View style={themedStyles.root}>
       {step === 'list' ? (
         <View style={themedStyles.mapSection}>
-          <MapView
+          <SafeMapView
             ref={mapRef}
             style={themedStyles.map}
-            provider={PROVIDER_GOOGLE}
             initialRegion={mapRegion}
             customMapStyle={isDark ? darkMapStyle : customMapStyle}
             showsUserLocation={false}
@@ -738,9 +737,10 @@ export default function ChangeAddress() {
             pitchEnabled={false}
             scrollEnabled={false}
             zoomEnabled={false}
+            fallback={<View style={[themedStyles.map, { backgroundColor: isDark ? '#1C1C1E' : '#E5E7EB' }]} />}
           >
             <MapboxTileOverlay styleId={isDark ? 'dark-v11' : 'streets-v12'} />
-          </MapView>
+          </SafeMapView>
 
           <View style={[themedStyles.closeWrap, { top: insets.top + scale(8) }]}>
             <TouchableOpacity
