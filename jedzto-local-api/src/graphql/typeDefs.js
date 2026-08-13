@@ -783,6 +783,12 @@ export const typeDefs = `#graphql
     restaurant: Restaurant
   }
 
+  type ApplyCouponResponse {
+    success: Boolean
+    message: String
+    coupon: Coupon
+  }
+
   type CouponsPaginatedResponse {
     data: [Coupon!]
     totalCount: Int
@@ -1161,7 +1167,8 @@ export const typeDefs = `#graphql
     updateNotificationStatus(offerNotification: Boolean!, orderNotification: Boolean!): UserProfile
     addFavourite(id: String!): UserProfile
     abortOrder(id: String!): Order
-    Coupon(coupon: String!, restaurantId: ID!): Coupon
+    coupon(coupon: String!, restaurantId: ID!): ApplyCouponResponse
+    Coupon(coupon: String!, restaurantId: ID!): ApplyCouponResponse
     sendChatMessage(orderId: ID!, messageInput: ChatMessageInput!): ChatMessagePayload
     Deactivate(isActive: Boolean!, email: String!): UserProfile
     reviewOrder(order: String, rating: Int, description: String): Order

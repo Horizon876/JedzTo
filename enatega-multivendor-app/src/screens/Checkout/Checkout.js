@@ -141,29 +141,22 @@ function Checkout(props) {
   }
 
   function onCouponCompleted(data) {
-    const couponData = data?.coupon?.coupon
-    if (couponData) {
-      if (couponData.enabled) {
-        setCoupon(couponData)
-        FlashMessage({
-          message: t('coupanApply')
-        })
-        setVoucherCode('')
-        onModalClose(voucherModalRef)
-        setLoadingOrder(false)
-      } else {
-        FlashMessage({
-          message: t('coupanFailed')
-        })
-        setLoadingOrder(false)
-      }
-    } else {
-      // If no coupon data, show the message from the response
+    const payload = data?.coupon
+    const couponData = payload?.coupon
+    if (couponData?.enabled) {
+      setCoupon(couponData)
       FlashMessage({
-        message: data?.coupon?.message || t('invalidCoupan')
+        message: payload?.message || t('coupanApply')
       })
+      setVoucherCode('')
+      onModalClose(voucherModalRef)
       setLoadingOrder(false)
+      return
     }
+    FlashMessage({
+      message: payload?.message || t('invalidCoupan')
+    })
+    setLoadingOrder(false)
   }
 
   function onCouponError() {
@@ -1082,11 +1075,8 @@ function Checkout(props) {
                       color='#00A8FF'
                     />
                     <View style={styles().surfaceRowBody}>
-                      <TextDefault style={styles().surfaceRowLabel} isRTL>
-                        {t('addVoucher')}
-                      </TextDefault>
                       <TextDefault style={styles().surfaceRowValue} isRTL>
-                        {t('applyVoucher')}
+                        {t('addVoucher')}
                       </TextDefault>
                     </View>
                     <Feather
@@ -1357,9 +1347,11 @@ function Checkout(props) {
               </View>
             ) : (
               <View style={{ gap: scale(8) }}>
-                <TextDefault bold textColor='#8E8E93' isRTL>
-                  {t('voucherPhoneVerified')}
-                </TextDefault>
+                {voucherPhoneVerified && !phoneAlreadyVerified ? (
+                  <TextDefault bold textColor='#8E8E93' isRTL>
+                    {t('voucherPhoneVerified')}
+                  </TextDefault>
+                ) : null}
                 <TextDefault bold textColor='#8E8E93' isRTL>
                   {t('enterCode')}
                 </TextDefault>
@@ -1369,20 +1361,26 @@ function Checkout(props) {
                   value={voucherCode}
                   onChangeText={setVoucherCode}
                   autoCapitalize='characters'
+                  autoCorrect={false}
                   style={styles(currentTheme).modalInput}
                 />
                 <TouchableOpacity
-                  disabled={!voucherCode || couponLoading}
+                  disabled={!String(voucherCode || '').trim() || couponLoading}
                   activeOpacity={0.85}
                   onPress={() => {
+                    const code = String(voucherCode || '').trim()
+                    if (!code) return
                     mutateCoupon({
                       variables: {
-                        coupon: voucherCode,
+                        coupon: code,
                         restaurantId: data?.restaurant?._id
                       }
                     })
                   }}
-                  style={[styles().button, (!voucherCode || couponLoading) && styles().buttonDisabled]}
+                  style={[
+                    styles().button,
+                    (!String(voucherCode || '').trim() || couponLoading) && styles().buttonDisabled
+                  ]}
                 >
                   {!couponLoading ? (
                     <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>

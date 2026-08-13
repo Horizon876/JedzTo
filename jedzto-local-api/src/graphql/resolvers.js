@@ -1,6 +1,8 @@
 import { withFilter } from 'graphql-subscriptions'
 import { GraphQLError } from 'graphql'
 import { User, Restaurant, Category, Food, Order, ShopType } from '../models/index.js'
+import { lookupCoupon } from '../services/pricing.js'
+import { couponShape } from './resolvers/helpers.js'
 import {
   assertPublicAccess,
   requireUser,
@@ -2033,12 +2035,24 @@ export const resolvers = {
       ).lean()
       return serializeOrder(updated)
     },
-    Coupon: (_p, { coupon }, ctx) => {
+    coupon: async (_p, { coupon, restaurantId }, ctx) => {
       assertPublicAccess(ctx)
-      if (coupon?.toUpperCase() === 'JEDZTO') {
-        return { _id: 'c1', title: 'JEDZTO', discount: 10, enabled: true }
+      const result = await lookupCoupon(restaurantId, coupon)
+      return {
+        success: result.ok,
+        message: result.message,
+        coupon: result.coupon ? couponShape(result.coupon) : null
       }
-      throw new GraphQLError('Invalid coupon')
+    },
+    // Legacy alias (capital C) — same payload as `coupon`.
+    Coupon: async (_p, args, ctx) => {
+      assertPublicAccess(ctx)
+      const result = await lookupCoupon(args.restaurantId, args.coupon)
+      return {
+        success: result.ok,
+        message: result.message,
+        coupon: result.coupon ? couponShape(result.coupon) : null
+      }
     },
     sendChatMessage: async (_p, { orderId, messageInput }, ctx) => {
       assertPublicAccess(ctx)

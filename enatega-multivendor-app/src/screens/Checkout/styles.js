@@ -277,7 +277,7 @@ const styles = (props = null) =>
       borderRadius: scale(999)
     },
     buttonDisabled: {
-      opacity: 0.55
+      opacity: 0.35
     },
     checkoutBtn: {
       width: '100%',

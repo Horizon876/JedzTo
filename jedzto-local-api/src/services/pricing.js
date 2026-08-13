@@ -153,19 +153,41 @@ export function resolveDeliveryFee(restaurant, { isPickup, latitude, longitude }
   return delivery.fee == null ? DELIVERY_RATE : Number(delivery.fee)
 }
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Looks up an enabled coupon for a restaurant (case-insensitive title).
+ * Platform-wide coupons have restaurantId = null.
+ */
+export async function lookupCoupon(restaurantId, couponCode) {
+  const code = String(couponCode || '').trim()
+  if (!code) {
+    return { ok: false, message: 'Podaj kod kuponu', coupon: null }
+  }
+
+  const restaurantOid = restaurantId || null
+  const coupon = await Coupon.findOne({
+    title: { $regex: new RegExp(`^${escapeRegex(code)}$`, 'i') },
+    enabled: true,
+    $or: [{ restaurantId: restaurantOid }, { restaurantId: null }]
+  })
+
+  if (!coupon) {
+    return { ok: false, message: 'Nieprawidłowy kupon', coupon: null }
+  }
+  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
+    return { ok: false, message: 'Kod rabatowy został już wykorzystany', coupon: null }
+  }
+
+  return { ok: true, message: 'Zastosowano kupon', coupon }
+}
+
 /** Validates a coupon and returns the discount in currency units. */
 async function resolveDiscount(restaurant, couponCode, itemsTotal) {
   if (!couponCode) return { discountAmount: 0, coupon: null }
 
-  const coupon = await Coupon.findOne({
-    title: String(couponCode).trim(),
-    enabled: true,
-    $or: [{ restaurantId: restaurant._id }, { restaurantId: null }]
-  })
-  if (!coupon) throw badInput('Kod rabatowy jest nieprawidłowy lub nieaktywny')
-  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
-    throw badInput('Kod rabatowy został już wykorzystany')
-  }
+  const { ok, message, coupon } = await lookupCoupon(restaurant._id, couponCode)
+  if (!ok || !coupon) throw badInput(message || 'Kod rabatowy jest nieprawidłowy lub nieaktywny')
   if (itemsTotal < Number(coupon.minOrderValue || 0)) {
     throw badInput(`Kod rabatowy wymaga zamówienia od ${Number(coupon.minOrderValue).toFixed(2)}`)
   }
