@@ -583,6 +583,8 @@ export const pl = {
     applyVoucher: 'Zastosuj kupon',
     inputCode: 'Wprowadź kod',
     voucherVerifyPhoneFirst: 'Aby dodać kupon, najpierw zweryfikuj numer telefonu.',
+    voucherFullNameRequired: 'Podaj imię i nazwisko',
+    voucherFullNamePlaceholder: 'Np. Anna Kowalska',
     voucherSendCode: 'Wyślij kod',
     voucherEnterSmsCode: 'Wpisz kod z SMS (na razie: 123456)',
     voucherPhoneVerified: 'Numer zweryfikowany — możesz dodać kupon.',

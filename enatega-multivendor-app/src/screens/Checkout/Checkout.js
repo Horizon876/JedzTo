@@ -89,6 +89,7 @@ function Checkout(props) {
   const [orderDate] = useState(new Date())
   const [deliveryCharges, setDeliveryCharges] = useState(0)
   const [voucherCode, setVoucherCode] = useState('')
+  const [voucherName, setVoucherName] = useState('')
   const [voucherPhone, setVoucherPhone] = useState('')
   const [voucherOtp, setVoucherOtp] = useState('')
   const [voucherOtpSent, setVoucherOtpSent] = useState(false)
@@ -208,6 +209,10 @@ function Checkout(props) {
     }
   })
 
+  const hasFullPersonName = useCallback((value) => {
+    return String(value || '').trim().split(/\s+/).filter(Boolean).length >= 2
+  }, [])
+
   const phoneAlreadyVerified = Boolean(profile?.phoneIsVerified && profile?.phone)
   const canApplyVoucher = phoneAlreadyVerified || voucherPhoneVerified
 
@@ -216,7 +221,8 @@ function Checkout(props) {
     setVoucherOtpSent(false)
     setVoucherPhoneVerified(false)
     setVoucherPhone(profile?.phone || '')
-  }, [profile?.phone])
+    setVoucherName(profile?.name || '')
+  }, [profile?.name, profile?.phone])
 
   const openVoucherModal = useCallback(() => {
     setVoucherCode('')
@@ -224,22 +230,33 @@ function Checkout(props) {
     if (profile?.phoneIsVerified && profile?.phone) {
       setVoucherPhoneVerified(true)
       setVoucherPhone(profile.phone)
+      setVoucherName(profile?.name || '')
     }
     voucherModalRef.current?.open()
-  }, [profile?.phone, profile?.phoneIsVerified, resetVoucherPhoneState])
+  }, [profile?.name, profile?.phone, profile?.phoneIsVerified, resetVoucherPhoneState])
 
   const handleSendVoucherOtp = useCallback(() => {
     const phone = String(voucherPhone || '').trim()
+    const name = String(voucherName || '').trim()
+    if (!hasFullPersonName(name)) {
+      FlashMessage({ message: t('voucherFullNameRequired') })
+      return
+    }
     if (!phone) {
       FlashMessage({ message: t('mobileErr1') })
       return
     }
     sendVoucherOtp({ variables: { phone } })
-  }, [sendVoucherOtp, t, voucherPhone])
+  }, [hasFullPersonName, sendVoucherOtp, t, voucherName, voucherPhone])
 
   const handleVerifyVoucherOtp = useCallback(async () => {
     const phone = String(voucherPhone || '').trim()
     const otp = String(voucherOtp || '').trim()
+    const name = String(voucherName || '').trim()
+    if (!hasFullPersonName(name)) {
+      FlashMessage({ message: t('voucherFullNameRequired') })
+      return
+    }
     if (!phone) {
       FlashMessage({ message: t('mobileErr1') })
       return
@@ -257,7 +274,6 @@ function Checkout(props) {
       return
     }
 
-    const name = String(profile?.name || '').trim() || 'Gość'
     try {
       await mutateVoucherUser({
         variables: {
@@ -269,18 +285,25 @@ function Checkout(props) {
       if (typeof refetchProfile === 'function') {
         await refetchProfile()
       }
-    } catch (_) {
-      // Local verified flag still unlocks coupon apply for this session.
+    } catch (error) {
+      FlashMessage({
+        message:
+          error?.graphQLErrors?.[0]?.message ||
+          error?.networkError?.result?.errors?.[0]?.message ||
+          t('somethingWentWrong')
+      })
+      return
     }
 
     setVoucherPhoneVerified(true)
     FlashMessage({ message: t('numberVerified'), type: 'success' })
   }, [
+    hasFullPersonName,
     mutateVoucherUser,
-    profile?.name,
     refetchProfile,
     t,
     verifyVoucherOtp,
+    voucherName,
     voucherOtp,
     voucherPhone
   ])
@@ -1283,6 +1306,18 @@ function Checkout(props) {
                   {t('voucherVerifyPhoneFirst')}
                 </TextDefault>
                 <TextDefault bold textColor='#8E8E93' isRTL>
+                  {t('customerDetailsName')}
+                </TextDefault>
+                <TextInput
+                  placeholder={t('voucherFullNamePlaceholder')}
+                  placeholderTextColor='#8E8E93'
+                  value={voucherName}
+                  onChangeText={setVoucherName}
+                  autoComplete='name'
+                  textContentType='name'
+                  style={styles(currentTheme).modalInput}
+                />
+                <TextDefault bold textColor='#8E8E93' isRTL>
                   {t('phoneNumber')}
                 </TextDefault>
                 <TextInput
@@ -1296,12 +1331,13 @@ function Checkout(props) {
                   style={styles(currentTheme).modalInput}
                 />
                 <TouchableOpacity
-                  disabled={!voucherPhone || voucherOtpSending}
+                  disabled={!voucherPhone || !hasFullPersonName(voucherName) || voucherOtpSending}
                   activeOpacity={0.85}
                   onPress={handleSendVoucherOtp}
                   style={[
                     styles().button,
-                    (!voucherPhone || voucherOtpSending) && styles().buttonDisabled
+                    (!voucherPhone || !hasFullPersonName(voucherName) || voucherOtpSending) &&
+                      styles().buttonDisabled
                   ]}
                 >
                   {!voucherOtpSending ? (
@@ -1328,12 +1364,18 @@ function Checkout(props) {
                       style={styles(currentTheme).modalInput}
                     />
                     <TouchableOpacity
-                      disabled={voucherOtp.length !== 6 || voucherOtpVerifying || voucherUserUpdating}
+                      disabled={
+                        voucherOtp.length !== 6 ||
+                        !hasFullPersonName(voucherName) ||
+                        voucherOtpVerifying ||
+                        voucherUserUpdating
+                      }
                       activeOpacity={0.85}
                       onPress={handleVerifyVoucherOtp}
                       style={[
                         styles().button,
                         (voucherOtp.length !== 6 ||
+                          !hasFullPersonName(voucherName) ||
                           voucherOtpVerifying ||
                           voucherUserUpdating) &&
                           styles().buttonDisabled

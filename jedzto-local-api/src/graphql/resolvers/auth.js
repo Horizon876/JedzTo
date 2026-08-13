@@ -18,6 +18,12 @@ import {
 import { MIN_PASSWORD_LENGTH } from '../../config.js'
 import { issueOtp, consumeOtp, OTP_PURPOSE } from '../../services/otp.js'
 import { verifySocialIdentity } from '../../services/socialAuth.js'
+import {
+  assertPhoneClaimAllowed,
+  findVerifiedPhoneOwner,
+  releaseUnverifiedPhoneClaims
+} from '../../services/phoneOwnership.js'
+import { hasFullPersonName, normalizePersonName } from '../../utils/phone.js'
 import { id, mapUserType, profileShape, toLatitude, toLongitude } from './helpers.js'
 
 const OWNER_ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER']
@@ -248,6 +254,31 @@ export const authMutations = {
     const trimmedPhone = String(phone || '').trim()
     const trimmedName = String(name || '').trim() || 'Gość'
     if (normalizePhone(trimmedPhone).length < 7) throw badInput('Valid phone is required')
+    if (!hasFullPersonName(trimmedName)) {
+      throw badInput('Podaj imię i nazwisko')
+    }
+
+    const verifiedOwner = await findVerifiedPhoneOwner(trimmedPhone)
+    if (verifiedOwner) {
+      const sameName =
+        normalizePersonName(verifiedOwner.name) === normalizePersonName(trimmedName)
+      if (!sameName) {
+        throw badInput(
+          'Ten numer telefonu jest już zweryfikowany i przypisany do innej osoby'
+        )
+      }
+      // Same person returning — only that account may continue (OTP if registered).
+      const user = await User.findById(verifiedOwner._id)
+      if (!user) throw badInput('Konto nie zostało znalezione')
+      const isGuestRecord = user.isGuest === true || /^guest\+\d+@jedzto\.local$/.test(user.email)
+      if (!isGuestRecord && !consumeOtp(OTP_PURPOSE.PHONE, trimmedPhone, otp)) {
+        throw new GraphQLError(
+          'Ten numer należy do konta użytkownika — zaloguj się lub potwierdź numer kodem SMS.',
+          { extensions: { code: 'OTP_REQUIRED' } }
+        )
+      }
+      return authResponse(user, false)
+    }
 
     const user = await User.findOne({ phone: trimmedPhone })
     if (user) {
@@ -262,7 +293,6 @@ export const authMutations = {
         )
       }
       user.name = trimmedName
-      user.phoneIsVerified = true
       await user.save()
       return authResponse(user, false)
     }
@@ -307,18 +337,53 @@ export const authMutations = {
       patch.phone !== undefined ? String(patch.phone || '').trim() : null
     const currentPhone = String(user.phone || '').trim()
     const phoneChanged = nextPhone != null && nextPhone !== currentPhone
+    const nextName =
+      patch.name !== undefined ? String(patch.name || '').trim() : String(user.name || '').trim()
+    const becomingVerified =
+      updateUserInput.phoneIsVerified === true && !phoneChanged
 
     // Only invalidate verification when the number actually changes.
     // Previously every updateUser({ phone }) forced phoneIsVerified=false,
     // which undid verifyOtp and blocked placeOrder forever.
     if (phoneChanged) {
       patch.phoneIsVerified = false
-    } else if (updateUserInput.phoneIsVerified === true) {
+      // Claiming a new number must not steal someone else's verified phone.
+      if (nextPhone) {
+        await assertPhoneClaimAllowed({
+          phone: nextPhone,
+          name: nextName,
+          userId: user._id,
+          requireFullName: false
+        })
+      }
+    } else if (becomingVerified) {
+      const phoneToVerify = nextPhone || currentPhone
+      await assertPhoneClaimAllowed({
+        phone: phoneToVerify,
+        name: nextName,
+        userId: user._id,
+        requireFullName: true
+      })
       patch.phoneIsVerified = true
+      patch.name = nextName
+      // Persist a stable display form for the verified number.
+      if (phoneToVerify) patch.phone = phoneToVerify
+    }
+
+    // Verified phone stays bound to this account's name — no anonymous rename.
+    if (user.phoneIsVerified && patch.name !== undefined && !becomingVerified) {
+      if (!hasFullPersonName(String(patch.name || ''))) {
+        throw badInput('Podaj imię i nazwisko')
+      }
     }
 
     Object.assign(user, patch)
     await user.save()
+
+    if (user.phoneIsVerified && user.phone) {
+      await releaseUnverifiedPhoneClaims(user.phone, user._id)
+    }
+
     return profileShape(user)
   },
 
@@ -355,7 +420,8 @@ export const authMutations = {
     if (phone) {
       const trimmed = String(phone).trim()
       if (!consumeOtp(OTP_PURPOSE.PHONE, trimmed, otp)) return { result: false }
-      await User.updateOne({ phone: trimmed }, { phoneIsVerified: true })
+      // Do not mark arbitrary accounts verified here — phone ownership is
+      // finalized in updateUser / guestCheckout with name binding.
       return { result: true }
     }
     if (email) {

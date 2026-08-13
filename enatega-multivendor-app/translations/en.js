@@ -628,6 +628,8 @@ export const en = {
   applyVoucher: 'Apply a Voucher',
   inputCode: 'Enter code',
   voucherVerifyPhoneFirst: 'To add a coupon, verify your phone number first.',
+  voucherFullNameRequired: 'Enter your first and last name',
+  voucherFullNamePlaceholder: 'e.g. Anna Kowalska',
   voucherSendCode: 'Send code',
   voucherEnterSmsCode: 'Enter SMS code (for now: 123456)',
   voucherPhoneVerified: 'Phone verified — you can add a coupon.',
