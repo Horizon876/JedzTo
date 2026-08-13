@@ -480,78 +480,93 @@ function Checkout(props) {
   }
 
   function onCompleted(data) {
-    setOrderConfirmedTime(new Date())
-    reFetchOrders()
-    Analytics.track(Analytics.events.ORDER_PLACED, {
-      userId: data?.placeOrder.user._id,
-      orderId: data?.placeOrder.orderId,
-      name: data?.placeOrder.user.name,
-      email: data?.placeOrder.user.email,
-      restaurantName: data?.placeOrder.restaurant.name,
-      restaurantAddress: data?.placeOrder.restaurant.address,
-      orderPaymentMethod: data?.placeOrder.paymentMethod,
-      orderItems: data?.placeOrder.items,
-      orderAmount: data?.placeOrder.orderAmount,
-      orderPaidAmount: data?.placeOrder.paidAmount,
-      tipping: data?.placeOrder.tipping,
-      orderStatus: data?.placeOrder.orderStatus,
-      orderDate: data?.placeOrder.orderDate
-    })
-    if (paymentMode === 'COD') {
-      props.navigation.reset({
-        routes: [
-          { name: 'Main' },
-          {
-            name: 'OrderDetail',
-            params: {
-              _id: data?.placeOrder?._id,
-              order: data?.placeOrder
+    try {
+      setLoadingOrder(false)
+      setOrderConfirmedTime(new Date())
+      reFetchOrders()
+      const placed = data?.placeOrder
+      if (!placed?._id) {
+        FlashMessage({ message: t('somethingWentWrong') })
+        return
+      }
+      try {
+        Analytics.track(Analytics.events.ORDER_PLACED, {
+          userId: placed?.user?._id,
+          orderId: placed?.orderId,
+          name: placed?.user?.name,
+          email: placed?.user?.email,
+          restaurantName: placed?.restaurant?.name,
+          restaurantAddress: placed?.restaurant?.address,
+          orderPaymentMethod: placed?.paymentMethod,
+          orderItems: placed?.items,
+          orderAmount: placed?.orderAmount,
+          orderPaidAmount: placed?.paidAmount,
+          tipping: placed?.tipping,
+          orderStatus: placed?.orderStatus,
+          orderDate: placed?.orderDate
+        })
+      } catch (_) {}
+
+      if (paymentMode === 'COD') {
+        setIsPickup(false)
+        props.navigation.reset({
+          routes: [
+            { name: 'Main' },
+            {
+              name: 'OrderDetail',
+              params: {
+                _id: placed._id,
+                order: placed
+              }
             }
-          }
-        ]
-      })
-      clearCart()
-      void endEphemeralGuestAfterOrder()
-    } else if (paymentMode === 'PAYPAL') {
-      props?.navigation.replace('Paypal', {
-        _id: data?.placeOrder.orderId,
-        currency: configuration.currency
-      })
-    } else if (paymentMode === 'STRIPE') {
-      props?.navigation.replace('StripeCheckout', {
-        _id: data?.placeOrder.orderId,
-        orderMongoId: data?.placeOrder._id,
-        amount: data?.placeOrder.orderAmount,
-        email: data?.placeOrder.user.email,
-        currency: configuration.currency
-      })
+          ]
+        })
+        clearCart()
+        void endEphemeralGuestAfterOrder()
+      } else if (paymentMode === 'PAYPAL') {
+        setIsPickup(false)
+        props?.navigation.replace('Paypal', {
+          _id: placed.orderId,
+          currency: configuration.currency
+        })
+      } else if (paymentMode === 'STRIPE') {
+        setIsPickup(false)
+        props?.navigation.replace('StripeCheckout', {
+          _id: placed.orderId,
+          orderMongoId: placed._id,
+          amount: placed.orderAmount,
+          email: placed?.user?.email,
+          currency: configuration.currency
+        })
+      }
+    } catch (err) {
+      console.error('onCompleted placeOrder', err)
+      setLoadingOrder(false)
+      FlashMessage({ message: t('somethingWentWrong') })
     }
   }
   function onError(error) {
     setLoadingOrder(false)
-    if (error?.graphQLErrors?.length) {
-      if (error.graphQLErrors[0].message === "Sorry! we can't deliver to your address." || error.graphQLErrors[0].message === 'Delivery zone not found') {
-        setisModalVisible(true)
-      }
-    } else {
-      FlashMessage({
-        message: error.message
-      })
+    const gqlMessage = error?.graphQLErrors?.[0]?.message
+    if (gqlMessage === "Sorry! we can't deliver to your address." || gqlMessage === 'Delivery zone not found' || gqlMessage === 'Ten adres jest poza obszarem dostawy') {
+      setisModalVisible(true)
+      return
     }
-    if (error?.networkError) {
-      // console.log(`Network Error: ${networkError.message}`);
-      if (error?.networkError.statusCode === 502) {
-        // FlashMessage({
-        //   message: "Server is currently unavailable. Please try again later."
-        // })
-        console.log('Server is currently unavailable. Please try again later.')
-      }
-      if (error?.networkError.statusCode === 504) {
-        FlashMessage({
-          message: 'Request timed out. Please try again.'
-        })
-      }
+    if (gqlMessage) {
+      FlashMessage({ message: gqlMessage })
+      return
     }
+    if (error?.networkError?.statusCode === 504) {
+      FlashMessage({ message: 'Request timed out. Please try again.' })
+      return
+    }
+    if (error?.networkError?.statusCode === 502) {
+      FlashMessage({ message: t('somethingWentWrong') })
+      return
+    }
+    FlashMessage({
+      message: error?.message || t('somethingWentWrong')
+    })
   }
 
   function calculateTip() {
@@ -642,15 +657,15 @@ function Checkout(props) {
   }
 
   function transformOrder(cartData) {
-    return cartData?.map((food) => {
+    return (cartData || []).map((food) => {
       return {
         food: food?._id,
         quantity: food?.quantity,
-        variation: food?.variation._id,
+        variation: food?.variation?._id,
         addons: food?.addons
-          ? food?.addons.map(({ _id, options }) => ({
+          ? food.addons.map(({ _id, options }) => ({
               _id,
-              options: options.map(({ _id }) => _id)
+              options: (options || []).map(({ _id: optionId }) => optionId)
             }))
           : [],
         specialInstructions: food?.specialInstructions,
@@ -660,52 +675,61 @@ function Checkout(props) {
   }
   async function onPayment() {
     try {
-      if (checkPaymentMethod(configuration.currency)) {
-        const items = transformOrder(cart)
-        const orderVariables = {
-          restaurant: cartRestaurant,
-          orderInput: items,
-          paymentMethod: paymentMode,
-          couponCode: coupon ? coupon.title : null,
-          tipping: +calculateTip(),
-          taxationAmount: cashFee,
-          orderDate: orderDate,
-          isPickedUp: isPickup,
-          deliveryCharges: isPickup ? 0 : deliveryCharges,
-          instructions
-        }
-
-        if (isPickup) {
-          // For pickup, use the location from context
-          orderVariables.address = {
-            label: 'Current Location',
-            deliveryAddress: 'Pickup',
-            details: 'User will pick up the order',
-            longitude: '' + location.longitude,
-            latitude: '' + location.latitude
-          }
-        } else {
-          // For delivery, use the selected address
-          orderVariables.address = {
-            label: location.label,
-            deliveryAddress: location.deliveryAddress,
-            details: location.details,
-            longitude: '' + location.longitude,
-            latitude: '' + location.latitude
-          }
-        }
-
-        await mutateOrder({ variables: orderVariables })
-        setLoadingOrder(false)
-        setIsPickup(false)
-      } else {
+      if (!checkPaymentMethod(configuration.currency)) {
         FlashMessage({
           message: t('paymentNotSupported')
         })
-        setLoadingOrder(false)
+        return
       }
+
+      const items = transformOrder(cart)
+      if (!items.length || items.some((item) => !item.food || !item.variation)) {
+        FlashMessage({ message: t('itemNotAvailable') })
+        return
+      }
+
+      const orderVariables = {
+        restaurant: cartRestaurant,
+        orderInput: items,
+        paymentMethod: paymentMode,
+        couponCode: coupon ? coupon.title : null,
+        tipping: +calculateTip(),
+        taxationAmount: cashFee,
+        orderDate: new Date(orderDate).toISOString(),
+        isPickedUp: isPickup,
+        deliveryCharges: isPickup ? 0 : Number(deliveryCharges) || 0,
+        instructions: instructions || ''
+      }
+
+      if (isPickup) {
+        orderVariables.address = {
+          label: 'Current Location',
+          deliveryAddress: 'Pickup',
+          details: 'User will pick up the order',
+          longitude: '' + location.longitude,
+          latitude: '' + location.latitude
+        }
+      } else {
+        orderVariables.address = {
+          label: location.label,
+          deliveryAddress: location.deliveryAddress,
+          details: location.details || '',
+          longitude: '' + location.longitude,
+          latitude: '' + location.latitude
+        }
+      }
+
+      await mutateOrder({ variables: orderVariables })
     } catch (error) {
       console.error('Error placing order:', error)
+      FlashMessage({
+        message:
+          error?.graphQLErrors?.[0]?.message ||
+          error?.message ||
+          t('somethingWentWrong')
+      })
+    } finally {
+      setLoadingOrder(false)
     }
   }
 
