@@ -146,7 +146,8 @@ function Checkout(props) {
     if (couponData?.enabled) {
       setCoupon(couponData)
       FlashMessage({
-        message: payload?.message || t('coupanApply')
+        message: payload?.message || t('coupanApply'),
+        type: 'success'
       })
       setVoucherCode('')
       onModalClose(voucherModalRef)
@@ -174,7 +175,6 @@ function Checkout(props) {
   const [sendVoucherOtp, { loading: voucherOtpSending }] = useMutation(SEND_OTP_TO_PHONE, {
     onCompleted: () => {
       setVoucherOtpSent(true)
-      FlashMessage({ message: t('otpSentToPhone') })
     },
     onError: (error) => {
       FlashMessage({
@@ -274,7 +274,7 @@ function Checkout(props) {
     }
 
     setVoucherPhoneVerified(true)
-    FlashMessage({ message: t('numberVerified') })
+    FlashMessage({ message: t('numberVerified'), type: 'success' })
   }, [
     mutateVoucherUser,
     profile?.name,
