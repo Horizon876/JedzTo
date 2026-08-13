@@ -323,7 +323,12 @@ function Checkout(props) {
     ;(async () => {
       if (!data?.restaurant) return
 
-      const quotedFee = quoteData?.deliveryQuote?.available ? quoteData.deliveryQuote.fee : null
+      const quote = quoteData?.deliveryQuote
+      if (quote?.available && quote.minOrder != null) {
+        if (isSubscribed) setMinimumOrder(Number(quote.minOrder) || 0)
+      }
+
+      const quotedFee = quote?.available ? quote.fee : null
       if (quotedFee !== null && quotedFee !== undefined) {
         if (isSubscribed) setDeliveryCharges(quotedFee)
         return
@@ -354,8 +359,7 @@ function Checkout(props) {
     data?.restaurant?.location?.coordinates,
     location?.latitude,
     location?.longitude,
-    quoteData?.deliveryQuote?.available,
-    quoteData?.deliveryQuote?.fee,
+    quoteData?.deliveryQuote,
     configuration.costType,
     configuration.deliveryRate
   ])
@@ -593,11 +597,23 @@ function Checkout(props) {
       })
       return false
     }
-    if (!isPickup && calculatePrice(deliveryCharges, true) < minimumOrder) {
-      FlashMessage({
-        message: t('OrderPriceValidation')
-      })
-      return false
+    if (!isPickup) {
+      const quoteMin = Number(quoteData?.deliveryQuote?.minOrder)
+      const minRequired =
+        quoteData?.deliveryQuote?.available && Number.isFinite(quoteMin)
+          ? quoteMin
+          : Number(minimumOrder) || 0
+      // Compare goods only (same rule as API) — delivery fee is not part of min order.
+      const goodsTotal = Number(pricing.discountedSubtotal) || 0
+      if (minRequired > 0 && goodsTotal < minRequired) {
+        const remaining = minRequired - goodsTotal
+        FlashMessage({
+          message: t('addForDelivery', {
+            amount: formatMoney(remaining, configuration?.currencySymbol || 'zł')
+          })
+        })
+        return false
+      }
     }
     // Delivery only needs coordinates + address text from LocationContext —
     // saved profile address `_id` is optional (guest / map pick have none).

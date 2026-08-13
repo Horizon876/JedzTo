@@ -143,14 +143,29 @@ export const mapDeliveryArea = (a) => ({
   isActive: a.isActive !== false
 })
 
-/** Returns the tightest delivery area covering (latitude, longitude). */
+/** Returns the best delivery area covering (latitude, longitude).
+ * Zones are adjacent regions (not nested rings), so we do NOT pick the
+ * smallest radius — that wrongly assigned border towns like Rudnik to a
+ * tighter neighbouring zone with a higher minOrder.
+ * Prefer: lowest minOrder → lowest fee → closest centre.
+ */
 export const matchDeliveryArea = (restaurant, latitude, longitude) => {
   const areas = (restaurant?.deliveryAreas || []).filter((a) => a.isActive !== false)
   if (!areas.length) return null
   const covering = areas
     .filter((a) => distanceKm(latitude, longitude, a.latitude, a.longitude) <= a.radiusKm)
-    .sort((a, b) => a.radiusKm - b.radiusKm)
-  return covering[0] || null
+    .map((a) => ({
+      area: a,
+      dist: distanceKm(latitude, longitude, a.latitude, a.longitude)
+    }))
+    .sort((a, b) => {
+      const minDiff = Number(a.area.minOrder ?? 0) - Number(b.area.minOrder ?? 0)
+      if (minDiff !== 0) return minDiff
+      const feeDiff = Number(a.area.fee ?? 0) - Number(b.area.fee ?? 0)
+      if (feeDiff !== 0) return feeDiff
+      return a.dist - b.dist
+    })
+  return covering[0]?.area || null
 }
 
 /**

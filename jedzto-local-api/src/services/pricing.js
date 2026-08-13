@@ -218,7 +218,10 @@ export async function priceOrder(restaurant, args) {
     delivery?.minOrder != null ? delivery.minOrder : restaurant.minimumOrder || 0
   )
   if (!isPickup && minimumOrder > 0 && goodsTotal < minimumOrder) {
-    throw badInput(`Minimalna wartość zamówienia to ${minimumOrder.toFixed(2)}`)
+    const remaining = round2(minimumOrder - goodsTotal)
+    throw badInput(
+      `Minimalna wartość zamówienia to ${minimumOrder.toFixed(2)} zł. Dodaj jeszcze coś za ${remaining.toFixed(2)} zł`
+    )
   }
 
   const orderAmount = round2(goodsTotal + deliveryCharges + taxationAmount + tipping)
