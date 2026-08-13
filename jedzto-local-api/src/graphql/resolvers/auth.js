@@ -286,17 +286,39 @@ export const authMutations = {
     const auth = requireUser(ctx)
     // Whitelist of fields a user may update on their own profile.
     // Prevents mass assignment (e.g. escalating role to SUPER_ADMIN).
-    const ALLOWED_FIELDS = ['name', 'phone', 'notificationToken', 'isOrderNotification', 'isOfferNotification']
+    const ALLOWED_FIELDS = [
+      'name',
+      'phone',
+      'notificationToken',
+      'isOrderNotification',
+      'isOfferNotification'
+    ]
+    const user = await User.findById(auth.userId)
+    if (!user) throw unauthenticated()
+
     const patch = {}
     for (const field of ALLOWED_FIELDS) {
       if (updateUserInput[field] !== undefined) {
         patch[field] = updateUserInput[field]
       }
     }
-    // Changing the phone number invalidates its verified state.
-    if (patch.phone !== undefined) patch.phoneIsVerified = false
-    const user = await User.findByIdAndUpdate(auth.userId, patch, { new: true })
-    if (!user) throw unauthenticated()
+
+    const nextPhone =
+      patch.phone !== undefined ? String(patch.phone || '').trim() : null
+    const currentPhone = String(user.phone || '').trim()
+    const phoneChanged = nextPhone != null && nextPhone !== currentPhone
+
+    // Only invalidate verification when the number actually changes.
+    // Previously every updateUser({ phone }) forced phoneIsVerified=false,
+    // which undid verifyOtp and blocked placeOrder forever.
+    if (phoneChanged) {
+      patch.phoneIsVerified = false
+    } else if (updateUserInput.phoneIsVerified === true) {
+      patch.phoneIsVerified = true
+    }
+
+    Object.assign(user, patch)
+    await user.save()
     return profileShape(user)
   },
 
