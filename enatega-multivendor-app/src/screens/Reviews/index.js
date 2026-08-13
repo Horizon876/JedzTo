@@ -327,7 +327,11 @@ const Reviews = ({ navigation, route }) => {
                 name={review.order?.user?.name}
                 description={review.description}
                 rating={review.rating}
-                date={calculateDaysAgo(review.createdAt)}
+                date={
+                  review.source === 'google' && review.relativeTime
+                    ? `Google · ${review.relativeTime}`
+                    : calculateDaysAgo(review.createdAt)
+                }
                 theme={currentTheme}
               />
             ))}

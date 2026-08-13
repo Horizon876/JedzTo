@@ -18,6 +18,8 @@ export const GET_REVIEWS_BY_RESTAURANT = gql`
         isActive
         createdAt
         updatedAt
+        source
+        relativeTime
         order {
           _id
           user {

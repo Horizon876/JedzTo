@@ -21,6 +21,7 @@ import {
   mapDeliveryArea,
   slugify
 } from './helpers.js'
+import { withGoogleRating, googleReviewsPayload } from '../../services/googleReviews.js'
 import { pubsub, RESTAURANT_UPDATED } from '../orderPubsub.js'
 
 // ---------------------------------------------------------------------------
@@ -105,11 +106,24 @@ export async function buildRestaurantTree(restaurant, { audience = 'owner', lati
       withEta.currentEta != null
         ? Number(withEta.currentEta)
         : computeCurrentEta(withEta, null),
-    reviewData: {
-      total: withEta.reviewCount || 0,
-      ratings: withEta.reviewAverage || 0,
-      reviews: []
-    },
+    reviewData: (() => {
+      const google = googleReviewsPayload(withEta)
+      if (google.total || google.reviews?.length) {
+        return {
+          total: google.total,
+          ratings: google.ratings,
+          reviews: google.reviews
+        }
+      }
+      return {
+        total: withEta.reviewCount || 0,
+        ratings: withEta.reviewAverage || 0,
+        reviews: []
+      }
+    })(),
+    reviewCount: withGoogleRating(withEta).reviewCount,
+    reviewAverage: withGoogleRating(withEta).reviewAverage,
+    rating: withGoogleRating(withEta).rating,
     options: withEta.options || [],
     addons: withEta.addons || [],
     deliveryAreas: (withEta.deliveryAreas || []).map(mapDeliveryArea),

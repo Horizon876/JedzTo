@@ -10,6 +10,7 @@ import { withCurrentEta, computeCurrentEta, resolveDefaultEta } from '../../serv
 import { rewriteUploadUrl } from '../../utils/publicUrl.js'
 import { mapFood } from '../../services/menu.js'
 import { canAcceptOrders } from '../../services/restaurantAvailability.js'
+import { withGoogleRating, googleReviewsPayload } from '../../services/googleReviews.js'
 
 // ---------------------------------------------------------------------------
 // Scalar helpers
@@ -182,35 +183,36 @@ export const resolveDelivery = (restaurant, latitude, longitude) => {
  * Mirrors the legacy deliveryTime/pickupTime fields so older UI works.
  */
 export const toPreview = (r) => {
+  const rated = withGoogleRating(r)
   const currentEta =
-    r.currentEta == null ? resolveDefaultEta(r) : Number(r.currentEta)
+    rated.currentEta == null ? resolveDefaultEta(rated) : Number(rated.currentEta)
   return {
-    _id: id(r),
-    name: r.name,
-    image: r.image,
-    logo: r.logo,
+    _id: id(rated),
+    name: rated.name,
+    image: rated.image,
+    logo: rated.logo,
     deliveryTime: currentEta,
     pickupTime: currentEta,
-    defaultEta: r.defaultEta == null ? resolveDefaultEta(r) : Number(r.defaultEta),
-    isBusy: Boolean(r.isBusy),
+    defaultEta: rated.defaultEta == null ? resolveDefaultEta(rated) : Number(rated.defaultEta),
+    isBusy: Boolean(rated.isBusy),
     currentEta,
-    minimumOrder: r.minimumOrder,
-    isAvailable: canAcceptOrders(r),
-    isSuspended: Boolean(r.isSuspended),
-    pausedUntil: r.pausedUntil ? new Date(r.pausedUntil).toISOString() : null,
-    tax: r.tax,
-    shopType: r.shopType,
-    cuisines: r.cuisines,
-    tags: r.tags,
-    reviewCount: r.reviewCount,
-    reviewAverage: r.reviewAverage,
-    freeDelivery: r.freeDelivery,
-    acceptVouchers: r.acceptVouchers,
-    location: r.location,
-    openingTimes: r.openingTimes,
-    deliveryFee: r.deliveryFee ?? null,
-    deliveryAreaName: r.deliveryAreaName ?? null,
-    address: r.address ?? null
+    minimumOrder: rated.minimumOrder,
+    isAvailable: canAcceptOrders(rated),
+    isSuspended: Boolean(rated.isSuspended),
+    pausedUntil: rated.pausedUntil ? new Date(rated.pausedUntil).toISOString() : null,
+    tax: rated.tax,
+    shopType: rated.shopType,
+    cuisines: rated.cuisines,
+    tags: rated.tags,
+    reviewCount: rated.reviewCount,
+    reviewAverage: rated.reviewAverage,
+    freeDelivery: rated.freeDelivery,
+    acceptVouchers: rated.acceptVouchers,
+    location: rated.location,
+    openingTimes: rated.openingTimes,
+    deliveryFee: rated.deliveryFee ?? null,
+    deliveryAreaName: rated.deliveryAreaName ?? null,
+    address: rated.address ?? null
   }
 }
 

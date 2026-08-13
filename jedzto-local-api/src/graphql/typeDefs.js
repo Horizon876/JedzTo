@@ -42,10 +42,42 @@ export const typeDefs = `#graphql
     tax: Float
   }
 
+  # Customer Reviews screen selects nested fields — must be an object type,
+  # not JSON (JSON rejects subfield selections and breaks the app query).
+  type ReviewUser {
+    _id: ID
+    name: String
+    email: String
+  }
+
+  type ReviewOrder {
+    _id: ID
+    user: ReviewUser
+  }
+
+  type ReviewRestaurantRef {
+    _id: ID
+    name: String
+  }
+
+  type Review {
+    _id: ID
+    rating: Float
+    description: String
+    isActive: Boolean
+    createdAt: String
+    updatedAt: String
+    source: String
+    relativeTime: String
+    order: ReviewOrder
+    restaurant: ReviewRestaurantRef
+  }
+
   type ReviewData {
     total: Int
     ratings: Float
-    reviews: [JSON]
+    reviews: [Review]
+    googleShareUrl: String
   }
 
   # Order.review must be an object type — client placeOrder/order queries
@@ -1046,6 +1078,8 @@ export const typeDefs = `#graphql
     rider(id: String): Rider
     chat(order: ID!): [ChatMessage!]
     GetReviewsByRestaurant(restaurant: String!): ReviewData
+    # Alias used by the customer app Reviews screen.
+    reviewsByRestaurant(restaurant: String!): ReviewData
     ownerSession: OwnerAuthPayload
     hasOwnerPermission(permission: String!): Boolean
     myRestaurants: [Restaurant!]

@@ -27,6 +27,7 @@ import {
 } from '../../services/settlements.js'
 import { STRIPE_PUBLISHABLE_KEY, ALLOW_TEST_OTP, NODE_ENV } from '../../config.js'
 import { containsFilter, clampPageSize, clampNonNegative } from '../../utils/sanitize.js'
+import { googleReviewsPayload } from '../../services/googleReviews.js'
 import {
   id,
   toPreview,
@@ -727,7 +728,30 @@ export const queries = {
   }),
 
   chat: () => [],
-  GetReviewsByRestaurant: () => ({ total: 0, ratings: 0, reviews: [] }),
+  GetReviewsByRestaurant: async (_p, { restaurant: restaurantId }, ctx) => {
+    assertPublicAccess(ctx)
+    const restaurant =
+      (await Restaurant.findById(restaurantId).lean()) || { _id: restaurantId }
+    const google = googleReviewsPayload(restaurant)
+    if (google.reviews?.length || google.total) return google
+    return {
+      total: restaurant.reviewCount || 0,
+      ratings: restaurant.reviewAverage || 0,
+      reviews: []
+    }
+  },
+  reviewsByRestaurant: async (_p, { restaurant: restaurantId }, ctx) => {
+    assertPublicAccess(ctx)
+    const restaurant =
+      (await Restaurant.findById(restaurantId).lean()) || { _id: restaurantId }
+    const google = googleReviewsPayload(restaurant)
+    if (google.reviews?.length || google.total) return google
+    return {
+      total: restaurant.reviewCount || 0,
+      ratings: restaurant.reviewAverage || 0,
+      reviews: []
+    }
+  },
 
   myRestaurants: async (_p, _a, ctx) => {
     assertPublicAccess(ctx)
