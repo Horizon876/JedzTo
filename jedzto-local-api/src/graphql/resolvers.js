@@ -360,6 +360,10 @@ async function buildRestaurantTree(restaurant, { audience = 'owner', latitude, l
     deliveryAreas: (withEta.deliveryAreas || []).map(mapDeliveryArea),
     deliveryFee: delivery.fee,
     deliveryAreaName: delivery.areaName,
+    minimumOrder:
+      audience === 'customer' && delivery.minOrder != null
+        ? delivery.minOrder
+        : withEta.minimumOrder,
     menuPublishedAt: withEta.menuPublishedAt?.toISOString?.() || withEta.menuPublishedAt || null,
     hasUnpublishedMenuChanges: Boolean(withEta.hasUnpublishedMenuChanges),
     // Customers only see public company identifiers — never bank details.

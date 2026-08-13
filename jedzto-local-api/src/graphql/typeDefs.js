@@ -1011,7 +1011,7 @@ export const typeDefs = `#graphql
     couponsPaginated(page: Int, limit: Int, search: String, enabled: Boolean, startDate: String, endDate: String): CouponsPaginatedResponse
     nearByRestaurants(latitude: Float, longitude: Float, shopType: String): NearByRestaurants
     nearByRestaurantsPreview(latitude: Float, longitude: Float, shopType: String, page: Int, limit: Int): NearByRestaurantsPreview
-    restaurant(id: String): Restaurant
+    restaurant(id: String, latitude: Float, longitude: Float): Restaurant
     cuisines: [Cuisine!]
     banners: [Banner!]
     zones: [Zone!]

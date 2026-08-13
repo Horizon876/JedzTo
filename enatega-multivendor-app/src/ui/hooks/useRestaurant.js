@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { DeviceEventEmitter } from 'react-native'
 import { useQuery } from '@apollo/client'
 import gql from 'graphql-tag'
 import { restaurant } from '../../apollo/queries'
+import { LocationContext } from '../../context/Location'
 import {
   getJedzToLocalRestaurantById,
   isJedzToLocalRestaurantId,
@@ -15,6 +16,12 @@ export const RESTAURANT = gql`
 `
 
 export default function useRestaurant(id) {
+  const { location } = useContext(LocationContext)
+  const latitude =
+    location?.latitude != null ? Number(location.latitude) : undefined
+  const longitude =
+    location?.longitude != null ? Number(location.longitude) : undefined
+
   const useLocal =
     jedzToLocalRestaurantsEnabled() && isJedzToLocalRestaurantId(id)
 
@@ -31,7 +38,7 @@ export default function useRestaurant(id) {
   const { data, refetch, networkStatus, loading, error } = useQuery(
     RESTAURANT,
     {
-      variables: { id },
+      variables: { id, latitude, longitude },
       fetchPolicy: 'cache-and-network',
       nextFetchPolicy: 'cache-first',
       skip: useLocal || !id

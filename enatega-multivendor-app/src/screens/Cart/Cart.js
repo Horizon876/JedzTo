@@ -125,11 +125,13 @@ function Cart(props) {
     restaurant?.location?.coordinates
   ])
 
-  // Same rule as the restaurant menu cart bar: restaurant.minimumOrder only.
+  // Prefer the delivery-zone minOrder (same quote as the fee), then restaurant.
   const effectiveMinimumOrder = useMemo(() => {
     if (isPickup) return 0
+    const quote = quoteData?.deliveryQuote
+    if (quote?.available && quote.minOrder != null) return Number(quote.minOrder) || 0
     return Number(restaurant?.minimumOrder) || 0
-  }, [isPickup, restaurant?.minimumOrder])
+  }, [isPickup, quoteData?.deliveryQuote, restaurant?.minimumOrder])
 
   const orderHeaderLabel = useMemo(() => {
     const count = itemQuantityTotal || cartCount || 0

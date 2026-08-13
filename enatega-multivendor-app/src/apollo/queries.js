@@ -898,8 +898,8 @@ export const topRatedVendorsInfoPreview = `query TopRatedVendors($latitude: Floa
   }
 }`
 
-export const restaurant = `query Restaurant($id:String){
-  restaurant(id:$id){
+export const restaurant = `query Restaurant($id:String,$latitude:Float,$longitude:Float){
+  restaurant(id:$id,latitude:$latitude,longitude:$longitude){
     _id
     orderId
     orderPrefix

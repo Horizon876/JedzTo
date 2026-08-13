@@ -19,7 +19,7 @@ import { theme } from '../../utils/themeColors'
 import styles from './styles'
 import { alignment } from '../../utils/alignment'
 import analytics from '../../utils/analytics'
-import { popularItems, food } from '../../apollo/queries'
+import { popularItems, food, deliveryQuote } from '../../apollo/queries'
 import ItemCard from '../../components/ItemCards/ItemCards'
 import { IMAGE_LINK } from '../../utils/constants'
 import PopularIcon from '../../assets/SVG/popular'
@@ -53,6 +53,9 @@ const POPULAR_ITEMS = gql`
 `
 const FOOD = gql`
   ${food}
+`
+const DELIVERY_QUOTE = gql`
+  ${deliveryQuote}
 `
 
 function wrapContentAfterWords(content = '', numWords = 5) {
@@ -99,6 +102,28 @@ function Restaurant(props) {
     variables: { restaurantId },
     skip: isJedzToLocalRestaurantId(restaurantId)
   })
+  const { data: quoteData } = useQuery(DELIVERY_QUOTE, {
+    variables: {
+      restaurantId: propsData._id,
+      latitude: Number(location?.latitude),
+      longitude: Number(location?.longitude)
+    },
+    skip:
+      isPickup ||
+      !propsData._id ||
+      location?.latitude == null ||
+      location?.longitude == null,
+    fetchPolicy: 'cache-and-network'
+  })
+  const deliveryQuoteResult = quoteData?.deliveryQuote
+  const quotedMinOrder =
+    deliveryQuoteResult?.available && deliveryQuoteResult.minOrder != null
+      ? deliveryQuoteResult.minOrder
+      : null
+  const quotedDeliveryFee =
+    deliveryQuoteResult?.available && deliveryQuoteResult.fee != null
+      ? deliveryQuoteResult.fee
+      : null
 
   useFocusEffect(
     useCallback(() => {
@@ -226,10 +251,10 @@ function Restaurant(props) {
       restaurantLogo: restaurant?.logo ?? propsData?.logo ?? '',
       restaurantCuisines: restaurant?.cuisines ?? propsData?.cuisines ?? [],
       restaurantTax: propsData?.tax ?? restaurant?.tax,
-      restaurantMinOrder: propsData?.minimumOrder ?? restaurant?.minimumOrder,
+      restaurantMinOrder: quotedMinOrder ?? restaurant?.minimumOrder ?? propsData?.minimumOrder,
       deliveryTime: restaurant?.deliveryTime ?? propsData?.deliveryTime,
-      minimumOrder: propsData?.minimumOrder ?? restaurant?.minimumOrder,
-      deliveryFee: propsData?.deliveryFee ?? restaurant?.deliveryFee,
+      minimumOrder: quotedMinOrder ?? restaurant?.minimumOrder ?? propsData?.minimumOrder,
+      deliveryFee: quotedDeliveryFee ?? restaurant?.deliveryFee ?? propsData?.deliveryFee,
       freeDelivery: propsData?.freeDelivery ?? restaurant?.freeDelivery,
       average: restaurant?.reviewData?.ratings ?? restaurant?.reviewAverage ?? propsData?.reviewAverage,
       total: restaurant?.reviewData?.total ?? propsData?.reviewCount,
@@ -244,7 +269,7 @@ function Restaurant(props) {
       name: propsData?.name ?? restaurant?.name,
       _id: propsData?._id
     }),
-    [propsData, restaurant]
+    [propsData, restaurant, quotedMinOrder, quotedDeliveryFee]
   )
 
   useEffect(() => {
@@ -374,7 +399,7 @@ function Restaurant(props) {
 
   const deliveryGapLabel = useMemo(() => {
     if (isPickup || !showCartBar) return null
-    const minimumOrder = Number(restaurant?.minimumOrder ?? aboutObject?.minimumOrder ?? 0)
+    const minimumOrder = Number(aboutObject?.minimumOrder ?? restaurant?.minimumOrder ?? 0)
     if (!minimumOrder || cartTotal >= minimumOrder) return null
     const remaining = minimumOrder - cartTotal
     return t('addForDelivery', { amount: formatMoney(remaining, configuration?.currencySymbol || 'zł') })

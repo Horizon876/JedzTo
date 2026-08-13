@@ -300,6 +300,12 @@ function Checkout(props) {
     // Depend on restaurant id only — `data` from useRestaurant used to be a new
     // object every render and this effect + updateCart caused an infinite loop.
   }, [cartRestaurant, data?.restaurant?._id])
+
+  useEffect(() => {
+    if (quoteData?.deliveryQuote?.available && quoteData.deliveryQuote.minOrder != null) {
+      setMinimumOrder(quoteData.deliveryQuote.minOrder)
+    }
+  }, [quoteData?.deliveryQuote?.available, quoteData?.deliveryQuote?.minOrder])
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
   const populatedCart = useMemo(() => populateCart(restaurant, cart), [cart, restaurant])
 
@@ -595,7 +601,11 @@ function Checkout(props) {
       setLoadingData(false)
       return
     }
-    setMinimumOrder(currentRestaurant.minimumOrder)
+    setMinimumOrder(
+      quoteData?.deliveryQuote?.available && quoteData.deliveryQuote.minOrder != null
+        ? quoteData.deliveryQuote.minOrder
+        : currentRestaurant.minimumOrder
+    )
     try {
       if (cartCount && cart) {
         const transformCart = populateCart(currentRestaurant, cart)

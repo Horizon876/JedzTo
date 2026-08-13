@@ -463,11 +463,15 @@ export const queries = {
     }
   },
 
-  restaurant: async (_p, { id: restaurantId }, ctx) => {
+  restaurant: async (_p, { id: restaurantId, latitude, longitude }, ctx) => {
     assertPublicAccess(ctx)
     const r = await Restaurant.findById(restaurantId).lean()
     if (!r) return null
-    return buildRestaurantTree(r, { audience: audienceFor(ctx, r) })
+    return buildRestaurantTree(r, {
+      audience: audienceFor(ctx, r),
+      latitude,
+      longitude
+    })
   },
 
   cuisines: async (_p, _a, ctx) => {

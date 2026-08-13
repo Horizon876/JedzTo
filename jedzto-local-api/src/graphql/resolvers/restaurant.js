@@ -115,6 +115,12 @@ export async function buildRestaurantTree(restaurant, { audience = 'owner', lati
     deliveryAreas: (withEta.deliveryAreas || []).map(mapDeliveryArea),
     deliveryFee: delivery.fee,
     deliveryAreaName: delivery.areaName,
+    // Customer-facing minimum must follow the matched delivery zone
+    // (e.g. zone fee 10 zł → min 100), not the restaurant-wide fallback.
+    minimumOrder:
+      audience === 'customer' && delivery.minOrder != null
+        ? delivery.minOrder
+        : withEta.minimumOrder,
     menuPublishedAt: withEta.menuPublishedAt?.toISOString?.() || withEta.menuPublishedAt || null,
     hasUnpublishedMenuChanges: Boolean(withEta.hasUnpublishedMenuChanges),
     bussinessDetails:

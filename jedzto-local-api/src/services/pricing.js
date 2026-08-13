@@ -184,10 +184,12 @@ export async function priceOrder(restaurant, args) {
   const isPickup = Boolean(args.isPickedUp)
   const { items, itemsTotal } = await buildOrderItems(restaurant, args.orderInput)
 
+  const latitude = Number(args.address?.latitude)
+  const longitude = Number(args.address?.longitude)
   const deliveryCharges = resolveDeliveryFee(restaurant, {
     isPickup,
-    latitude: Number(args.address?.latitude),
-    longitude: Number(args.address?.longitude)
+    latitude,
+    longitude
   })
 
   const { discountAmount, coupon } = await resolveDiscount(
@@ -208,7 +210,13 @@ export async function priceOrder(restaurant, args) {
       : round2(Math.min(requestedTip, Math.max(50, itemsTotal)))
 
   const goodsTotal = round2(itemsTotal - discountAmount)
-  const minimumOrder = Number(restaurant.minimumOrder || 0)
+  // Prefer the matched delivery zone's minOrder (same source as delivery fee).
+  const delivery = isPickup
+    ? null
+    : resolveDelivery(restaurant, latitude, longitude)
+  const minimumOrder = Number(
+    delivery?.minOrder != null ? delivery.minOrder : restaurant.minimumOrder || 0
+  )
   if (!isPickup && minimumOrder > 0 && goodsTotal < minimumOrder) {
     throw badInput(`Minimalna wartość zamówienia to ${minimumOrder.toFixed(2)}`)
   }
