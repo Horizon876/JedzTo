@@ -19,7 +19,7 @@ import { theme } from '../../utils/themeColors'
 import styles from './styles'
 import { alignment } from '../../utils/alignment'
 import analytics from '../../utils/analytics'
-import { popularItems, food } from '../../apollo/queries'
+import { popularItems, food, deliveryQuote } from '../../apollo/queries'
 import ItemCard from '../../components/ItemCards/ItemCards'
 import { IMAGE_LINK } from '../../utils/constants'
 import PopularIcon from '../../assets/SVG/popular'
@@ -53,6 +53,9 @@ const POPULAR_ITEMS = gql`
 `
 const FOOD = gql`
   ${food}
+`
+const DELIVERY_QUOTE = gql`
+  ${deliveryQuote}
 `
 
 function wrapContentAfterWords(content = '', numWords = 5) {
@@ -99,6 +102,26 @@ function Restaurant(props) {
     variables: { restaurantId },
     skip: isJedzToLocalRestaurantId(restaurantId)
   })
+  const { data: quoteData } = useQuery(DELIVERY_QUOTE, {
+    variables: {
+      restaurantId,
+      latitude: Number(location?.latitude),
+      longitude: Number(location?.longitude)
+    },
+    skip:
+      isPickup ||
+      !restaurantId ||
+      location?.latitude == null ||
+      location?.longitude == null,
+    fetchPolicy: 'cache-and-network'
+  })
+  const zoneMinimumOrder = useMemo(() => {
+    const quote = quoteData?.deliveryQuote
+    if (!isPickup && quote?.available && quote.minOrder != null) {
+      return Number(quote.minOrder)
+    }
+    return null
+  }, [isPickup, quoteData?.deliveryQuote])
 
   useFocusEffect(
     useCallback(() => {
@@ -226,11 +249,15 @@ function Restaurant(props) {
       restaurantLogo: restaurant?.logo ?? propsData?.logo ?? '',
       restaurantCuisines: restaurant?.cuisines ?? propsData?.cuisines ?? [],
       restaurantTax: propsData?.tax ?? restaurant?.tax,
-      restaurantMinOrder: restaurant?.minimumOrder ?? propsData?.minimumOrder,
+      restaurantMinOrder: zoneMinimumOrder ?? restaurant?.minimumOrder ?? propsData?.minimumOrder,
       deliveryTime: restaurant?.deliveryTime ?? propsData?.deliveryTime,
-      // Live zone min from API (with lat/lng) must win over stale nav params.
-      minimumOrder: restaurant?.minimumOrder ?? propsData?.minimumOrder,
-      deliveryFee: restaurant?.deliveryFee ?? propsData?.deliveryFee,
+      // Live zone min from deliveryQuote must win over stale nav params.
+      minimumOrder: zoneMinimumOrder ?? restaurant?.minimumOrder ?? propsData?.minimumOrder,
+      deliveryFee:
+        quoteData?.deliveryQuote?.available && quoteData?.deliveryQuote?.fee != null
+          ? quoteData.deliveryQuote.fee
+          : restaurant?.deliveryFee ?? propsData?.deliveryFee,
+      deliveryAreaName: quoteData?.deliveryQuote?.areaName ?? restaurant?.deliveryAreaName ?? null,
       freeDelivery: propsData?.freeDelivery ?? restaurant?.freeDelivery,
       average: restaurant?.reviewData?.ratings ?? restaurant?.reviewAverage ?? propsData?.reviewAverage,
       total: restaurant?.reviewData?.total ?? propsData?.reviewCount,
@@ -245,7 +272,7 @@ function Restaurant(props) {
       name: propsData?.name ?? restaurant?.name,
       _id: propsData?._id
     }),
-    [propsData, restaurant]
+    [propsData, quoteData?.deliveryQuote, restaurant, zoneMinimumOrder]
   )
 
   useEffect(() => {
@@ -375,11 +402,22 @@ function Restaurant(props) {
 
   const deliveryGapLabel = useMemo(() => {
     if (isPickup || !showCartBar) return null
-    const minimumOrder = Number(restaurant?.minimumOrder ?? aboutObject?.minimumOrder ?? 0)
+    const minimumOrder = Number(
+      zoneMinimumOrder ?? restaurant?.minimumOrder ?? aboutObject?.minimumOrder ?? 0
+    )
     if (!minimumOrder || cartTotal >= minimumOrder) return null
     const remaining = minimumOrder - cartTotal
     return t('addForDelivery', { amount: formatMoney(remaining, configuration?.currencySymbol || 'zł') })
-  }, [aboutObject?.minimumOrder, cartTotal, configuration?.currencySymbol, isPickup, restaurant?.minimumOrder, showCartBar, t])
+  }, [
+    aboutObject?.minimumOrder,
+    cartTotal,
+    configuration?.currencySymbol,
+    isPickup,
+    restaurant?.minimumOrder,
+    showCartBar,
+    t,
+    zoneMinimumOrder
+  ])
 
   const onPressItem = useCallback(
     async (foodItem) => {

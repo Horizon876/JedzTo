@@ -293,13 +293,15 @@ function Checkout(props) {
     onError
   })
 
+  const populatedCart = useMemo(() => populateCart(restaurant, cart), [cart, restaurant])
+
   const pricing = useMemo(() => calculateOrderPricing({
-    cart,
+    cart: populatedCart,
     discountPercent: coupon?.discount,
     taxPercent: 0,
     delivery: isPickup ? 0 : deliveryCharges,
     tip: isPickup ? 0 : tip
-  }), [cart, coupon?.discount, deliveryCharges, isPickup, tip])
+  }), [populatedCart, coupon?.discount, deliveryCharges, isPickup, tip])
   const inset = useSafeAreaInsets()
   const insets = initialWindowMetrics?.insets || { top: 0, bottom: 0, left: 0, right: 0 }
   const footerPad = Math.max(inset.bottom, insets.bottom, 8)
@@ -425,7 +427,6 @@ function Checkout(props) {
     // object every render and this effect + updateCart caused an infinite loop.
   }, [cartRestaurant, data?.restaurant?._id])
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
-  const populatedCart = useMemo(() => populateCart(restaurant, cart), [cart, restaurant])
 
   const showAvailablityMessage = () => {
     Alert.alert(

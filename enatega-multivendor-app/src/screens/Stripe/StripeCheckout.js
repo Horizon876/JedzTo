@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import useEnvVars from '../../../environment'
 import UserContext from '../../context/User'
+import OrdersContext from '../../context/Orders'
 import analytics from '../../utils/analytics'
 import { useTranslation } from 'react-i18next'
 import { endEphemeralGuestAfterOrder } from '../../utils/customerDetailsStorage'
@@ -25,6 +26,7 @@ function StripeCheckout(props) {
   const [isConfirmingOrder, setIsConfirmingOrder] = useState(false)
   const [confirmationTimedOut, setConfirmationTimedOut] = useState(false)
   const { clearCart } = useContext(UserContext)
+  const { reFetchOrders } = useContext(OrdersContext)
   const orderIdParam = props?.route.params?._id
   const orderMongoIdParam = props?.route.params?.orderMongoId
   const isHandlingSuccessRef = useRef(false)
@@ -67,17 +69,25 @@ function StripeCheckout(props) {
   }
 
   const finishPaid = async (mongoId) => {
-    await clearCart()
+    const orderId = mongoId || orderMongoIdParam
+    try {
+      await clearCart()
+    } catch (_) {}
+    try {
+      if (typeof reFetchOrders === 'function') await reFetchOrders()
+    } catch (_) {}
     props?.navigation.reset({
       routes: [
         { name: 'Main' },
         {
           name: 'OrderDetail',
-          params: { _id: mongoId || orderMongoIdParam }
+          params: { _id: orderId }
         }
       ]
     })
-    await endEphemeralGuestAfterOrder()
+    try {
+      await endEphemeralGuestAfterOrder()
+    } catch (_) {}
   }
 
   async function confirmPaymentFromUrl(successUrl) {
@@ -99,7 +109,7 @@ function StripeCheckout(props) {
         const response = await fetch(`${SERVER_REST_URL}stripe/confirm?${qs.toString()}`)
         const json = await response.json()
         if (json?.paid && (json?.order?._id || orderMongoIdParam)) {
-          await finishPaid(json.order?._id)
+          await finishPaid(json.order?._id || orderMongoIdParam)
           return true
         }
       } catch (error) {
@@ -107,19 +117,26 @@ function StripeCheckout(props) {
       }
       await new Promise((resolve) => setTimeout(resolve, 700))
     }
+
+    // Stripe already redirected to success — don't leave the user stranded
+    // if webhook/confirm is slow. OrderDetail can poll status.
+    if (orderMongoIdParam) {
+      await finishPaid(orderMongoIdParam)
+      return true
+    }
     return false
   }
 
-  async function handleResponse(data) {
-    if (!data?.url) return
-    if (data.url.includes('stripe/success')) {
+  async function handleResponse(url) {
+    if (!url) return
+    if (url.includes('stripe/success')) {
       if (isHandlingSuccessRef.current) return
       isHandlingSuccessRef.current = true
       setIsConfirmingOrder(true)
       loadingSetter(false)
-      const ok = await confirmPaymentFromUrl(data.url)
+      const ok = await confirmPaymentFromUrl(url)
       if (!ok) setConfirmationTimedOut(true)
-    } else if (data.url.includes('stripe/cancel')) {
+    } else if (url.includes('stripe/cancel')) {
       goToCancelled('cancelled')
     }
   }
@@ -135,6 +152,14 @@ function StripeCheckout(props) {
         onShouldStartLoadWithRequest={(request) => {
           const { url } = request
           if (!url) return false
+          if (url.includes('stripe/success') || url.includes('stripe/cancel')) {
+            handleResponse(url)
+            return true
+          }
+          // Allow Stripe + bank / BLIK / 3DS top-level redirects during payment.
+          if (url.startsWith('https://') || url.startsWith('http://')) {
+            return true
+          }
           const allowedHosts = [...stripeAllowedHosts.current]
           if (backendHost.current) {
             allowedHosts.push(backendHost.current)
@@ -145,14 +170,16 @@ function StripeCheckout(props) {
           loadingSetter(false)
         }}
         onError={() => {
-          goToCancelled('failed')
+          if (!isHandlingSuccessRef.current) {
+            goToCancelled('failed')
+          }
         }}
         source={{
           uri: `${SERVER_REST_URL}stripe/create-checkout-session?id=${orderIdParam}`
         }}
         scalesPageToFit
         onNavigationStateChange={(navState) => {
-          handleResponse(navState)
+          handleResponse(navState?.url)
         }}
       />
       {loading ? (

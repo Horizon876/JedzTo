@@ -8,7 +8,7 @@ import { Restaurant } from '../models/index.js'
 
 const ITALIANA_ID = '6a7c8fff9dae5d65f04aeaf6'
 /** Radius that covers Rudnik from the restaurant pin (~2.84 km). */
-const STREFA1_RADIUS_KM = 3.5
+const STREFA1_RADIUS_KM = 4.5
 
 export async function ensureItalianaDeliveryAreas() {
   const restaurant = await Restaurant.findById(ITALIANA_ID)
