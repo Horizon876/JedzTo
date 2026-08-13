@@ -439,6 +439,8 @@
   "Current Location": "Bieżąca lokalizacja",
   "useUserContext must be used within a UserProvider": "useUserContext musi być używany w UserProvider",
   "Yes": "Tak",
+  "No": "Nie",
+  "phone_verified": "Telefon zweryfikowany",
   "Footer": "Stopka",
   "Store": "Sklep",
   "Stores": "Sklepy",

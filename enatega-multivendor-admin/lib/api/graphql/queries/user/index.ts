@@ -42,6 +42,7 @@ export const GET_USERS_PAGINATED = gql`
         name
         email
         phone
+        phoneIsVerified
         createdAt
         userType
         status

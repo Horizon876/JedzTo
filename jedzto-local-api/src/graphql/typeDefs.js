@@ -914,11 +914,20 @@ export const typeDefs = `#graphql
     name: String
     email: String
     phone: String
+    phoneIsVerified: Boolean
+    emailIsVerified: Boolean
+    isActive: Boolean
     createdAt: String
+    updatedAt: String
     userType: String
     status: String
     lastLogin: String
     notes: String
+    isGuest: Boolean
+    isOrderNotification: Boolean
+    isOfferNotification: Boolean
+    notificationToken: String
+    favourite: [String]
     addresses: [Address!]
   }
 
@@ -1109,6 +1118,7 @@ export const typeDefs = `#graphql
     getRestaurantDeliveryZoneInfo(id: ID!): RestaurantDeliveryZoneInfo
     restaurantByOwner(id: String): RestaurantOwnerRestaurants
     users: [AdminUser!]
+    user(id: ID!): AdminUser
     usersPaginated(page: Int, limit: Int, search: String, registrationMethod: String, status: String): UsersPaginatedResponse
     vendors: [Vendor!]
     getVendor(id: String!): Vendor

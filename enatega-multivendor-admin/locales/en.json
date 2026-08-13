@@ -424,6 +424,8 @@
   "Current Location": "Current Location",
   "useUserContext must be used within a UserProvider": "useUserContext must be used within a UserProvider",
   "Yes": "Yes",
+  "No": "No",
+  "phone_verified": "Phone verified",
   "Footer": "Footer",
   "Store": "Store",
   "Stores": "Stores",

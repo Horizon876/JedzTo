@@ -15,6 +15,7 @@ import {
   faTicket,
   faEllipsis,
   faWallet,
+  faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import useCheckAllowedRoutes from '@/lib/hooks/useCheckAllowedRoutes';
 import SidebarItem from './side-bar-item';
@@ -93,6 +94,14 @@ export default function MakeSidebar() {
       route: '/management/orders',
       isParent: true,
       icon: faReceipt,
+      isClickable: true,
+    },
+    {
+      text: 'Users',
+      label: t('Users'),
+      route: '/general/users',
+      isParent: true,
+      icon: faUsers,
       isClickable: true,
     },
     {

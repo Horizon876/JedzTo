@@ -29,6 +29,15 @@ export const USERS_TABLE_COLUMNS = (openMenuId?: string | null, setOpenMenuId?: 
     },
     { headerName: t('Email'), propertyName: 'email' },
     { headerName: t('Phone'), propertyName: 'phone' },
+    {
+      headerName: t('phone_verified'),
+      propertyName: 'phoneIsVerified',
+      body: (user: IUserResponse) => (
+        <div className="flex items-center gap-2">
+          {user.phoneIsVerified ? t('Yes') : t('No')}
+        </div>
+      ),
+    },
 
     {
       headerName: t('registration_method'),

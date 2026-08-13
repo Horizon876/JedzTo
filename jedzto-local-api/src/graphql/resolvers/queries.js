@@ -904,6 +904,24 @@ export const queries = {
     return rows.map(adminUserShape)
   },
 
+  user: async (_p, { id: userId }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const row = await User.findById(userId).lean()
+    if (!row || row.role !== 'CUSTOMER') return null
+    return {
+      ...adminUserShape(row),
+      phoneIsVerified: Boolean(row.phoneIsVerified),
+      emailIsVerified: Boolean(row.emailIsVerified),
+      isActive: row.isActive !== false,
+      isOrderNotification: row.isOrderNotification !== false,
+      isOfferNotification: row.isOfferNotification !== false,
+      updatedAt: row.updatedAt?.toISOString?.() || row.updatedAt || null,
+      favourite: (row.favourite || []).map(String),
+      notificationToken: row.notificationToken || null
+    }
+  },
+
   usersPaginated: async (_p, { page = 1, limit = 10, search, status }, ctx) => {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])

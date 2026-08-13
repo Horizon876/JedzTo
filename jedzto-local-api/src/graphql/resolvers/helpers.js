@@ -282,11 +282,13 @@ export const adminUserShape = (user) => ({
   name: user.name,
   email: user.email,
   phone: user.phone || '',
+  phoneIsVerified: Boolean(user.phoneIsVerified),
   createdAt: user.createdAt?.toISOString?.() || user.createdAt || null,
   userType: mapUserType(user.role),
   status: user.isActive === false ? 'inactive' : 'active',
   lastLogin: null,
   notes: '',
+  isGuest: Boolean(user.isGuest),
   addresses: (user.addresses || []).map((a) => ({
     _id: id(a) || String(a._id),
     id: id(a) || String(a._id),
