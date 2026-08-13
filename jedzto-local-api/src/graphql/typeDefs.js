@@ -775,6 +775,7 @@ export const typeDefs = `#graphql
     _id: ID
     title: String
     discount: Float
+    discountType: String
     enabled: Boolean
     restaurantId: ID
     minOrderValue: Float
@@ -800,6 +801,7 @@ export const typeDefs = `#graphql
     _id: ID
     title: String!
     discount: Float!
+    discountType: String
     enabled: Boolean
     restaurantId: ID
     minOrderValue: Float
@@ -1167,8 +1169,8 @@ export const typeDefs = `#graphql
     updateNotificationStatus(offerNotification: Boolean!, orderNotification: Boolean!): UserProfile
     addFavourite(id: String!): UserProfile
     abortOrder(id: String!): Order
-    coupon(coupon: String!, restaurantId: ID!): ApplyCouponResponse
-    Coupon(coupon: String!, restaurantId: ID!): ApplyCouponResponse
+    coupon(coupon: String!, restaurantId: ID!, phone: String!, itemsTotal: Float): ApplyCouponResponse
+    Coupon(coupon: String!, restaurantId: ID!, phone: String!, itemsTotal: Float): ApplyCouponResponse
     sendChatMessage(orderId: ID!, messageInput: ChatMessageInput!): ChatMessagePayload
     Deactivate(isActive: Boolean!, email: String!): UserProfile
     reviewOrder(order: String, rating: Int, description: String): Order

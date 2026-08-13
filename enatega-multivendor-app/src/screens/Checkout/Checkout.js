@@ -208,8 +208,7 @@ function Checkout(props) {
     }
   })
 
-  const phoneAlreadyVerified = Boolean(profile?.phoneIsVerified && profile?.phone)
-  const canApplyVoucher = phoneAlreadyVerified || voucherPhoneVerified
+  const canApplyVoucher = voucherPhoneVerified
 
   const resetVoucherPhoneState = useCallback(() => {
     setVoucherOtp('')
@@ -221,11 +220,8 @@ function Checkout(props) {
   const openVoucherModal = useCallback(() => {
     setVoucherCode('')
     resetVoucherPhoneState()
-    if (profile?.phoneIsVerified && profile?.phone) {
-      setVoucherPhoneVerified(true)
-    }
     voucherModalRef.current?.open()
-  }, [profile?.phone, profile?.phoneIsVerified, resetVoucherPhoneState])
+  }, [resetVoucherPhoneState])
 
   const handleSendVoucherOtp = useCallback(() => {
     const phone = String(voucherPhone || '').trim()
@@ -290,11 +286,12 @@ function Checkout(props) {
 
   const pricing = useMemo(() => calculateOrderPricing({
     cart: populatedCart,
-    discountPercent: coupon?.discount,
+    discountPercent: coupon?.discountType === 'fixed' ? 0 : Number(coupon?.discount || 0),
+    discountFixed: coupon?.discountType === 'fixed' ? Number(coupon?.discount || 0) : 0,
     taxPercent: 0,
     delivery: isPickup ? 0 : deliveryCharges,
     tip: isPickup ? 0 : tip
-  }), [populatedCart, coupon?.discount, deliveryCharges, isPickup, tip])
+  }), [populatedCart, coupon?.discount, coupon?.discountType, deliveryCharges, isPickup, tip])
   const inset = useSafeAreaInsets()
   const insets = initialWindowMetrics?.insets || { top: 0, bottom: 0, left: 0, right: 0 }
   const footerPad = Math.max(inset.bottom, insets.bottom, 8)
@@ -1347,11 +1344,9 @@ function Checkout(props) {
               </View>
             ) : (
               <View style={{ gap: scale(8) }}>
-                {voucherPhoneVerified && !phoneAlreadyVerified ? (
-                  <TextDefault bold textColor='#8E8E93' isRTL>
-                    {t('voucherPhoneVerified')}
-                  </TextDefault>
-                ) : null}
+                <TextDefault bold textColor='#8E8E93' isRTL>
+                  {t('voucherPhoneVerified')}
+                </TextDefault>
                 <TextDefault bold textColor='#8E8E93' isRTL>
                   {t('enterCode')}
                 </TextDefault>
@@ -1369,11 +1364,18 @@ function Checkout(props) {
                   activeOpacity={0.85}
                   onPress={() => {
                     const code = String(voucherCode || '').trim()
+                    const phone = String(voucherPhone || profile?.phone || '').trim()
                     if (!code) return
+                    if (!phone) {
+                      FlashMessage({ message: t('mobileErr1') })
+                      return
+                    }
                     mutateCoupon({
                       variables: {
                         coupon: code,
-                        restaurantId: data?.restaurant?._id
+                        restaurantId: data?.restaurant?._id,
+                        phone,
+                        itemsTotal: Number(pricing?.subtotal) || 0
                       }
                     })
                   }}

@@ -14,7 +14,8 @@ import {
   Food,
   Order,
   ShopType,
-  Coupon
+  Coupon,
+  CouponRedemption
 } from '../../models/index.js'
 import {
   assertPublicAccess,
@@ -23,6 +24,7 @@ import {
 } from '../../auth/jwt.js'
 import { STRIPE_SECRET_KEY, MIN_PASSWORD_LENGTH } from '../../config.js'
 import { toMoney } from '../../utils/sanitize.js'
+import { normalizePhone } from '../../utils/phone.js'
 import { resolveDefaultEta } from '../../services/eta.js'
 import { markSettlementSettled, currentPeriodKey } from '../../services/settlements.js'
 import { publishOrderChanged, isOnlineCardMethod } from '../../services/orderNotify.js'
@@ -79,11 +81,18 @@ const resolveCouponScope = (couponInput, auth) => {
   return requested
 }
 
-/** Discounts are percentages; anything outside 0–100 is nonsense or abuse. */
+/** Percent discounts are 1–100; fixed discounts are a PLN amount > 0. */
 const assertCouponInput = (couponInput) => {
   const discount = Number(couponInput.discount)
-  if (!Number.isFinite(discount) || discount <= 0 || discount > 100) {
-    throw badInput('Rabat musi być wartością z zakresu 1–100%')
+  const discountType = couponInput.discountType === 'fixed' ? 'fixed' : 'percent'
+  if (!Number.isFinite(discount) || discount <= 0) {
+    throw badInput('Rabat musi być liczbą większą od zera')
+  }
+  if (discountType === 'percent' && discount > 100) {
+    throw badInput('Rabat procentowy musi być w zakresie 1–100%')
+  }
+  if (discountType === 'fixed' && discount > 500) {
+    throw badInput('Rabat kwotowy nie może przekraczać 500 zł')
   }
   if (!String(couponInput.title || '').trim()) {
     throw badInput('Kod rabatowy wymaga nazwy')
@@ -144,6 +153,7 @@ export const adminMutations = {
     const doc = await Coupon.create({
       title: String(couponInput.title).trim(),
       discount: Number(couponInput.discount),
+      discountType: couponInput.discountType === 'fixed' ? 'fixed' : 'percent',
       enabled: couponInput.enabled !== false,
       restaurantId: resolveCouponScope(couponInput, auth),
       minOrderValue: toMoney(couponInput.minOrderValue),
@@ -170,6 +180,7 @@ export const adminMutations = {
 
     existing.title = String(couponInput.title).trim()
     existing.discount = Number(couponInput.discount)
+    existing.discountType = couponInput.discountType === 'fixed' ? 'fixed' : 'percent'
     existing.enabled = couponInput.enabled !== false
     existing.restaurantId = resolveCouponScope(couponInput, auth)
     existing.minOrderValue = toMoney(couponInput.minOrderValue)
@@ -870,9 +881,17 @@ export const adminMutations = {
       )
     }
 
+    const customer = await User.findById(auth.userId).lean()
+    const phoneKey = normalizePhone(customer?.phone)
+    if (args.couponCode && !phoneKey) {
+      throw new GraphQLError('Aby użyć kuponu, zweryfikuj numer telefonu', {
+        extensions: { code: 'BAD_USER_INPUT' }
+      })
+    }
+
     // Single source of truth for money: menu prices, delivery area fees,
     // surcharges and discounts are all resolved server-side.
-    const pricing = await priceOrder(restaurant, args)
+    const pricing = await priceOrder(restaurant, args, { phone: phoneKey })
     const {
       items,
       orderAmount,
@@ -930,8 +949,23 @@ export const adminMutations = {
     })
 
     if (pricing.coupon) {
-      // Atomic increment keeps the usage limit honest under concurrency.
-      await Coupon.updateOne({ _id: pricing.coupon._id }, { $inc: { usedCount: 1 } })
+      try {
+        await CouponRedemption.create({
+          couponId: pricing.coupon._id,
+          phone: phoneKey,
+          orderId: order._id
+        })
+        // Atomic increment keeps the usage limit honest under concurrency.
+        await Coupon.updateOne({ _id: pricing.coupon._id }, { $inc: { usedCount: 1 } })
+      } catch (err) {
+        await Order.deleteOne({ _id: order._id })
+        if (err?.code === 11000) {
+          throw new GraphQLError('Ten numer telefonu już wykorzystał ten kod rabatowy', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          })
+        }
+        throw err
+      }
     }
 
     const serialized = await serializeOrder(order.toObject())

@@ -584,7 +584,7 @@ export const pl = {
     inputCode: 'Wprowadź kod',
     voucherVerifyPhoneFirst: 'Aby dodać kupon, najpierw zweryfikuj numer telefonu.',
     voucherSendCode: 'Wyślij kod',
-    voucherEnterSmsCode: 'Wpisz kod z SMS',
+    voucherEnterSmsCode: 'Wpisz kod z SMS (na razie: 123456)',
     voucherPhoneVerified: 'Numer zweryfikowany — możesz dodać kupon.',
     AddTip: 'Dodaj napiwek',
     permanentDeleteMessage: 'Czy na pewno chcesz usunąć swoje konto? Tej czynności nie można cofnąć. Usunięcie konta trwale usunie wszystkie Twoje dane, w tym zamówienia i preferencje. Jeśli kontynuujesz, utracisz dostęp do swojego konta i jego korzyści.',

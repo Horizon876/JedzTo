@@ -3,6 +3,7 @@ import { GraphQLError } from 'graphql'
 import { User, Restaurant, Category, Food, Order, ShopType } from '../models/index.js'
 import { lookupCoupon } from '../services/pricing.js'
 import { couponShape } from './resolvers/helpers.js'
+import { normalizePhone } from '../utils/phone.js'
 import {
   assertPublicAccess,
   requireUser,
@@ -2035,9 +2036,20 @@ export const resolvers = {
       ).lean()
       return serializeOrder(updated)
     },
-    coupon: async (_p, { coupon, restaurantId }, ctx) => {
+    coupon: async (_p, { coupon, restaurantId, phone, itemsTotal }, ctx) => {
       assertPublicAccess(ctx)
-      const result = await lookupCoupon(restaurantId, coupon)
+      const phoneKey = normalizePhone(phone)
+      if (!phoneKey) {
+        return {
+          success: false,
+          message: 'Aby użyć kuponu, zweryfikuj numer telefonu',
+          coupon: null
+        }
+      }
+      const result = await lookupCoupon(restaurantId, coupon, {
+        phone: phoneKey,
+        itemsTotal
+      })
       return {
         success: result.ok,
         message: result.message,
@@ -2047,7 +2059,18 @@ export const resolvers = {
     // Legacy alias (capital C) — same payload as `coupon`.
     Coupon: async (_p, args, ctx) => {
       assertPublicAccess(ctx)
-      const result = await lookupCoupon(args.restaurantId, args.coupon)
+      const phoneKey = normalizePhone(args.phone)
+      if (!phoneKey) {
+        return {
+          success: false,
+          message: 'Aby użyć kuponu, zweryfikuj numer telefonu',
+          coupon: null
+        }
+      }
+      const result = await lookupCoupon(args.restaurantId, args.coupon, {
+        phone: phoneKey,
+        itemsTotal: args.itemsTotal
+      })
       return {
         success: result.ok,
         message: result.message,

@@ -124,13 +124,15 @@ export const resetPassword = `mutation ResetPassword($password:String!,$email:St
     }
   }`
 
-export const applyCoupon = `mutation Coupon($coupon: String!, $restaurantId: ID!) {
-  coupon(coupon: $coupon, restaurantId: $restaurantId) {
+export const applyCoupon = `mutation Coupon($coupon: String!, $restaurantId: ID!, $phone: String!, $itemsTotal: Float) {
+  coupon(coupon: $coupon, restaurantId: $restaurantId, phone: $phone, itemsTotal: $itemsTotal) {
     coupon {
       _id
       discount
+      discountType
       enabled
       title
+      minOrderValue
     }
     message
     success

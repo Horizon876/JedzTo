@@ -629,7 +629,7 @@ export const en = {
   inputCode: 'Enter code',
   voucherVerifyPhoneFirst: 'To add a coupon, verify your phone number first.',
   voucherSendCode: 'Send code',
-  voucherEnterSmsCode: 'Enter SMS code',
+  voucherEnterSmsCode: 'Enter SMS code (for now: 123456)',
   voucherPhoneVerified: 'Phone verified — you can add a coupon.',
   AddTip: 'Add Tip',
   permanentDeleteMessage:

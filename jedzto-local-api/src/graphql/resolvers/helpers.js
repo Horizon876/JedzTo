@@ -302,6 +302,7 @@ export const couponShape = (doc) => ({
   _id: String(doc._id),
   title: doc.title,
   discount: doc.discount,
+  discountType: doc.discountType === 'fixed' ? 'fixed' : 'percent',
   enabled: doc.enabled,
   restaurantId: doc.restaurantId ? String(doc.restaurantId) : null,
   minOrderValue: doc.minOrderValue,

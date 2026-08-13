@@ -11,13 +11,14 @@
  */
 
 import { GraphQLError } from 'graphql'
-import { Food, Coupon } from '../models/index.js'
+import { Food, Coupon, CouponRedemption } from '../models/index.js'
 import {
   DELIVERY_RATE,
   COD_CASH_FEE,
   MAX_ITEM_QUANTITY
 } from '../config.js'
 import { resolveDelivery } from '../graphql/resolvers/helpers.js'
+import { normalizePhone } from '../utils/phone.js'
 
 const badInput = (message, code = 'BAD_USER_INPUT') =>
   new GraphQLError(message, { extensions: { code } })
@@ -158,8 +159,9 @@ const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$
 /**
  * Looks up an enabled coupon for a restaurant (case-insensitive title).
  * Platform-wide coupons have restaurantId = null.
+ * When `phone` is set, rejects codes already redeemed by that number.
  */
-export async function lookupCoupon(restaurantId, couponCode) {
+export async function lookupCoupon(restaurantId, couponCode, { phone, itemsTotal } = {}) {
   const code = String(couponCode || '').trim()
   if (!code) {
     return { ok: false, message: 'Podaj kod kuponu', coupon: null }
@@ -179,21 +181,68 @@ export async function lookupCoupon(restaurantId, couponCode) {
     return { ok: false, message: 'Kod rabatowy został już wykorzystany', coupon: null }
   }
 
+  const phoneKey = normalizePhone(phone)
+  if (phoneKey) {
+    const used = await CouponRedemption.findOne({
+      couponId: coupon._id,
+      phone: phoneKey
+    }).lean()
+    if (used) {
+      return {
+        ok: false,
+        message: 'Ten numer telefonu już wykorzystał ten kod rabatowy',
+        coupon: null
+      }
+    }
+  }
+
+  const minOrder = Number(coupon.minOrderValue || 0)
+  if (
+    itemsTotal != null &&
+    Number.isFinite(Number(itemsTotal)) &&
+    minOrder > 0 &&
+    Number(itemsTotal) < minOrder
+  ) {
+    return {
+      ok: false,
+      message: `Kod rabatowy wymaga zamówienia od ${minOrder.toFixed(2)} zł`,
+      coupon: null
+    }
+  }
+
   return { ok: true, message: 'Zastosowano kupon', coupon }
 }
 
+function computeDiscountAmount(coupon, itemsTotal) {
+  const type = coupon.discountType === 'fixed' ? 'fixed' : 'percent'
+  if (type === 'fixed') {
+    const amount = Math.max(0, Number(coupon.discount || 0))
+    return round2(Math.min(itemsTotal, amount))
+  }
+  const percent = Math.min(100, Math.max(0, Number(coupon.discount || 0)))
+  return round2((itemsTotal * percent) / 100)
+}
+
 /** Validates a coupon and returns the discount in currency units. */
-async function resolveDiscount(restaurant, couponCode, itemsTotal) {
+async function resolveDiscount(restaurant, couponCode, itemsTotal, { phone } = {}) {
   if (!couponCode) return { discountAmount: 0, coupon: null }
 
-  const { ok, message, coupon } = await lookupCoupon(restaurant._id, couponCode)
-  if (!ok || !coupon) throw badInput(message || 'Kod rabatowy jest nieprawidłowy lub nieaktywny')
-  if (itemsTotal < Number(coupon.minOrderValue || 0)) {
-    throw badInput(`Kod rabatowy wymaga zamówienia od ${Number(coupon.minOrderValue).toFixed(2)}`)
+  const phoneKey = normalizePhone(phone)
+  if (!phoneKey) {
+    throw badInput('Aby użyć kuponu, zweryfikuj numer telefonu')
   }
 
-  const percent = Math.min(100, Math.max(0, Number(coupon.discount || 0)))
-  return { discountAmount: round2((itemsTotal * percent) / 100), coupon }
+  const { ok, message, coupon } = await lookupCoupon(restaurant._id, couponCode, {
+    phone: phoneKey
+  })
+  if (!ok || !coupon) throw badInput(message || 'Kod rabatowy jest nieprawidłowy lub nieaktywny')
+  if (itemsTotal < Number(coupon.minOrderValue || 0)) {
+    throw badInput(
+      `Kod rabatowy wymaga zamówienia od ${Number(coupon.minOrderValue).toFixed(2)} zł`
+    )
+  }
+
+  return { discountAmount: computeDiscountAmount(coupon, itemsTotal), coupon }
 }
 
 /**
@@ -201,8 +250,9 @@ async function resolveDiscount(restaurant, couponCode, itemsTotal) {
  *
  * @param {object} restaurant
  * @param {object} args placeOrder arguments (client input)
+ * @param {{ phone?: string }} [opts]
  */
-export async function priceOrder(restaurant, args) {
+export async function priceOrder(restaurant, args, opts = {}) {
   const isPickup = Boolean(args.isPickedUp)
   const { items, itemsTotal } = await buildOrderItems(restaurant, args.orderInput)
 
@@ -217,7 +267,8 @@ export async function priceOrder(restaurant, args) {
   const { discountAmount, coupon } = await resolveDiscount(
     restaurant,
     args.couponCode,
-    itemsTotal
+    itemsTotal,
+    { phone: opts.phone }
   )
 
   // Cash handling surcharge is a platform rule, not a client-supplied number.
