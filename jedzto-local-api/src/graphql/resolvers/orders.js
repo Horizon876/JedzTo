@@ -10,6 +10,7 @@ import { Order, Restaurant, User } from '../../models/index.js'
 import { requireUser } from '../../auth/jwt.js'
 import { resolveDefaultEta, computeCurrentEta } from '../../services/eta.js'
 import { containsFilter, clampPageSize, clampNonNegative } from '../../utils/sanitize.js'
+import { cleanPolishAddress } from '../../utils/polishAddress.js'
 import { id } from './helpers.js'
 
 // ---------------------------------------------------------------------------
@@ -76,6 +77,7 @@ export async function serializeOrder(order, related = null) {
       : null,
     deliveryAddress: {
       ...order.deliveryAddress,
+      deliveryAddress: cleanPolishAddress(order.deliveryAddress?.deliveryAddress || ''),
       id: id(order.deliveryAddress) || `addr-${id(order)}`
     },
     items: (order.items || []).map((item) => ({

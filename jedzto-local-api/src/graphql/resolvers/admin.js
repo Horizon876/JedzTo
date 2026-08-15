@@ -55,6 +55,7 @@ import {
   RestaurantFieldResolvers
 } from './restaurant.js'
 import { serializeOrder, ACTIVE, loadAuthorizedOrder } from './orders.js'
+import { cleanPolishAddress } from '../../utils/polishAddress.js'
 
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null
 
@@ -683,6 +684,14 @@ export const adminMutations = {
     assign('freeDelivery', input.freeDelivery)
     assign('freeDeliveryFrom', input.freeDeliveryFrom)
 
+    if (input.companyRegNo != null || input.bussinessRegNo != null) {
+      restaurant.bussinessDetails = {
+        ...(restaurant.bussinessDetails?.toObject?.() || restaurant.bussinessDetails || {}),
+        ...(input.companyRegNo != null ? { companyRegNo: String(input.companyRegNo) } : {}),
+        ...(input.bussinessRegNo != null ? { bussinessRegNo: String(input.bussinessRegNo) } : {})
+      }
+    }
+
     // Platform-controlled fields. An owner used to be able to set their own
     // commission to 0 % and lift a suspension imposed by the platform.
     if (isAdmin) {
@@ -966,7 +975,9 @@ export const adminMutations = {
             toLatitude(args.address?.latitude, 49.8339)
           ]
         },
-        deliveryAddress: String(args.address?.deliveryAddress || '').slice(0, 300),
+        deliveryAddress: cleanPolishAddress(
+          String(args.address?.deliveryAddress || '')
+        ).slice(0, 300),
         details: String(args.address?.details || '').slice(0, 300),
         label: String(args.address?.label || 'Other').slice(0, 60)
       }

@@ -906,6 +906,8 @@ export const typeDefs = `#graphql
     holidayExceptions: JSON
     freeDeliveryFrom: Float
     freeDelivery: Boolean
+    companyRegNo: String
+    bussinessRegNo: String
   }
 
   # Customer accounts as listed on the super admin's Users screen.

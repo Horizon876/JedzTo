@@ -1,6 +1,10 @@
 import express from 'express'
 import { searchMockPlaces, findMockPlaceById, findNearestMockPlace } from '../data/mockPlaces.js'
 import { MAPBOX_ACCESS_TOKEN } from '../config.js'
+import {
+  cleanPolishAddress,
+  formatMapboxFeature
+} from '../utils/polishAddress.js'
 
 export const mapsRouter = express.Router()
 
@@ -13,6 +17,10 @@ export const mapsRouter = express.Router()
 // coordinates for any point). Falls back to the small local mock list
 // (Myślenice area) when Mapbox is unreachable/unconfigured, so the app still
 // works fully offline.
+//
+// Addresses are always formatted in Polish as:
+//   miejscowość, kod pocztowy, ulica + numer
+// without voivodeship / country ("Lesser Poland", "Polska", …).
 
 const MAPBOX_GEOCODING_URL = 'https://api.mapbox.com/geocoding/v5/mapbox.places'
 
@@ -31,21 +39,22 @@ const decodePlaceId = (placeId) => {
     const lng = Number(decoded?.lng)
     if (!Number.isFinite(lat) || Math.abs(lat) > 90) return null
     if (!Number.isFinite(lng) || Math.abs(lng) > 180) return null
-    return { lat, lng, name: String(decoded.name || '').slice(0, 300) }
+    return {
+      lat,
+      lng,
+      name: cleanPolishAddress(String(decoded.name || '')).slice(0, 300)
+    }
   } catch {
     return null
   }
 }
 
-/** Whitelisted BCP-47-ish language tag — interpolated into the Mapbox URL. */
-const safeLanguage = (value) => {
-  const tag = String(value || 'pl')
-  return /^[a-z]{2}(-[A-Za-z]{2,4})?$/.test(tag) ? tag : 'pl'
-}
+/** Always Polish for JedzTo — English Mapbox labels produce "Lesser Poland". */
+const mapLanguage = () => 'pl'
 
 const pickCity = (context = []) => {
   const byPrefix = (prefix) => context.find((c) => c.id?.startsWith(prefix))?.text
-  return byPrefix('place.') || byPrefix('locality.') || byPrefix('district.') || byPrefix('region.') || null
+  return byPrefix('place.') || byPrefix('locality.') || byPrefix('district.') || null
 }
 
 mapsRouter.get('/autocomplete', async (req, res) => {
@@ -58,7 +67,7 @@ mapsRouter.get('/autocomplete', async (req, res) => {
 
   if (MAPBOX_ACCESS_TOKEN) {
     try {
-      const url = `${MAPBOX_GEOCODING_URL}/${encodeURIComponent(input)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&autocomplete=true&limit=8&language=${safeLanguage(req.query.language)}`
+      const url = `${MAPBOX_GEOCODING_URL}/${encodeURIComponent(input)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&autocomplete=true&limit=8&language=${mapLanguage()}&country=pl`
       const response = await fetch(url)
       if (response.ok) {
         const json = await response.json()
@@ -66,15 +75,18 @@ mapsRouter.get('/autocomplete', async (req, res) => {
         return res.json({
           data: {
             status: features.length ? 'OK' : 'ZERO_RESULTS',
-            predictions: features.map((feature) => ({
-              id: feature.id,
-              placeId: encodePlaceId({
-                lat: feature.center[1],
-                lng: feature.center[0],
-                name: feature.place_name
-              }),
-              description: feature.place_name
-            }))
+            predictions: features.map((feature) => {
+              const name = formatMapboxFeature(feature)
+              return {
+                id: feature.id,
+                placeId: encodePlaceId({
+                  lat: feature.center[1],
+                  lng: feature.center[0],
+                  name
+                }),
+                description: name
+              }
+            })
           }
         })
       }
@@ -101,13 +113,14 @@ mapsRouter.get('/place-details', (req, res) => {
 
   const decoded = decodePlaceId(placeId)
   if (decoded) {
+    const name = cleanPolishAddress(decoded.name)
     return res.json({
       data: {
         status: 'OK',
         result: {
           geometry: { location: { lat: decoded.lat, lng: decoded.lng } },
-          formatted_address: decoded.name,
-          name: decoded.name
+          formatted_address: name,
+          name
         }
       }
     })
@@ -145,7 +158,7 @@ mapsRouter.get('/reverse-geocode', async (req, res) => {
 
   if (MAPBOX_ACCESS_TOKEN) {
     try {
-      const url = `${MAPBOX_GEOCODING_URL}/${longitude},${latitude}.json?access_token=${MAPBOX_ACCESS_TOKEN}&language=${safeLanguage(req.query.language)}&types=address,poi,place`
+      const url = `${MAPBOX_GEOCODING_URL}/${longitude},${latitude}.json?access_token=${MAPBOX_ACCESS_TOKEN}&language=${mapLanguage()}&country=pl&types=address,poi,place`
       const response = await fetch(url)
       if (response.ok) {
         const json = await response.json()
@@ -154,7 +167,7 @@ mapsRouter.get('/reverse-geocode', async (req, res) => {
           return res.json({
             data: {
               status: 'OK',
-              formattedAddress: feature.place_name,
+              formattedAddress: formatMapboxFeature(feature),
               city: pickCity(feature.context) || feature.text
             }
           })
