@@ -22,6 +22,7 @@ import { mapsRouter } from './src/routes/maps.js'
 import { stripeRouter } from './src/routes/stripe.js'
 import { backfillUnpublishedMenus } from './src/services/menu.js'
 import { ensureItalianaDeliveryAreas } from './src/services/ensureDeliveryAreas.js'
+import { ensureItalianaListing } from './src/services/ensureItalianaListing.js'
 import { ensureStart10Coupon } from './src/services/ensureStart10Coupon.js'
 
 // ---------------------------------------------------------------------------
@@ -98,6 +99,7 @@ async function start() {
   await ensureMenuItemCustomization()
   await backfillUnpublishedMenus()
   await ensureItalianaDeliveryAreas()
+  await ensureItalianaListing()
   await ensureStart10Coupon()
 
   const app = express()
