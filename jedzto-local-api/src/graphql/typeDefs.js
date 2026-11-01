@@ -990,6 +990,15 @@ export const typeDefs = `#graphql
     owner: GeneratedOwnerCredentials
   }
 
+  type CreateRiderPayload {
+    userId: ID
+    login: String
+    email: String
+    name: String
+    restaurantId: ID
+    restaurantName: String
+  }
+
   input SubCategoryInput {
     _id: String
     title: String
@@ -1215,6 +1224,7 @@ export const typeDefs = `#graphql
 
     # Super Admin — restaurant onboarding
     createRestaurant(restaurant: RestaurantInput!, ownerName: String!, ownerLogin: String!, ownerPassword: String!): CreateRestaurantPayload
+    createRider(name: String!, login: String!, password: String!, restaurantId: ID!): CreateRiderPayload
     deleteRestaurant(id: String!): Boolean
     hardDeleteRestaurant(id: String!): Boolean
     createCoupon(couponInput: CouponInput!): Coupon

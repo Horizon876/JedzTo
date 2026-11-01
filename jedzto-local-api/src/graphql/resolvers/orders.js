@@ -263,9 +263,32 @@ const forbidden = (message = 'FORBIDDEN') =>
   new GraphQLError(message, { extensions: { code: 'FORBIDDEN' } })
 
 export const assertCanReadRestaurantOrders = async (ctx, restaurantId) => {
-  const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+  const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'RIDER'])
   if (auth.role === 'SUPER_ADMIN') return auth
+  if (auth.role === 'RIDER') {
+    if (!restaurantId || String(auth.restaurantId) !== String(restaurantId)) {
+      throw forbidden()
+    }
+    return auth
+  }
   const restaurant = await Restaurant.findById(restaurantId).select('ownerId').lean()
+  if (!restaurant || String(restaurant.ownerId) !== String(auth.userId)) {
+    throw forbidden()
+  }
+  return auth
+}
+
+/** Owner / rider staff may mutate orders belonging to their restaurant. */
+export const assertCanManageRestaurantOrder = async (ctx, order) => {
+  const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'RIDER'])
+  if (auth.role === 'SUPER_ADMIN') return auth
+  if (auth.role === 'RIDER') {
+    if (!order?.restaurantId || String(auth.restaurantId) !== String(order.restaurantId)) {
+      throw forbidden()
+    }
+    return auth
+  }
+  const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
   if (!restaurant || String(restaurant.ownerId) !== String(auth.userId)) {
     throw forbidden()
   }
@@ -301,6 +324,12 @@ export const loadAuthorizedOrder = async (ctx, orderRef, { lean = false, roles =
   if (auth.role === 'RESTAURANT_OWNER') {
     const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
     if (restaurant && String(restaurant.ownerId) === String(auth.userId)) {
+      return { auth, order }
+    }
+  }
+
+  if (auth.role === 'RIDER') {
+    if (order.restaurantId && String(auth.restaurantId) === String(order.restaurantId)) {
       return { auth, order }
     }
   }

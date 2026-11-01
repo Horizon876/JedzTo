@@ -54,7 +54,12 @@ import {
   publishRestaurantTimes,
   RestaurantFieldResolvers
 } from './restaurant.js'
-import { serializeOrder, ACTIVE, loadAuthorizedOrder } from './orders.js'
+import {
+  serializeOrder,
+  ACTIVE,
+  loadAuthorizedOrder,
+  assertCanManageRestaurantOrder
+} from './orders.js'
 import { cleanPolishAddress } from '../../utils/polishAddress.js'
 
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null
@@ -272,15 +277,9 @@ export const adminMutations = {
 
   updateOrderStatus: async (_p, { orderId, status }, ctx) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
     const order = await Order.findById(orderId)
     if (!order) throw new GraphQLError('Order not found')
-    if (auth.role === 'RESTAURANT_OWNER') {
-      const restaurant = await Restaurant.findById(order.restaurantId)
-      if (String(restaurant?.ownerId) !== String(auth.userId)) {
-        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
-      }
-    }
+    await assertCanManageRestaurantOrder(ctx, order)
     order.orderStatus = status
     await order.save()
     const serialized = await serializeOrder(order.toObject())
@@ -295,15 +294,9 @@ export const adminMutations = {
     ctx
   ) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
     const order = await Order.findById(orderId)
     if (!order) throw new GraphQLError('Order not found')
-    if (auth.role === 'RESTAURANT_OWNER') {
-      const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
-      if (String(restaurant?.ownerId) !== String(auth.userId)) {
-        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
-      }
-    }
+    await assertCanManageRestaurantOrder(ctx, order)
 
     order.orderStatus = orderStatus
     const now = new Date()
@@ -371,15 +364,9 @@ export const adminMutations = {
 
   cancelOrder: async (_p, { _id, reason }, ctx) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
     const order = await Order.findById(_id)
     if (!order) throw new GraphQLError('Order not found')
-    if (auth.role === 'RESTAURANT_OWNER') {
-      const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
-      if (String(restaurant?.ownerId) !== String(auth.userId)) {
-        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
-      }
-    }
+    await assertCanManageRestaurantOrder(ctx, order)
     order.orderStatus = 'CANCELLED'
     order.cancelledAt = new Date()
     order.isRinged = false
@@ -401,18 +388,12 @@ export const adminMutations = {
 
   muteRing: async (_p, { orderId }, ctx) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
     // Store app may pass display orderId ("JT123...") or Mongo _id.
     const order =
       (await Order.findOne({ orderId })) ||
       (await Order.findById(orderId).catch(() => null))
     if (!order) throw new GraphQLError('Order not found')
-    if (auth.role === 'RESTAURANT_OWNER') {
-      const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
-      if (String(restaurant?.ownerId) !== String(auth.userId)) {
-        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
-      }
-    }
+    await assertCanManageRestaurantOrder(ctx, order)
     order.isRinged = false
     await order.save()
     const serialized = await serializeOrder(order.toObject())
@@ -423,15 +404,9 @@ export const adminMutations = {
 
   updateOrderEta: async (_p, { id: orderId, preparationEtaMinutes, deliveryEtaMinutes }, ctx) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
     const order = await Order.findById(orderId)
     if (!order) throw new GraphQLError('Order not found')
-    if (auth.role === 'RESTAURANT_OWNER') {
-      const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId').lean()
-      if (String(restaurant?.ownerId) !== String(auth.userId)) {
-        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
-      }
-    }
+    await assertCanManageRestaurantOrder(ctx, order)
 
     const now = Date.now()
     let shouldSyncRestaurantTimes = false
@@ -684,11 +659,16 @@ export const adminMutations = {
     assign('freeDelivery', input.freeDelivery)
     assign('freeDeliveryFrom', input.freeDeliveryFrom)
 
-    if (input.companyRegNo != null || input.bussinessRegNo != null) {
+    if (
+      input.companyRegNo != null ||
+      input.bussinessRegNo != null ||
+      input.accountName != null
+    ) {
       restaurant.bussinessDetails = {
         ...(restaurant.bussinessDetails?.toObject?.() || restaurant.bussinessDetails || {}),
         ...(input.companyRegNo != null ? { companyRegNo: String(input.companyRegNo) } : {}),
-        ...(input.bussinessRegNo != null ? { bussinessRegNo: String(input.bussinessRegNo) } : {})
+        ...(input.bussinessRegNo != null ? { bussinessRegNo: String(input.bussinessRegNo) } : {}),
+        ...(input.accountName != null ? { accountName: String(input.accountName) } : {})
       }
     }
 
@@ -815,6 +795,44 @@ export const adminMutations = {
     ])
     await Restaurant.deleteOne({ _id: restaurantId })
     return true
+  },
+
+  createRider: async (_p, { name, login, password, restaurantId }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const bareLogin = String(login || '')
+      .trim()
+      .toLowerCase()
+      .replace(/@.*$/, '')
+    if (!bareLogin) throw badInput('Login is required')
+    if (String(password || '').length < 6) {
+      throw badInput('Hasło musi mieć co najmniej 6 znaków')
+    }
+    const restaurant = await Restaurant.findById(restaurantId).select('_id name').lean()
+    if (!restaurant) throw badInput('Restaurant not found')
+
+    const email = `${bareLogin}@jedzto.local`
+    if (await User.exists({ email })) {
+      throw badInput('Login already exists')
+    }
+
+    const rider = await User.create({
+      email,
+      password: String(password),
+      name: String(name || bareLogin).trim() || bareLogin,
+      role: 'RIDER',
+      restaurantId: restaurant._id,
+      isActive: true
+    })
+
+    return {
+      userId: id(rider),
+      login: bareLogin,
+      email,
+      name: rider.name,
+      restaurantId: id(restaurant),
+      restaurantName: restaurant.name
+    }
   },
 
   createShopType: async (_p, { dto }, ctx) => {

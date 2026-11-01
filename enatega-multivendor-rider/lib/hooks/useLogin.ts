@@ -7,6 +7,7 @@ import { OWNER_LOGIN } from '../api/graphql/mutation/login'
 import { AuthContext } from '../context/global/auth.context'
 import { setItem } from '../services/async-storage'
 import { FlashMessageComponent } from '../ui/useable-components'
+import { APP_ROLE } from '../utils/app-role'
 import { ROUTES } from '../utils/constants'
 
 const useLogin = () => {
@@ -34,7 +35,15 @@ const useLogin = () => {
     setIsLoading(false)
     if (!ownerLogin?.token) return
 
-    if (ownerLogin.userType !== 'RESTAURANT' && ownerLogin.userType !== 'ADMIN') {
+    const userType = ownerLogin.userType
+    if (APP_ROLE === 'delivery') {
+      if (userType !== 'RIDER' && userType !== 'ADMIN') {
+        FlashMessageComponent({
+          message: t('Only rider accounts can use the delivery app'),
+        })
+        return
+      }
+    } else if (userType !== 'RESTAURANT' && userType !== 'ADMIN') {
       FlashMessageComponent({
         message: t('Only restaurant accounts can use the kitchen app'),
       })
@@ -42,7 +51,7 @@ const useLogin = () => {
     }
 
     const restaurantId = ownerLogin.restaurantId || ownerLogin.userTypeId
-    if (!restaurantId && ownerLogin.userType === 'RESTAURANT') {
+    if (!restaurantId && userType !== 'ADMIN') {
       FlashMessageComponent({ message: t('No restaurant linked to this account') })
       return
     }
@@ -52,7 +61,7 @@ const useLogin = () => {
     if (restaurantId) {
       await setItem('restaurant-id', restaurantId)
     }
-    router.replace(ROUTES.roleSelect as Href)
+    router.replace(ROUTES.home as Href)
   }
 
   function onError(err: ApolloError) {

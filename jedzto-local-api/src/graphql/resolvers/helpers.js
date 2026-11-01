@@ -11,6 +11,7 @@ import { rewriteUploadUrl } from '../../utils/publicUrl.js'
 import { mapFood } from '../../services/menu.js'
 import { canAcceptOrders } from '../../services/restaurantAvailability.js'
 import { withGoogleRating, googleReviewsPayload } from '../../services/googleReviews.js'
+import { SHOW_ALL_RESTAURANTS } from '../../config.js'
 
 // ---------------------------------------------------------------------------
 // Scalar helpers
@@ -180,7 +181,17 @@ export const resolveDelivery = (restaurant, latitude, longitude) => {
     return { available: true, fee: null, minOrder: null, areaName: null }
   }
   const area = matchDeliveryArea(restaurant, latitude, longitude)
-  if (!area) return { available: false, fee: null, minOrder: null, areaName: null }
+  if (!area) {
+    if (SHOW_ALL_RESTAURANTS) {
+      return {
+        available: true,
+        fee: 0,
+        minOrder: restaurant?.minimumOrder ?? 0,
+        areaName: null
+      }
+    }
+    return { available: false, fee: null, minOrder: null, areaName: null }
+  }
   return {
     available: true,
     fee: area.fee ?? 0,
@@ -274,6 +285,7 @@ export const audienceFor = (ctx, restaurant) => {
 export const mapUserType = (role) => {
   if (role === 'SUPER_ADMIN') return 'ADMIN'
   if (role === 'RESTAURANT_OWNER') return 'RESTAURANT'
+  if (role === 'RIDER') return 'RIDER'
   return 'CUSTOMER'
 }
 

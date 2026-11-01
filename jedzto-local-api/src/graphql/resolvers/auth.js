@@ -27,6 +27,7 @@ import { hasFullPersonName, normalizePersonName } from '../../utils/phone.js'
 import { id, mapUserType, profileShape, toLatitude, toLongitude } from './helpers.js'
 
 const OWNER_ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER']
+const PANEL_LOGIN_ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'RIDER']
 
 const badInput = (message) =>
   new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } })
@@ -72,14 +73,32 @@ const authResponse = (user, isNewUser = false) => {
 export async function ownerResponse(user) {
   const tokens = signUserToken(user)
   const isAdmin = user.role === 'SUPER_ADMIN'
-  // Projection only — the login response needs four fields, not whole documents
-  // (a super-admin owning 500 stores used to load 500 full trees on every login).
-  const restaurants = await Restaurant.find(isAdmin ? {} : { ownerId: user._id })
-    .select('_id name image address shopType')
-    .lean()
+  const isRider = user.role === 'RIDER'
+
+  // Riders are assigned to a restaurant; owners are matched by ownerId.
+  let restaurants = []
+  if (isAdmin) {
+    restaurants = await Restaurant.find({})
+      .select('_id name image address shopType')
+      .lean()
+  } else if (isRider) {
+    if (user.restaurantId) {
+      const assigned = await Restaurant.findById(user.restaurantId)
+        .select('_id name image address shopType')
+        .lean()
+      restaurants = assigned ? [assigned] : []
+    }
+  } else {
+    restaurants = await Restaurant.find({ ownerId: user._id })
+      .select('_id name image address shopType')
+      .lean()
+  }
+
   const ownRestaurant = isAdmin
     ? null
-    : restaurants.find((r) => String(r._id) === String(user.restaurantId)) || restaurants[0] || null
+    : restaurants.find((r) => String(r._id) === String(user.restaurantId)) ||
+      restaurants[0] ||
+      null
 
   return {
     userId: id(user),
@@ -91,7 +110,7 @@ export async function ownerResponse(user) {
     userType: mapUserType(user.role),
     userTypeId: isAdmin ? id(user) : id(ownRestaurant) || id(user),
     shopType: ownRestaurant?.shopType || '',
-    permissions: isAdmin ? ['*'] : ['restaurant'],
+    permissions: isAdmin ? ['*'] : isRider ? ['rider'] : ['restaurant'],
     image: null,
     name: user.name,
     isActive: user.isActive !== false,
@@ -120,7 +139,7 @@ export const authQueries = {
   },
   ownerSession: async (_p, _a, ctx) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    const auth = requireUser(ctx, PANEL_LOGIN_ROLES)
     const user = await User.findById(auth.userId)
     if (!user) {
       throw new GraphQLError('UNAUTHENTICATED', {
@@ -133,6 +152,7 @@ export const authQueries = {
     assertPublicAccess(ctx)
     if (!ctx.user?.role) return false
     if (ctx.user.role === 'SUPER_ADMIN') return true
+    if (ctx.user.role === 'RIDER') return permission === 'rider'
     if (ctx.user.role !== 'RESTAURANT_OWNER') return false
     return permission === 'restaurant'
   }
@@ -171,7 +191,7 @@ export const authMutations = {
 
     const user = await User.findOne({
       email: resolvedEmail,
-      role: { $in: OWNER_ROLES }
+      role: { $in: PANEL_LOGIN_ROLES }
     })
     if (!user || !(await user.comparePassword(String(password || '')))) {
       throw invalidCredentials()

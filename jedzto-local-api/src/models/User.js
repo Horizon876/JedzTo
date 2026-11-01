@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 
-const ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'CUSTOMER']
+const ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'RIDER', 'CUSTOMER']
 
 // OWASP ASVS recommends >= 10 rounds; 12 keeps ~250 ms/hash on modern hardware.
 const BCRYPT_ROUNDS = 12
