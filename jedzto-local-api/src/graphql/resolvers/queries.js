@@ -765,15 +765,9 @@ export const queries = {
 
   restaurantOrders: async (_p, { restaurantId }, ctx) => {
     assertPublicAccess(ctx)
-    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
-    const restaurant = await Restaurant.findById(restaurantId)
+    await assertCanReadRestaurantOrders(ctx, restaurantId)
+    const restaurant = await Restaurant.findById(restaurantId).select('_id').lean()
     if (!restaurant) throw new GraphQLError('Restaurant not found')
-    if (
-      auth.role === 'RESTAURANT_OWNER' &&
-      String(restaurant.ownerId) !== String(auth.userId)
-    ) {
-      throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
-    }
     const rows = await Order.find(kitchenOrdersMongoFilter(restaurant._id))
       .sort({ createdAt: -1 })
       .limit(MAX_ORDER_PAGE_SIZE)

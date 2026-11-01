@@ -27,6 +27,7 @@ import useLogin from "@/lib/hooks/useLogin";
 // Interface
 import { useApolloClient } from "@apollo/client";
 import { ILoginInitialValues } from "@/lib/utils/interfaces";
+import { APP_ROLE } from "@/lib/utils/app-role";
 
 const JEDZ_COLOR = '#00A8FF';
 const TO_COLOR = '#00E676';
@@ -113,7 +114,9 @@ const LoginScreen = () => {
                         <Text style={{ color: TO_COLOR, fontSize: 60, fontWeight: "900", lineHeight: 60, letterSpacing: -1 }}>To</Text>
                       </View>
                       <Text className="text-xl font-semibold text-center text-white sm:text-2xl max-w-[420px]">
-                        Witaj w aplikacji kuchni
+                        {APP_ROLE === 'delivery'
+                          ? 'Witaj w aplikacji kierowcy'
+                          : 'Witaj w aplikacji kuchni'}
                       </Text>
                     </View>
 
@@ -218,16 +221,10 @@ const LoginScreen = () => {
                           )}
                         </View>
 
-                        <Text
-                          className="text-center text-xs mt-2"
-                          style={{ color: MUTED }}
-                        >
-                          {t("Test account")}: owner1@jedzto.local / owner1234
-                        </Text>
-
                         <TouchableOpacity
                           disabled={loading}
                           onPress={() => handleSubmit()}
+                          touchSoundDisabled
                           style={{
                             marginTop: 12,
                             height: 56,
