@@ -12,6 +12,7 @@ import { liveCategories, mapFood } from '../../services/menu.js'
 import { rewriteUploadUrl } from '../../utils/publicUrl.js'
 import { withCurrentEta, withCurrentEtas, resolveDefaultEta, computeCurrentEta } from '../../services/eta.js'
 import { canAcceptOrders, restaurantUnavailableReason } from '../../services/restaurantAvailability.js'
+import { SHOW_ALL_RESTAURANTS } from '../../config.js'
 import {
   id,
   toPreview,
@@ -124,8 +125,20 @@ export async function buildRestaurantTree(restaurant, { audience = 'owner', lati
     reviewCount: withGoogleRating(withEta).reviewCount,
     reviewAverage: withGoogleRating(withEta).reviewAverage,
     rating: withGoogleRating(withEta).rating,
-    options: withEta.options || [],
-    addons: withEta.addons || [],
+    options: (withEta.options || []).map((o) => ({
+      _id: id(o) || String(o._id),
+      title: o.title,
+      description: o.description || '',
+      price: Number(o.price) || 0
+    })),
+    addons: (withEta.addons || []).map((a) => ({
+      _id: id(a) || String(a._id),
+      title: a.title,
+      description: a.description || '',
+      quantityMinimum: a.quantityMinimum ?? 0,
+      quantityMaximum: a.quantityMaximum ?? 1,
+      options: (a.options || []).map((x) => id(x) || String(x)).filter(Boolean)
+    })),
     deliveryAreas: (withEta.deliveryAreas || []).map(mapDeliveryArea),
     deliveryFee: delivery.fee,
     deliveryAreaName: delivery.areaName,
@@ -140,6 +153,7 @@ export async function buildRestaurantTree(restaurant, { audience = 'owner', lati
     bussinessDetails:
       audience === 'customer'
         ? {
+            accountName: withEta.bussinessDetails?.accountName || null,
             companyRegNo: withEta.bussinessDetails?.companyRegNo || null,
             bussinessRegNo: withEta.bussinessDetails?.bussinessRegNo || null
           }
@@ -162,10 +176,12 @@ export async function listRestaurants({ shopType, latitude, longitude } = {}) {
   const filter = { isActive: true }
   if (shopType) filter.shopType = shopType
   const rows = await Restaurant.find(filter).lean()
-  const deliverable = rows.filter(
-    (r) =>
-      canAcceptOrders(r) && resolveDelivery(r, latitude, longitude).available
-  )
+  const deliverable = SHOW_ALL_RESTAURANTS
+    ? rows
+    : rows.filter(
+        (r) =>
+          canAcceptOrders(r) && resolveDelivery(r, latitude, longitude).available
+      )
   const withEtas = await withCurrentEtas(deliverable)
   return Promise.all(
     withEtas.map((r) =>

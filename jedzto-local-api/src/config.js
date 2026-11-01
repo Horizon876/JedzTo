@@ -42,6 +42,10 @@ if (!process.env.JWT_SECRET) {
 
 export const SEED_ON_START = NODE_ENV === 'production' ? false : process.env.SEED_ON_START !== '0'
 
+// Temporary: list every active restaurant everywhere, ignore hours and zones.
+// Set SHOW_ALL_RESTAURANTS=0 to restore normal hours/delivery filtering.
+export const SHOW_ALL_RESTAURANTS = process.env.SHOW_ALL_RESTAURANTS !== '0'
+
 // "Open mode" skips the public (bop) token check. It exists to make local
 // development painless, so it must never be reachable in production — an
 // unauthenticated attacker would otherwise get the whole public API surface.

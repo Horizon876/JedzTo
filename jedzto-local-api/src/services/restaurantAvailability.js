@@ -7,6 +7,8 @@
  * (or show them as open when they are already closed in Poland).
  */
 
+import { SHOW_ALL_RESTAURANTS } from '../config.js'
+
 const BUSINESS_TZ = 'Europe/Warsaw'
 const DAY_KEYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
@@ -109,6 +111,7 @@ function isOpenByWeeklySchedule(restaurant, now = new Date()) {
 export function canAcceptOrders(restaurant, now = new Date()) {
   if (!restaurant?.isActive) return false
   if (isRestaurantPaused(restaurant, now)) return false
+  if (SHOW_ALL_RESTAURANTS) return true
 
   const holiday = getHolidayException(restaurant, now)
   if (holiday) {
@@ -136,6 +139,8 @@ export function restaurantUnavailableReason(restaurant, now = new Date()) {
       return 'PAUSED'
     }
   }
+
+  if (SHOW_ALL_RESTAURANTS) return null
 
   const holiday = getHolidayException(restaurant, now)
   if (holiday) {
