@@ -266,7 +266,7 @@ const RestaurantSections = ({
       })
     }
 
-    if (foodNeedsCustomization(item)) {
+    if (foodNeedsCustomization(item, restaurant)) {
       openDetail()
       return
     }

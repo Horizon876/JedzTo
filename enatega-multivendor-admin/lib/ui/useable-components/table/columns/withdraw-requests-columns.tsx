@@ -250,7 +250,7 @@ export const WITHDRAW_REQUESTS_TABLE_COLUMNS = ({
         propertyName: 'requestAmount',
         body: (rowData: IWithDrawRequest) => (
           <span className="font-medium">
-            {CURRENT_SYMBOL || '$'}
+            {CURRENT_SYMBOL || 'zł'}
             {rowData?.requestAmount.toFixed(2)}
           </span>
         ),

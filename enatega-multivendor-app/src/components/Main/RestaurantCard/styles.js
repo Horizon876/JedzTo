@@ -3,6 +3,7 @@ import { Dimensions, Platform, StyleSheet } from 'react-native'
 
 const { height } = Dimensions.get('window')
 const FREE_GREEN_BG = '#1A3D2A'
+const LOGO_BG = '#111111'
 
 const buildStyles = (props = null) => {
   return StyleSheet.create({
@@ -107,6 +108,14 @@ const buildStyles = (props = null) => {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: scale(6)
+    },
+    etaChip: {
+      alignSelf: props?.isRTL ? 'flex-end' : 'flex-start',
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(3),
+      borderRadius: scale(8),
+      borderWidth: 1,
+      borderColor: LOGO_BG
     },
     metaText: {
       flex: 1

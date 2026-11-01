@@ -35,11 +35,25 @@ import AnimatedSplashScreen from "@/lib/ui/useable-components/splash/AnimatedSpl
 import UnavailableStatus from "@/lib/ui/useable-components/unavailable-status";
 import { requestMediaLibraryPermissionsAsync } from "expo-image-picker";
 import { useEffect, useState } from "react";
+import { AppState } from "react-native";
+import { setKitchenKeepScreenOn, setKitchenKioskMode } from "../modules/sunmi-inner-printer";
 
 import "../global.css";
 import PublicAccessTokenService from "@/lib/services/public-access-token.service";
 
 initSentry();
+
+// Disable React Native UI click beeps everywhere. New-order alert uses expo-audio (music stream).
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const SoundManager = require("react-native/Libraries/Components/Sound/SoundManager");
+  const sm = SoundManager?.default ?? SoundManager;
+  if (sm && typeof sm.playTouchSound === "function") {
+    sm.playTouchSound = () => {};
+  }
+} catch {
+  // ignore — native mute is the fallback
+}
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen?.preventAutoHideAsync();
@@ -81,6 +95,22 @@ function RootLayout() {
   }, []);
 
   useEffect(() => {
+    const enableKiosk = () => {
+      void setKitchenKeepScreenOn(true);
+      void setKitchenKioskMode(true);
+    };
+    enableKiosk();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") enableKiosk();
+    });
+    return () => {
+      sub.remove();
+      void setKitchenKioskMode(false);
+      void setKitchenKeepScreenOn(false);
+    };
+  }, []);
+
+  useEffect(() => {
     const previousHandler = ErrorUtils.getGlobalHandler?.();
 
     ErrorUtils.setGlobalHandler((error, isFatal) => {
@@ -118,7 +148,7 @@ function RootLayout() {
                           <RootStackLayout />
                           <UnavailableStatus />
                         </LocationPermissionComp>
-                        <StatusBar style="inverted" />
+                        <StatusBar hidden />
                         <FlashMessage position="bottom" />
                       </SoundProvider>
                     </LocationProvider>

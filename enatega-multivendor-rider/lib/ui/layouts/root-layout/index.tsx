@@ -17,7 +17,6 @@ export default function RootStackLayout() {
       initialRouteName="(tabs)"
     >
       <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="role-select" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
       <Stack.Screen

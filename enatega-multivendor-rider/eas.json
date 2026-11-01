@@ -9,21 +9,69 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ROLE": "kitchen"
       }
     },
-    "staging": { 
+    "staging": {
       "developmentClient": false,
       "channel": "staging",
       "distribution": "internal",
       "android": {
         "buildType": "apk",
         "resourceClass": "large"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ROLE": "kitchen"
       }
     },
     "production": {
       "channel": "production",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ROLE": "kitchen"
+      }
+    },
+    "sunmi": {
+      "channel": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ROLE": "kitchen",
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-api.onrender.com"
+      }
+    },
+    "kitchen": {
+      "channel": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ROLE": "kitchen",
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-api.onrender.com"
+      }
+    },
+    "rider": {
+      "channel": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ROLE": "delivery",
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-api.onrender.com"
       }
     }
   },

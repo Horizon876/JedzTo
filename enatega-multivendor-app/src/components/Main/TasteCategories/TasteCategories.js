@@ -43,6 +43,12 @@ export const TASTE_CATEGORIES = [
     name: 'Kurczak',
     image: 'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=800&q=80',
     shopType: 'restaurant'
+  },
+  {
+    _id: 'c-zakupy',
+    name: 'Zakupy',
+    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80',
+    shopType: 'restaurant'
   }
 ]
 

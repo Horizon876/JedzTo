@@ -113,40 +113,11 @@ export const JEDZTO_LOCAL_CUISINES = [
   { _id: 'c-burger', name: 'Burger', description: 'Burgery', image: IMG.burger, shopType: 'restaurant' },
   { _id: 'c-sushi', name: 'Sushi', description: 'Sushi', image: IMG.sushi, shopType: 'restaurant' },
   { _id: 'c-kebab', name: 'Kebab', description: 'Kebab', image: IMG.kebab, shopType: 'restaurant' },
-  { _id: 'c-kurczak', name: 'Kurczak', description: 'Kurczak', image: IMG.chicken, shopType: 'restaurant' }
+  { _id: 'c-kurczak', name: 'Kurczak', description: 'Kurczak', image: IMG.chicken, shopType: 'restaurant' },
+  { _id: 'c-zakupy', name: 'Zakupy', description: 'Zakupy', image: IMG.pizza, shopType: 'restaurant' }
 ]
 
 export const JEDZTO_LOCAL_RESTAURANTS = [
-  restaurant({
-    id: 'jedzto-pizzeria-zielona',
-    name: 'Pizzeria Zielona',
-    address: 'ul. Handlowa 12, 32-440 Sułkowice',
-    phone: '+48123450001',
-    image: IMG.pizza,
-    cuisines: ['Pizza', 'Włoska'],
-    deliveryTime: 35,
-    minimumOrder: 30,
-    longitude: 19.8011,
-    latitude: 49.8408,
-    categories: [
-      category('Pizza', [
-        food('Margherita', 'Sos pomidorowy, mozzarella, bazylia', 29, IMG.pizza),
-        food('Capricciosa', 'Szynka, pieczarki, oliwki, karczochy', 38, IMG.pizza),
-        food('Pepperoni', 'Salami pepperoni, mozzarella, oregano', 36, IMG.pizza),
-        food('Zielona Special', 'Szpinak, feta, pomidorki koktajlowe, pesto', 39, IMG.pizza),
-        food('Hawajska', 'Szynka, ananas, mozzarella', 35, IMG.pizza)
-      ]),
-      category('Dodatki', [
-        food('Sos czosnkowy', 'Domowy sos czosnkowy 50 ml', 4),
-        food('Sos BBQ', 'Słodko-pikantny BBQ 50 ml', 4),
-        food('Frytki', 'Chrupiące frytki 200 g', 12)
-      ]),
-      category('Napoje', [
-        food('Cola 0,5 l', 'Napój gazowany', 8),
-        food('Woda niegazowana 0,5 l', 'Woda mineralna', 6)
-      ])
-    ]
-  }),
   restaurant({
     id: 'jedzto-pizza-italiana',
     name: 'Pizza Italiana',

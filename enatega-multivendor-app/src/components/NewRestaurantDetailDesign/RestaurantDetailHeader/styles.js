@@ -153,9 +153,15 @@ const styles = (props = null) =>
       flexShrink: 0
     },
     deliveryContainer: {
+      alignSelf: props?.isRTL ? 'flex-end' : 'flex-start',
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: scale(8)
+      gap: scale(8),
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(4),
+      borderRadius: scale(8),
+      borderWidth: 1,
+      borderColor: '#111111'
     },
     searchContainer: {
       paddingHorizontal: scale(15),

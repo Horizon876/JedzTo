@@ -10,7 +10,7 @@ export default function UnavailableStatus() {
   const { dataProfile } = useUserContext();
   const insets = useSafeAreaInsets(); // Get Safe Area Insets
 
-  if (pathName && (pathName === "/login" || pathName === "/role-select")) return null;
+  if (pathName && pathName === "/login") return null;
   if (!isBoolean(dataProfile?.available)) return null;
   if (!!dataProfile?.available) return null;
 

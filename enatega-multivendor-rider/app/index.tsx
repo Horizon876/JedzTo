@@ -101,9 +101,7 @@ function App() {
     });
   }, [registerForPushNotification]);
 
-  const { workMode, isWorkModeReady } = require("@/lib/context/global/work-mode.context").useWorkMode();
-
-  if (!isAuthReady || !isWorkModeReady) {
+  if (!isAuthReady) {
     return <></>;
   }
 
@@ -111,11 +109,7 @@ function App() {
     return <Redirect href={ROUTES.login as Href} />;
   }
 
-  if (workMode) {
-    return <Redirect href={ROUTES.home as Href} />;
-  }
-
-  return <Redirect href={ROUTES.roleSelect as Href} />;
+  return <Redirect href={ROUTES.home as Href} />;
 }
 
 export default App;

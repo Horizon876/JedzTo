@@ -18,12 +18,7 @@ const CREDENTIALS = {
   owner1: {
     email: 'owner1@jedzto.local',
     password: 'owner1234',
-    name: 'Właściciel Pizzerii Zielona'
-  },
-  owner2: {
-    email: 'owner2@jedzto.local',
-    password: 'owner1234',
-    name: 'Właściciel Burger Przedmieście'
+    name: 'Właściciel Pizzeria Italiana'
   },
   customer: {
     email: 'demo@jedzto.local',
@@ -254,6 +249,10 @@ export async function ensureTasteCuisineTags() {
     {
       match: { name: /chicken|kurczak/i },
       add: ['Kurczak']
+    },
+    {
+      match: { name: /delikatesy|sklep|premium/i },
+      add: ['Zakupy', 'Sklep', 'Delikatesy']
     }
   ]
 

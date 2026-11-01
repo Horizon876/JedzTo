@@ -116,7 +116,7 @@ const SearchOverlay = ({
       onClose()
     }
 
-    if (foodNeedsCustomization(food)) {
+    if (foodNeedsCustomization(food, restaurant)) {
       openDetail()
       return
     }

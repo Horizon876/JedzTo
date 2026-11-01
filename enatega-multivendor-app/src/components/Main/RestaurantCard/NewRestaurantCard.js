@@ -231,9 +231,9 @@ function NewRestaurantCard(props) {
               </View>
 
               {etaLabel ? (
-                <View style={styles(currentTheme).metaRow}>
+                <View style={[styles(currentTheme).metaRow, styles(currentTheme).etaChip]}>
                   <Ionicons name='time-outline' size={14} color={MUTED} />
-                  <TextDefault small textColor={MUTED} style={styles().metaText}>
+                  <TextDefault small textColor={MUTED}>
                     {etaLabel}
                   </TextDefault>
                 </View>

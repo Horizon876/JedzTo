@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('app', 'kitchen')]
+    [ValidateSet('app', 'kitchen', 'rider')]
     [string]$Target
 )
 
@@ -71,11 +71,18 @@ if ($Target -eq 'app') {
     $port = 8081
     $title = 'JedzTo - App (Expo)'
     $qrFile = Join-Path $root 'expo-qr.png'
+} elseif ($Target -eq 'rider') {
+    $project = Join-Path $root 'enatega-multivendor-rider'
+    $port = 8083
+    $title = 'JedzTo - Kierowca (Expo)'
+    $qrFile = Join-Path $root 'expo-rider-qr.png'
+    $env:EXPO_PUBLIC_APP_ROLE = 'delivery'
 } else {
     $project = Join-Path $root 'enatega-multivendor-rider'
     $port = 8082
     $title = 'JedzTo - Kuchnia (Expo)'
     $qrFile = Join-Path $root 'expo-kitchen-qr.png'
+    $env:EXPO_PUBLIC_APP_ROLE = 'kitchen'
 }
 
 try { $host.ui.RawUI.WindowTitle = $title } catch {}

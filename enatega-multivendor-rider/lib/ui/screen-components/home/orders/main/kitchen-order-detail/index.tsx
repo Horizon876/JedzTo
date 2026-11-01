@@ -15,6 +15,7 @@ import UserContext, { KITCHEN_STATUS } from '@/lib/context/global/user.context'
 import { useWorkMode } from '@/lib/context/global/work-mode.context'
 import { IOrder } from '@/lib/utils/interfaces/order.interface'
 import { getPaymentLabel } from '@/lib/utils/payment-label'
+import { formatCustomerAddress } from '@/lib/utils/format-customer-address'
 import { callNumber, linkToMapsApp } from '@/lib/utils/methods'
 import SpinnerComponent from '@/lib/ui/useable-components/spinner'
 
@@ -166,7 +167,7 @@ export default function KitchenOrderDetailScreen() {
             <Text style={styles.phone}>{order.user.phone}</Text>
           )}
           <Text style={styles.address}>
-            {order.deliveryAddress?.deliveryAddress ||
+            {formatCustomerAddress(order.deliveryAddress?.deliveryAddress) ||
               (order.isPickedUp ? t('Pickup') : '—')}
           </Text>
           {!!order.deliveryAddress?.details && (
@@ -186,7 +187,9 @@ export default function KitchenOrderDetailScreen() {
                 if (!canNavigate) return
                 linkToMapsApp(
                   { latitude: lat!, longitude: lng! },
-                  order.deliveryAddress?.deliveryAddress || t('Delivery address')
+                  formatCustomerAddress(
+                    order.deliveryAddress?.deliveryAddress
+                  ) || t('Delivery address')
                 )
               }}
               activeOpacity={0.85}

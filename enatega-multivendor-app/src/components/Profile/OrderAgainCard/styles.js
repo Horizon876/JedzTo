@@ -74,6 +74,18 @@ const styles = (props = null) =>
       position: 'relative',
       alignItems: 'center',
     },
+    imageFrame: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderWidth: 2,
+      borderColor: '#1C1C1E',
+      borderTopLeftRadius: scale(10),
+      borderBottomLeftRadius: scale(10),
+      zIndex: 2
+    },
     restaurantTotalRating: {
       paddingLeft: scale(5)
     },

@@ -38,8 +38,8 @@ const BORDER = '#3A3A3C';
 const ERROR = '#FF453A';
 
 const initial: ILoginInitialValues = {
-  username: "owner1@jedzto.local",
-  password: "owner1234",
+  username: "",
+  password: "",
 };
 
 const LoginScreen = () => {

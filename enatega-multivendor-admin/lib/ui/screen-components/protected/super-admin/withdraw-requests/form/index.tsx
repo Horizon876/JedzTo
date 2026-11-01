@@ -34,7 +34,7 @@ export default function WithdrawRequestForm({
       selectedRequest?.rider?.bussinessDetails?.accountNumber ||
       selectedRequest?.store?.bussinessDetails?.accountNumber ||
       '',
-    currency: 'EUR',
+    currency: 'PLN',
   };
 
   const [updateWithdrawRequest] = useMutation(UPDATE_WITHDRAW_REQUEST, {

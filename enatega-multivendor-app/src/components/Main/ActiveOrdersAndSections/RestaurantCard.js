@@ -33,6 +33,7 @@ function RestaurantCard(props) {
             source={{ uri: props?.image }}
             style={styles().restaurantImage}
           />
+          <View pointerEvents='none' style={styles().imageFrame} />
           <View style={styles().overlayContainer}>
             <View style={styles(currentTheme).deliveryOverlay}>
               <TextDefault

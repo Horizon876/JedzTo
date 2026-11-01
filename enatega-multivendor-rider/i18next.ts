@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Localization from "expo-localization";
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 
@@ -71,10 +70,10 @@ export const languageResources: { [key: string]: { translation: object } } = {
   nl: { translation: nl },
 };
 
-const defaultLanguage = Localization.getLocales()[0]?.languageCode || "pl";
+const defaultLanguage = "pl";
 
 i18next.use(initReactI18next).init({
-  lng: defaultLanguage,
+  lng: "pl",
   fallbackLng: "pl",
   resources: languageResources,
   interpolation: {
@@ -84,10 +83,9 @@ i18next.use(initReactI18next).init({
 
 const applyStoredLanguage = async (): Promise<void> => {
   try {
-    const storedLang = await AsyncStorage.getItem("enatega-language");
-    const initialLang = storedLang || defaultLanguage;
-
-    await i18next.changeLanguage(initialLang);
+    await AsyncStorage.setItem("enatega-language", "pl");
+    await AsyncStorage.setItem("lang", "pl");
+    await i18next.changeLanguage("pl");
   } catch (error) {
     console.log("Error initializing language:", error);
   }

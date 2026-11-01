@@ -9,7 +9,6 @@ import {
 } from 'react-native'
 import { FontAwesome5 } from '@expo/vector-icons'
 import { useMutation, useQuery } from '@apollo/client'
-import { useTranslation } from 'react-i18next'
 
 import UserContext from '@/lib/context/global/user.context'
 import {
@@ -18,7 +17,6 @@ import {
 } from '@/lib/apollo/queries/kitchen.query'
 
 const ACCENT = '#00A8FF'
-const MUTED = '#8E8E93'
 const CHIP = '#2C2C2E'
 const SAVE_DEBOUNCE_MS = 400
 
@@ -26,15 +24,14 @@ function clampEta(n: number) {
   return Math.max(5, Math.min(240, Math.round(n)))
 }
 
-/** Centered − / N min / + for total delivery ETA — saves on each change. */
+/** ETA under "W realizacji", pause under "Do doręczenia" — same 2-column grid as tabs. */
 export default function KitchenEtaTopControl() {
-  const { t } = useTranslation()
   const { restaurantId, kitchenEtaMinutes } = useContext(UserContext)
   const [minutes, setMinutes] = useState(45)
   const [savedMinutes, setSavedMinutes] = useState(45)
   const [isBusy, setIsBusy] = useState(false)
   const [savedIsBusy, setSavedIsBusy] = useState(false)
-  
+
   const skipNextSave = useRef(true)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -127,50 +124,36 @@ export default function KitchenEtaTopControl() {
   if (!restaurantId) return null
 
   return (
-    <View style={[styles.wrap, { flexDirection: 'row', justifyContent: 'center', gap: 24 }]}>
-      <View style={{ alignItems: 'center', gap: 8 }}>
-        <Text style={styles.label} numberOfLines={1}>
-          {t('Estimated delivery time')}
-        </Text>
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={styles.step}
-            onPress={() => setMinutes((prev) => clampEta(prev - 5))}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.stepText}>−</Text>
-          </TouchableOpacity>
-          <View style={styles.valueBox}>
-            {saving && minutes !== savedMinutes ? (
-              <ActivityIndicator size="small" color={ACCENT} />
-            ) : (
-              <Text style={styles.value}>{minutes} min</Text>
-            )}
-          </View>
-          <TouchableOpacity
-            style={styles.step}
-            onPress={() => setMinutes((prev) => clampEta(prev + 5))}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.stepText}>+</Text>
-          </TouchableOpacity>
+    <View style={styles.wrap}>
+      <View style={styles.col}>
+        <TouchableOpacity
+          style={styles.step}
+          onPress={() => setMinutes((prev) => clampEta(prev - 5))}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.stepText}>−</Text>
+        </TouchableOpacity>
+        <View style={styles.valueBox}>
+          {saving && minutes !== savedMinutes ? (
+            <ActivityIndicator size="small" color={ACCENT} />
+          ) : (
+            <Text style={styles.value}>{minutes} min</Text>
+          )}
         </View>
+        <TouchableOpacity
+          style={styles.step}
+          onPress={() => setMinutes((prev) => clampEta(prev + 5))}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.stepText}>+</Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={{ alignItems: 'center', gap: 8 }}>
-        <Text style={styles.label} numberOfLines={1}>
-          Wstrzymaj przyjmowanie zamówień
-        </Text>
+      <View style={styles.colRight}>
         <TouchableOpacity
           style={[
-            styles.step,
-            {
-              width: 'auto',
-              paddingHorizontal: 16,
-              flexDirection: 'row',
-              gap: 8,
-              backgroundColor: isBusy ? '#00E676' : '#FF453A',
-            },
+            styles.pauseBtn,
+            { backgroundColor: isBusy ? '#00E676' : '#FF453A' },
           ]}
           onPress={() => {
             if (!isBusy) {
@@ -179,7 +162,11 @@ export default function KitchenEtaTopControl() {
                 'Czy na pewno chcesz wstrzymać przyjmowanie nowych zamówień?',
                 [
                   { text: 'Anuluj', style: 'cancel' },
-                  { text: 'Zatwierdź', style: 'destructive', onPress: () => setIsBusy(true) },
+                  {
+                    text: 'Zatwierdź',
+                    style: 'destructive',
+                    onPress: () => setIsBusy(true),
+                  },
                 ]
               )
             } else {
@@ -189,14 +176,18 @@ export default function KitchenEtaTopControl() {
           activeOpacity={0.85}
         >
           {saving && isBusy !== savedIsBusy ? (
-             <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color="#fff" />
           ) : (
-             <>
-               <FontAwesome5 name={isBusy ? "play-circle" : "pause-circle"} size={16} color="#fff" />
-               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
-                 {isBusy ? 'Wzłów' : 'Wstrzymaj'}
-               </Text>
-             </>
+            <>
+              <FontAwesome5
+                name={isBusy ? 'play-circle' : 'pause-circle'}
+                size={16}
+                color="#fff"
+              />
+              <Text style={styles.pauseText}>
+                {isBusy ? 'Wznów' : 'Wstrzymaj'}
+              </Text>
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -207,24 +198,26 @@ export default function KitchenEtaTopControl() {
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  label: {
-    color: MUTED,
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  controls: {
+  col: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
+  colRight: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingRight: 4,
+  },
   step: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -232,24 +225,37 @@ const styles = StyleSheet.create({
   },
   stepText: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    lineHeight: 26,
+    lineHeight: 24,
   },
   valueBox: {
-    minWidth: 78,
-    height: 40,
+    minWidth: 70,
+    height: 38,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     backgroundColor: '#1C1C1E',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#3A3A3C',
   },
   value: {
     color: ACCENT,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
+  },
+  pauseBtn: {
+    height: 38,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pauseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 })

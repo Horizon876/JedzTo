@@ -219,7 +219,7 @@ const setupApollo = () => {
     const nonce = PublicAccessTokenService.getNonce();
 
     const platform = Platform.OS;
-    const locale = (await AsyncStorage.getItem("lang")) || "en";
+    const locale = (await AsyncStorage.getItem("lang")) || "pl";
 
     const headers: Record<string, string> = {
       authorization: token ? `Bearer ${token}` : "",

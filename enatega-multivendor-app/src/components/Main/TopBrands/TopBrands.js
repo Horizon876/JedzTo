@@ -94,9 +94,13 @@ function TopBrands({ forPickup = false }) {
         <TextDefault style={styles().brandName} textColor={currentTheme.fontThirdColor} numberOfLines={2} ellipsizeMode='tail' bolder>
           {item?.name}
         </TextDefault>
-        <TextDefault textColor={currentTheme.fontFifthColor} normal>
-          {deliveryTime != null ? `${deliveryTime} mins` : ''}
-        </TextDefault>
+        {deliveryTime != null ? (
+          <View style={styles().etaChip}>
+            <TextDefault textColor={currentTheme.fontFifthColor} normal>
+              {`${deliveryTime} mins`}
+            </TextDefault>
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   )}

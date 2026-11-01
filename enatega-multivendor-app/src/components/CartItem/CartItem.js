@@ -43,7 +43,7 @@ const CartItem = (props) => {
             .filter(Boolean)
         })()
 
-  const canEdit = foodNeedsCustomization(props?.food)
+  const canEdit = foodNeedsCustomization(props?.food, props?.restaurantData)
 
   const navigateToItemDetail = () => {
     if (!canEdit) return

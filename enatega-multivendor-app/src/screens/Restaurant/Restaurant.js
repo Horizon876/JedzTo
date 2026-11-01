@@ -471,7 +471,7 @@ function Restaurant(props) {
     async (foodItem, clearFlag) => {
       if (clearFlag) await clearCart()
 
-      if (!foodNeedsCustomization(foodItem)) {
+      if (!foodNeedsCustomization(foodItem, restaurant)) {
         const variationId = getDefaultVariationId(foodItem)
         if (!variationId) return
         await setCartRestaurant(restaurant._id)

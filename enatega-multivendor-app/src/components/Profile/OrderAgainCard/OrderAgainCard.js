@@ -32,6 +32,7 @@ function OrderAgainCard(props) {
             source={{ uri: props.image }}
             style={styles().restaurantImage}
           />
+          <View pointerEvents='none' style={styles().imageFrame} />
 
         </View>
 

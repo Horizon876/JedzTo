@@ -985,6 +985,7 @@ export const restaurant = `query Restaurant($id:String,$latitude:Float,$longitud
     stripeDetailsSubmitted
     shopType
     bussinessDetails {
+      accountName
       bussinessRegNo
       companyRegNo
     }

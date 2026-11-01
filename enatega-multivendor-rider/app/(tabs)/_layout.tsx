@@ -9,16 +9,15 @@ import { HomeIcon, PersonIcon } from '@/lib/ui/useable-components/svg'
 import { useApptheme } from '@/lib/context/global/theme.context'
 import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ROUTES } from '@/lib/utils/constants'
 
 const RootLayout = () => {
   const { t } = useTranslation()
   const { appTheme } = useApptheme()
   const insets = useSafeAreaInsets()
   const { token, isAuthReady } = useContext(AuthContext)
-  const { workMode, isWorkModeReady } = useWorkMode()
+  const { workMode } = useWorkMode()
 
-  if (!isAuthReady || !isWorkModeReady) {
+  if (!isAuthReady) {
     return <SpinnerComponent />
   }
 
@@ -26,34 +25,34 @@ const RootLayout = () => {
     return <Redirect href="/login" />
   }
 
-  if (!workMode) {
-    return <Redirect href={ROUTES.roleSelect} />
-  }
-
   const homeTitle = workMode === 'delivery' ? t('Delivery') : t('Kitchen')
-  const tabBarHeight = 56 + Math.max(insets.bottom, 8)
+  const tabBarHeight = 68
 
   return (
     <Tabs
       key={workMode}
+      safeAreaInsets={{ bottom: 0, top: 0, left: 0, right: insets.right }}
       screenOptions={{
         tabBarActiveTintColor: appTheme.primary,
         tabBarInactiveTintColor: '#8E8E93',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
-          marginBottom: 4,
+          marginBottom: 8,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
         },
         tabBarStyle: {
-          position: 'relative',
           backgroundColor: '#121212',
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: '#2C2C2E',
           height: tabBarHeight,
-          paddingTop: 6,
-          paddingBottom: Math.max(insets.bottom, 8),
+          paddingTop: 4,
+          paddingBottom: 14,
+          marginBottom: 0,
           ...Platform.select({
             ios: {
               shadowColor: '#000',
@@ -74,7 +73,7 @@ const RootLayout = () => {
           href: '/(tabs)/home/orders',
           title: homeTitle,
           tabBarIcon: ({ color }) => (
-            <HomeIcon color={color} width={24} height={24} />
+            <HomeIcon color={color} width={22} height={22} />
           ),
         }}
       />
@@ -98,7 +97,7 @@ const RootLayout = () => {
           title: t('Settings'),
           headerShown: false,
           tabBarIcon: ({ color }) => (
-            <PersonIcon color={color} width={24} height={24} />
+            <PersonIcon color={color} width={22} height={22} />
           ),
         }}
       />

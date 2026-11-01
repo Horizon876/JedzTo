@@ -1,9 +1,37 @@
 /**
  * Product needs the ItemDetail screen when the customer must pick a size,
  * remove ingredients, or choose add-ons.
+ *
+ * Grocery / sklep (e.g. Delikatesy): always one-tap add to cart.
  */
-export function foodNeedsCustomization(food) {
+
+const normalize = (value = '') =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ł/g, 'l')
+
+export function isSimpleStoreRestaurant(restaurant) {
+  if (!restaurant) return false
+  if (String(restaurant.shopType || '').toLowerCase() === 'grocery') return true
+  const haystack = [
+    restaurant.shopType,
+    restaurant.name,
+    ...(restaurant.cuisines || []),
+    ...(restaurant.tags || [])
+  ]
+    .map(normalize)
+    .join(' ')
+  return /zakupy|sklep|delikatesy|grocery|spozywcze/.test(haystack)
+}
+
+export function foodNeedsCustomization(food, restaurant) {
   if (!food) return false
+  if (isSimpleStoreRestaurant(restaurant) || String(food.shopType || '').toLowerCase() === 'grocery') {
+    return false
+  }
 
   const variations = Array.isArray(food.variations) ? food.variations : []
   if (variations.length > 1) return true

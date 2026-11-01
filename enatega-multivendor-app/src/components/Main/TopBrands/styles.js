@@ -25,6 +25,15 @@ const buildStyles = (props = null) =>
       objectFit: 'cover',
       borderRadius: 8,
     },
+    etaChip: {
+      alignSelf: 'flex-start',
+      marginTop: scale(2),
+      paddingHorizontal: scale(6),
+      paddingVertical: scale(2),
+      borderRadius: scale(6),
+      borderWidth: 1,
+      borderColor: '#111111'
+    },
     topbrandsContainer: {
       width: scale(96),
       ...alignment.MRmedium
@@ -32,6 +41,8 @@ const buildStyles = (props = null) =>
     brandImgContainer: {
       backgroundColor: props != null ? props?.cardBackground : '#F3F4F6',
       borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#111111',
       ...subtleCardShadowSoft
     },
     brandName: {

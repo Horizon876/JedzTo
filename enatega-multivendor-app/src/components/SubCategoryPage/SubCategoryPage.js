@@ -844,7 +844,7 @@ const CategoryPage = ({ route, navigation }) => {
                       })
                     }
 
-                    if (foodNeedsCustomization(item)) {
+                    if (foodNeedsCustomization(item, restaurantData?.restaurant)) {
                       openDetail()
                       return
                     }

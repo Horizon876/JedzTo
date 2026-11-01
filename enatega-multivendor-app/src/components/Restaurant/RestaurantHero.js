@@ -22,6 +22,7 @@ const ACCENT = '#00A8FF'
 const MUTED = '#8E8E93'
 const FREE_GREEN = '#1DB954'
 const FREE_GREEN_BG = '#1A3D2A'
+const LOGO_BG = '#111111'
 
 function formatRating(value) {
   if (value == null || value === '' || value === '...') return null
@@ -193,7 +194,7 @@ function RestaurantHero({ aboutObject, displayedDeliveryMinutes }) {
             ) : null}
 
             {displayedDeliveryMinutes != null ? (
-              <View style={styles(currentTheme).metaRow}>
+              <View style={[styles(currentTheme).metaRow, styles(currentTheme).etaChip]}>
                 <View style={styles().metaIconSlot}>
                   <MaterialCommunityIcons name='clock-outline' size={META_ICON_SIZE} color={MUTED} />
                 </View>
@@ -294,6 +295,14 @@ const styles = (props = {}) =>
       // Align icon column with the bicycle inside the delivery badge
       marginLeft: props?.isRTL ? 0 : BADGE_PAD_X - CONTENT_PAD_X,
       marginRight: props?.isRTL ? BADGE_PAD_X - CONTENT_PAD_X : 0
+    },
+    etaChip: {
+      alignSelf: props?.isRTL ? 'flex-end' : 'flex-start',
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(3),
+      borderRadius: scale(8),
+      borderWidth: 1,
+      borderColor: LOGO_BG
     },
     metaIconSlot: {
       width: META_ICON_SLOT,

@@ -122,7 +122,7 @@ class PublicAccessTokenService {
       this.nonce = nonce;
 
       try {
-        const locale = (await AsyncStorage.getItem("lang")) || "en";
+        const locale = (await AsyncStorage.getItem("lang")) || "pl";
         const { data } = await apolloClient.mutate({
           mutation: METRICS_GENERAL,
           context: {

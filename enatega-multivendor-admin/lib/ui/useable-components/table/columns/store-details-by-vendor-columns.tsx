@@ -16,7 +16,7 @@ export const VENDOR_STORE_DETAILS_COLUMN = () => {
     {
       headerName: t('Total Sales'),
       propertyName: 'totalSales',
-      body: (store: IVendorStoreDetails) => `$${store.totalSales.toFixed(2)}`,
+      body: (store: IVendorStoreDetails) => `${store.totalSales.toFixed(2)} zł`,
     },
     {
       headerName: t('Pickup Orders'),

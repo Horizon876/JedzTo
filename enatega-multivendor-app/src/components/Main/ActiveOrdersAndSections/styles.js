@@ -30,7 +30,18 @@ const styles = (props = null) =>
     imageContainer: {
       position: 'relative',
       alignItems: 'center',
-      height: '60%'
+      height: '60%',
+      overflow: 'hidden'
+    },
+    imageFrame: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderWidth: 2,
+      borderColor: '#1C1C1E',
+      zIndex: 2
     },
     overlayContainer: {
       position: 'absolute',

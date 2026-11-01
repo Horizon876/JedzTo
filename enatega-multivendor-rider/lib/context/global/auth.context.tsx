@@ -2,8 +2,7 @@ import * as Location from "expo-location";
 import React, { useEffect, useState } from "react";
 
 // Interfaces§
-import { RIDER_ID, RIDER_TOKEN, WORK_MODE } from "@/lib/utils/constants";
-import { getSecureItem } from "@/lib/services/secure-storage";
+import { RIDER_ID, RIDER_TOKEN } from "@/lib/utils/constants";
 import {
   removeSecureItem,
   setSecureItem,
@@ -39,7 +38,6 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({
           AsyncStorage.removeItem(RIDER_TOKEN),
           removeItem(RIDER_ID),
           removeItem("restaurant-id"),
-          AsyncStorage.removeItem(WORK_MODE),
         ]);
         
         try {
@@ -82,7 +80,6 @@ export const AuthProvider: React.FC<IAuthProviderProps> = ({
         AsyncStorage.removeItem(RIDER_TOKEN),
         removeItem(RIDER_ID),
         removeItem("restaurant-id"),
-        AsyncStorage.removeItem(WORK_MODE),
       ]);
 
       try {

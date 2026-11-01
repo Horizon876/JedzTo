@@ -216,7 +216,10 @@ function About(props) {
             {t('companyDetails')}
           </TextDefault>
           <View style={styles().companyCard}>
-            <CompanyRow label={t('companyName')} value={restaurantName} />
+            <CompanyRow
+              label={t('companyName')}
+              value={business?.accountName || restaurantName}
+            />
             <CompanyRow label={t('address')} value={address} />
             <CompanyRow label={t('nip')} value={business?.companyRegNo ? String(business.companyRegNo) : null} />
             <CompanyRow label={t('regon')} value={business?.bussinessRegNo ? String(business.bussinessRegNo) : null} />

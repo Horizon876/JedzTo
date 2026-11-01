@@ -17,7 +17,8 @@ const CUISINE_GROUPS = [
   ['burger', 'burgery', 'burgers', 'amerykanska'],
   ['sushi', 'japonska', 'japonski'],
   ['kebab', 'kebabowa', 'turcja', 'turecka'],
-  ['kurczak', 'chicken', 'poultry', 'stripsy']
+  ['kurczak', 'chicken', 'poultry', 'stripsy'],
+  ['zakupy', 'sklep', 'delikatesy', 'grocery', 'spożywcze']
 ]
 
 const groupFor = (normalized) =>

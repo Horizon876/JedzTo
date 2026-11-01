@@ -6,11 +6,12 @@ export const formatNumber = (amount: number) => {
 
 export const formatNumberWithCurrency = (
   amount: number,
-  currency: string = 'USD',
-  locale: string = 'en-US'
+  currency: string = 'PLN',
+  locale: string = 'pl-PL'
 ) => {
-  const _locale = locale || 'en-US';
-  const _currency = currency || 'USD';
+  const _currency =
+    !currency || currency === 'USD' || currency === '$' ? 'PLN' : currency;
+  const _locale = _currency === 'PLN' ? 'pl-PL' : locale || 'pl-PL';
 
   return new Intl.NumberFormat(_locale, {
     style: 'currency',

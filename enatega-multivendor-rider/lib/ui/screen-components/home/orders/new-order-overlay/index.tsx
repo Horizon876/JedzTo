@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import UserContext, { KITCHEN_STATUS } from '@/lib/context/global/user.context'
 import { IOrder } from '@/lib/utils/interfaces/order.interface'
 import { getPaymentLabel } from '@/lib/utils/payment-label'
+import { formatCustomerAddress } from '@/lib/utils/format-customer-address'
 import SpinnerComponent from '@/lib/ui/useable-components/spinner'
 import { EtaMinutesPicker } from '@/lib/ui/useable-components/eta-minutes-picker'
 import { useQuery } from '@apollo/client'
@@ -111,7 +112,7 @@ export default function NewOrderOverlay() {
   if (!current || !setOrderStatus) return null
 
   const address =
-    current.deliveryAddress?.deliveryAddress ||
+    formatCustomerAddress(current.deliveryAddress?.deliveryAddress) ||
     (current.isPickedUp ? t('Pickup') : t('No address'))
   const payment = getPaymentLabel(
     current.paymentMethod,

@@ -74,7 +74,7 @@ export default function RestaurantStats({
         icon={faShop}
         route=""
         loading={loading}
-        amountConfig={{ format: 'number', currency: 'USD' }}
+        amountConfig={{ format: 'number', currency: 'PLN' }}
       />
 
       <StatsCard
@@ -83,7 +83,7 @@ export default function RestaurantStats({
         icon={faShop}
         route=""
         loading={loading}
-        amountConfig={{ format: 'currency', currency: CURRENCY_CODE ?? 'USD' }}
+        amountConfig={{ format: 'currency', currency: CURRENCY_CODE ?? 'PLN' }}
       />
 
       <StatsCard
@@ -92,7 +92,7 @@ export default function RestaurantStats({
         icon={faShoppingCart}
         route=""
         loading={loading}
-        amountConfig={{ format: 'number', currency: 'USD' }}
+        amountConfig={{ format: 'number', currency: 'PLN' }}
       />
 
       <StatsCard
@@ -101,7 +101,7 @@ export default function RestaurantStats({
         icon={faTruck}
         route=""
         loading={loading}
-        amountConfig={{ format: 'number', currency: 'USD' }}
+        amountConfig={{ format: 'number', currency: 'PLN' }}
       />
     </div>
   );

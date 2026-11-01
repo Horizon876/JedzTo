@@ -38,7 +38,9 @@ export const useConfiguration = () => {
   const SKIP_EMAIL_VERIFICATION = configuration?.skipEmailVerification;
   const SKIP_MOBILE_VERIFICATION = configuration?.skipMobileVerification;
   const SKIP_WHATSAPP_OTP = configuration?.skipWhatsAppOTP;
-  const CURRENT_SYMBOL = configuration?.currencySymbol;
+  const rawSymbol = configuration?.currencySymbol;
+  const CURRENT_SYMBOL =
+    !rawSymbol || rawSymbol === '$' || rawSymbol === 'USD' ? 'zł' : rawSymbol;
   const EMAIL_NAME = configuration?.emailName;
   const EMAIL = configuration?.email;
   const PASSWORD = configuration?.password;
@@ -69,8 +71,12 @@ export const useConfiguration = () => {
   const APP_TERMS = configuration?.termsAndConditions;
   const APP_PRIVACY = configuration?.privacyPolicy;
   const APP_TEST_OTP = configuration?.testOtp;
-  const CURRENCY_CODE = configuration?.currency;
-  const CURRENCY_SYMBOL = configuration?.currency;
+  const rawCurrency = configuration?.currency;
+  const CURRENCY_CODE =
+    !rawCurrency || rawCurrency === 'USD' || rawCurrency === '$'
+      ? 'PLN'
+      : rawCurrency;
+  const CURRENCY_SYMBOL = CURRENCY_CODE;
   const ISPAID_VERSION = configuration?.isPaidVersion;
 
   return {
