@@ -28,6 +28,7 @@ import { normalizePhone } from '../../utils/phone.js'
 import { resolveDefaultEta } from '../../services/eta.js'
 import { markSettlementSettled, currentPeriodKey } from '../../services/settlements.js'
 import { publishOrderChanged, isOnlineCardMethod } from '../../services/orderNotify.js'
+import { isStorePoolRestaurant } from '../../services/storePool.js'
 import { priceOrder, lookupCoupon } from '../../services/pricing.js'
 import { withCurrentEta } from '../../services/eta.js'
 import { restaurantUnavailableReason } from '../../services/restaurantAvailability.js'
@@ -300,14 +301,14 @@ export const adminMutations = {
 
     let orderStatus = String(requestedStatus || '')
     const restaurant = await Restaurant.findById(order.restaurantId)
-      .select('shopType defaultEta pickupTime deliveryTime isBusy')
+      .select('shopType cuisines tags name defaultEta pickupTime deliveryTime isBusy')
       .lean()
-    const isGrocery = String(restaurant?.shopType || '').toLowerCase() === 'grocery'
+    const isStorePool = isStorePoolRestaurant(restaurant)
 
-    // Grocery delivery: store "accept" opens the rider pool instead of
+    // Store/grocery delivery: confirm opens the rider pool instead of
     // showing ACCEPTED to the customer. Pickup still goes straight to ACCEPTED.
     if (
-      isGrocery &&
+      isStorePool &&
       !order.isPickedUp &&
       order.orderStatus === 'PENDING' &&
       (orderStatus === 'ACCEPTED' || orderStatus === 'SEEKING_RIDER')

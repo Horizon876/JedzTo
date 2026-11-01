@@ -19,6 +19,7 @@ import {
 import { assertPublicAccess, requireUser, requireRestaurantOwner } from '../../auth/jwt.js'
 import { liveCategories, mapFood } from '../../services/menu.js'
 import { kitchenOrdersMongoFilter } from '../../services/orderNotify.js'
+import { storePoolRestaurantMongoFilter } from '../../services/storePool.js'
 import { resolveDefaultEta } from '../../services/eta.js'
 import {
   listSettlementsForPeriod,
@@ -754,10 +755,12 @@ export const queries = {
         return []
       }
     }
-    const groceryIds = await Restaurant.find({ shopType: 'grocery' }).select('_id').lean()
-    if (!groceryIds.length) return []
+    const storeIds = await Restaurant.find(storePoolRestaurantMongoFilter())
+      .select('_id')
+      .lean()
+    if (!storeIds.length) return []
     const rows = await Order.find({
-      restaurantId: { $in: groceryIds.map((r) => r._id) },
+      restaurantId: { $in: storeIds.map((r) => r._id) },
       orderStatus: 'SEEKING_RIDER',
       isPickedUp: { $ne: true },
       $or: [{ rider: null }, { rider: { $exists: false } }],

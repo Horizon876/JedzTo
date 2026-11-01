@@ -239,7 +239,7 @@ async function start() {
     })
   })
 
-  app.get('/health', (_req, res) => res.json({ ok: true, v: 'grocery-pool-1' }))
+  app.get('/health', (_req, res) => res.json({ ok: true, v: 'store-pool-2' }))
 
   app.use(
     '/graphql',
