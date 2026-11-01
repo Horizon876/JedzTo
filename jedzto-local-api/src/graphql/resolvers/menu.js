@@ -5,6 +5,7 @@
  */
 
 import { GraphQLError } from 'graphql'
+import mongoose from 'mongoose'
 import { Restaurant, Category, Food } from '../../models/index.js'
 import { assertPublicAccess, requireUser, requireRestaurantOwner } from '../../auth/jwt.js'
 import { liveCategories, mapFood, publishRestaurantMenu } from '../../services/menu.js'
@@ -138,6 +139,7 @@ export const menuMutations = {
     }
     if (foodInput.variations) {
       existing.variations = foodInput.variations.map((v) => ({
+        ...(v._id ? { _id: v._id } : {}),
         title: v.title || 'Standard',
         price: v.price,
         discounted: v.discounted || 0,
@@ -174,6 +176,40 @@ export const menuMutations = {
       { $set: { hasUnpublishedMenuChanges: true } }
     )
     return existing.isOutOfStock
+  },
+
+  createOptions: async (_p, { optionInput }, ctx) => {
+    assertPublicAccess(ctx)
+    requireRestaurantOwner(ctx, optionInput.restaurant)
+    const restaurant = await Restaurant.findById(optionInput.restaurant)
+    if (!restaurant) throw new GraphQLError('Restaurant not found')
+    const incoming = (optionInput.options || []).map((o) => ({
+      _id: new mongoose.Types.ObjectId(),
+      title: o.title,
+      description: o.description || '',
+      price: Number(o.price) || 0
+    }))
+    restaurant.options = [...(restaurant.options || []), ...incoming]
+    await restaurant.save()
+    return menuChanged(optionInput.restaurant)
+  },
+
+  createAddons: async (_p, { addonInput }, ctx) => {
+    assertPublicAccess(ctx)
+    requireRestaurantOwner(ctx, addonInput.restaurant)
+    const restaurant = await Restaurant.findById(addonInput.restaurant)
+    if (!restaurant) throw new GraphQLError('Restaurant not found')
+    const incoming = (addonInput.addons || []).map((a) => ({
+      _id: new mongoose.Types.ObjectId(),
+      title: a.title,
+      description: a.description || '',
+      quantityMinimum: a.quantityMinimum ?? 0,
+      quantityMaximum: a.quantityMaximum ?? 1,
+      options: (a.options || []).map(String)
+    }))
+    restaurant.addons = [...(restaurant.addons || []), ...incoming]
+    await restaurant.save()
+    return menuChanged(addonInput.restaurant)
   },
 
   uploadImageToS3: async (_p, { image }, ctx) => {

@@ -908,6 +908,7 @@ export const typeDefs = `#graphql
     freeDelivery: Boolean
     companyRegNo: String
     bussinessRegNo: String
+    accountName: String
   }
 
   # Customer accounts as listed on the super admin's Users screen.
@@ -1024,6 +1025,30 @@ export const typeDefs = `#graphql
     isActive: Boolean
     ingredients: [String!]
     variations: [VariationInput!]
+  }
+
+  input OptionItemInput {
+    title: String!
+    description: String
+    price: Float
+  }
+
+  input CreateOptionInput {
+    restaurant: String!
+    options: [OptionItemInput!]!
+  }
+
+  input AddonItemInput {
+    title: String!
+    description: String
+    quantityMinimum: Int
+    quantityMaximum: Int
+    options: [ID!]!
+  }
+
+  input AddonInput {
+    restaurant: String!
+    addons: [AddonItemInput!]!
   }
 
   type UploadImageResult {
@@ -1205,6 +1230,8 @@ export const typeDefs = `#graphql
     deleteCategory(id: String!, restaurant: String!): Restaurant
     createFood(foodInput: FoodInput!): Restaurant
     editFood(foodInput: FoodInput!): Restaurant
+    createOptions(optionInput: CreateOptionInput!): Restaurant
+    createAddons(addonInput: AddonInput!): Restaurant
     deleteFood(id: String!, restaurant: String!, categoryId: String!): Restaurant
     updateFoodOutOfStock(id: String!, restaurant: String!, categoryId: String!): Boolean
     uploadImageToS3(image: String!): UploadImageResult
