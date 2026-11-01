@@ -372,6 +372,8 @@ export const en = {
   "More waiting": "More waiting",
   "Only restaurant accounts can use the kitchen app":
     "Only restaurant accounts can use the kitchen app",
+  "Only rider accounts can use the delivery app":
+    "Only rider accounts can use the delivery app",
   "No restaurant linked to this account":
     "No restaurant linked to this account",
   "Invalid username or password": "Invalid email or password",

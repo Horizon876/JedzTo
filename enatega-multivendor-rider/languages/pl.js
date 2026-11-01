@@ -369,6 +369,8 @@ export const pl = {
   "More waiting": "Kolejne oczekujące",
   "Only restaurant accounts can use the kitchen app":
     "Do aplikacji kuchni mogą logować się tylko konta restauracji",
+  "Only rider accounts can use the delivery app":
+    "Do aplikacji kierowcy mogą logować się tylko konta kierowców",
   "No restaurant linked to this account":
     "Do tego konta nie jest przypisana restauracja",
   "Invalid username or password": "Nieprawidłowy e-mail lub hasło",
