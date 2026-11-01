@@ -2,6 +2,7 @@ import { ORDER_STATUS_ENUM } from './enums'
 
 export const ACTIVE_ORDER_STATUSES = [
   ORDER_STATUS_ENUM.PENDING,
+  ORDER_STATUS_ENUM.SEEKING_RIDER,
   ORDER_STATUS_ENUM.ACCEPTED,
   ORDER_STATUS_ENUM.ASSIGNED,
   ORDER_STATUS_ENUM.PICKED,
@@ -34,6 +35,7 @@ export function isPastOrderStatus(status) {
 export function getOrderStatusLabelKey(status) {
   switch (status) {
     case ORDER_STATUS_ENUM.PENDING:
+    case ORDER_STATUS_ENUM.SEEKING_RIDER:
       return 'orderStatusAwaiting'
     case ORDER_STATUS_ENUM.ACCEPTED:
     case 'PREPARING':
@@ -56,6 +58,7 @@ export function getOrderStatusLabelKey(status) {
 export function getOrderStatusHintKey(status) {
   switch (status) {
     case ORDER_STATUS_ENUM.PENDING:
+    case ORDER_STATUS_ENUM.SEEKING_RIDER:
       return 'orderStatusAwaitingHint'
     case ORDER_STATUS_ENUM.ACCEPTED:
     case 'PREPARING':

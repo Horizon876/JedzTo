@@ -18,6 +18,13 @@ const userSchema = new mongoose.Schema(
     phoneIsVerified: { type: Boolean, default: false },
     emailIsVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    /** Rider online for deliveries (delivery app toggle). */
+    available: { type: Boolean, default: true },
+    /**
+     * Rider opts into grocery/extra-order pool (cross-restaurant SEEKING_RIDER).
+     * Default off — riders must explicitly enable "przyjmowanie dodatkowych zamówień".
+     */
+    acceptExtraOrders: { type: Boolean, default: false },
     /**
      * Marks records created by guestCheckout. Such a record may be re-claimed
      * with just a phone number; a registered account may not.

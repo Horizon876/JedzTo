@@ -17,7 +17,14 @@ import { id } from './helpers.js'
 // Active order statuses
 // ---------------------------------------------------------------------------
 
-export const ACTIVE = new Set(['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'])
+export const ACTIVE = new Set([
+  'PENDING',
+  'SEEKING_RIDER',
+  'ACCEPTED',
+  'ASSIGNED',
+  'PICKED',
+  'PREPARING'
+])
 export const CANCELLED = new Set(['CANCELLED', 'REJECTED'])
 
 /** Upper bound for any client-controlled order page size. */
@@ -29,7 +36,7 @@ export const MAX_ORDER_PAGE_SIZE = 100
 
 /** Fields serializeOrder needs from the related documents — nothing more. */
 const RESTAURANT_FIELDS =
-  '_id name image address location zone defaultEta pickupTime deliveryTime isBusy currentEta acceptedEtaMinutes'
+  '_id name image address location zone defaultEta pickupTime deliveryTime isBusy currentEta acceptedEtaMinutes shopType'
 const CUSTOMER_FIELDS = '_id name phone email'
 
 /**
@@ -64,6 +71,7 @@ export async function serializeOrder(order, related = null) {
             image: restaurant.image,
             address: restaurant.address,
             location: restaurant.location,
+            shopType: restaurant.shopType || 'restaurant',
             defaultEta: resolveDefaultEta(restaurant),
             isBusy: Boolean(restaurant.isBusy),
             currentEta: eta,
@@ -283,6 +291,11 @@ export const assertCanManageRestaurantOrder = async (ctx, order) => {
   const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'RIDER'])
   if (auth.role === 'SUPER_ADMIN') return auth
   if (auth.role === 'RIDER') {
+    const assignedRiderId = order?.rider?._id || order?.rider?.id
+    // Pool riders (extra grocery orders) are not bound to the store restaurantId.
+    if (assignedRiderId && String(assignedRiderId) === String(auth.userId)) {
+      return auth
+    }
     if (!order?.restaurantId || String(auth.restaurantId) !== String(order.restaurantId)) {
       throw forbidden()
     }
@@ -329,6 +342,10 @@ export const loadAuthorizedOrder = async (ctx, orderRef, { lean = false, roles =
   }
 
   if (auth.role === 'RIDER') {
+    const assignedRiderId = order.rider?._id || order.rider?.id
+    if (assignedRiderId && String(assignedRiderId) === String(auth.userId)) {
+      return { auth, order }
+    }
     if (order.restaurantId && String(auth.restaurantId) === String(order.restaurantId)) {
       return { auth, order }
     }

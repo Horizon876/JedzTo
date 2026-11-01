@@ -1,10 +1,10 @@
 import { useWorkMode } from '@/lib/context/global/work-mode.context'
 import { useApptheme } from '@/lib/context/global/theme.context'
 import NewOrderOverlay from '@/lib/ui/screen-components/home/orders/new-order-overlay'
+import StartPreparingOverlay from '@/lib/ui/screen-components/home/orders/start-preparing-overlay'
 import KitchenEtaTopControl from '@/lib/ui/screen-components/home/orders/main/kitchen-eta-top-control'
 import { Tabs, router, usePathname } from 'expo-router'
 import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
 
@@ -18,14 +18,22 @@ function OrdersTopBar() {
   const { t } = useTranslation()
   const { appTheme } = useApptheme()
   const { workMode } = useWorkMode()
-  const insets = useSafeAreaInsets()
   const pathname = usePathname()
   const isDelivery = workMode === 'delivery'
 
   const tabs = useMemo(() => {
     if (isDelivery) {
       return [
-        { key: 'index', href: '/(tabs)/home/orders', label: t('For delivery') },
+        {
+          key: 'index',
+          href: '/(tabs)/home/orders',
+          label: t('New extra orders'),
+        },
+        {
+          key: 'processing',
+          href: '/(tabs)/home/orders/processing',
+          label: t('For delivery'),
+        },
         {
           key: 'delivered',
           href: '/(tabs)/home/orders/delivered',
@@ -58,13 +66,13 @@ function OrdersTopBar() {
   return (
     <View
       style={{
-        paddingTop: insets.top,
+        paddingTop: 4,
         backgroundColor: appTheme.themeBackground,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: HAIRLINE,
       }}
     >
-      <StatusBar barStyle="light-content" backgroundColor={appTheme.themeBackground} />
+      <StatusBar hidden translucent backgroundColor="transparent" />
       <Text style={styles.title} numberOfLines={1}>
         {isDelivery ? t('Delivery') : t('Kitchen')}
       </Text>
@@ -107,7 +115,12 @@ export default function OrdersLayout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: appTheme.themeBackground }}>
-      {workMode === 'kitchen' ? <NewOrderOverlay /> : null}
+      {workMode === 'kitchen' ? (
+        <>
+          <NewOrderOverlay />
+          <StartPreparingOverlay />
+        </>
+      ) : null}
       <OrdersTopBar />
       <Tabs
         tabBar={() => null}
@@ -116,10 +129,7 @@ export default function OrdersLayout() {
         }}
       >
         <Tabs.Screen name="index" />
-        <Tabs.Screen
-          name="processing"
-          options={{ href: isDelivery ? null : undefined }}
-        />
+        <Tabs.Screen name="processing" />
         <Tabs.Screen
           name="delivered"
           options={{ href: isDelivery ? undefined : null }}
@@ -140,13 +150,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   etaRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    alignItems: 'center',
+    marginHorizontal: 16,
+    paddingHorizontal: 4,
+    paddingBottom: 10,
   },
   segmentTrack: {
     flexDirection: 'row',
     marginHorizontal: 16,
+    marginTop: 0,
     marginBottom: 12,
     padding: 4,
     borderRadius: 12,

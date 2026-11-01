@@ -54,6 +54,7 @@ const SUBSCRIPTION_NEW_MESSAGE = gql`
 
 const ORDER_STATUS_RANK = {
   [ORDER_STATUS_ENUM.PENDING]: 1,
+  [ORDER_STATUS_ENUM.SEEKING_RIDER]: 1,
   [ORDER_STATUS_ENUM.ACCEPTED]: 2,
   [ORDER_STATUS_ENUM.ASSIGNED]: 3,
   [ORDER_STATUS_ENUM.PICKED]: 4,
@@ -268,7 +269,9 @@ function OrderDetail(props) {
 
   const subTotal = total - tip - tax - deliveryCharges
 
-  const isOrderPending = order?.orderStatus === ORDER_STATUS_ENUM.PENDING
+  const isOrderPending =
+    order?.orderStatus === ORDER_STATUS_ENUM.PENDING ||
+    order?.orderStatus === ORDER_STATUS_ENUM.SEEKING_RIDER
   const isOrderCancelable = isOrderPending
 
   if (!connect) return <ErrorView refetchFunctions={[]} />
@@ -486,7 +489,10 @@ function OrderDetail(props) {
 }
 
 export const OrderStatusImage = ({ status }) => {
-  if (status === ORDER_STATUS_ENUM.PENDING) {
+  if (
+    status === ORDER_STATUS_ENUM.PENDING ||
+    status === ORDER_STATUS_ENUM.SEEKING_RIDER
+  ) {
     return (
       <View style={styles().checkIconWrap}>
         <Ionicons name='checkmark-circle' size={scale(88)} color='#00A8FF' />

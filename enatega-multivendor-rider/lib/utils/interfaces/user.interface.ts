@@ -23,6 +23,8 @@ export interface IUserContextProps {
     orderStatus: string,
     eta?: { preparationEtaMinutes?: number; deliveryEtaMinutes?: number }
   ) => Promise<void>;
+  assignOrder?: (orderId: string) => Promise<IOrder | undefined>;
+  assigningOrder?: boolean;
   /** Latest ETA pushed after kitchen accept — drives the home timer UI. */
   kitchenEtaMinutes?: number | null;
   updateOrderEta?: (
@@ -64,6 +66,8 @@ export interface IRiderProfile {
   _id: string;
   accountNumber: string | null;
   available: boolean;
+  acceptExtraOrders?: boolean;
+  restaurantId?: string | null;
   currentWalletAmount: number;
   email: string | null;
   name: string;

@@ -27,6 +27,22 @@ export const UPDATE_AVAILABILITY = gql`
   mutation ToggleRider($id: String!) {
     toggleAvailablity(id: $id) {
       _id
+      available
+      acceptExtraOrders
+      name
+      phone
+    }
+  }
+`;
+
+export const TOGGLE_ACCEPT_EXTRA_ORDERS = gql`
+  mutation ToggleAcceptExtraOrders($id: String) {
+    toggleAcceptExtraOrders(id: $id) {
+      _id
+      available
+      acceptExtraOrders
+      name
+      phone
     }
   }
 `;

@@ -493,6 +493,9 @@ export const typeDefs = `#graphql
     emailIsVerified: Boolean
     notificationToken: String
     isActive: Boolean
+    available: Boolean
+    acceptExtraOrders: Boolean
+    restaurantId: ID
     isOrderNotification: Boolean
     isOfferNotification: Boolean
     addresses: [Address!]
@@ -586,7 +589,9 @@ export const typeDefs = `#graphql
     name: String
     username: String
     available: Boolean
+    acceptExtraOrders: Boolean
     phone: String
+    restaurantId: ID
     location: Point
   }
 
@@ -1137,6 +1142,8 @@ export const typeDefs = `#graphql
     hasOwnerPermission(permission: String!): Boolean
     myRestaurants: [Restaurant!]
     restaurantOrders(restaurantId: ID!): [Order!]
+    "Grocery SEEKING_RIDER pool for riders with acceptExtraOrders enabled."
+    extraOrders: [Order!]
     ordersByRestId(restaurant: String!, page: Int, rows: Int, search: String, orderStatus: [String]): OrdersPaginatedResponse
     ordersByRestIdWithoutPagination(restaurant: String!, search: String): [Order!]
     allOrders(page: Int): [Order!]
@@ -1254,6 +1261,10 @@ export const typeDefs = `#graphql
       deliveryEtaMinutes: Int
     ): Order
     acceptOrder(_id: String!, time: String): Order
+    "First rider to call wins; SEEKING_RIDER → ACCEPTED with rider attached."
+    assignOrder(id: String!): Order
+    toggleAvailablity(id: String): Rider
+    toggleAcceptExtraOrders(id: String): Rider
     cancelOrder(_id: String!, reason: String!): Order
     orderPickedUp(_id: String!): Order
     muteRing(orderId: String): Boolean

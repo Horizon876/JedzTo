@@ -290,7 +290,7 @@ export const adminMutations = {
 
   updateStatus: async (
     _p,
-    { id: orderId, orderStatus, preparationEtaMinutes, deliveryEtaMinutes },
+    { id: orderId, orderStatus: requestedStatus, preparationEtaMinutes, deliveryEtaMinutes },
     ctx
   ) => {
     assertPublicAccess(ctx)
@@ -298,11 +298,49 @@ export const adminMutations = {
     if (!order) throw new GraphQLError('Order not found')
     await assertCanManageRestaurantOrder(ctx, order)
 
+    let orderStatus = String(requestedStatus || '')
+    const restaurant = await Restaurant.findById(order.restaurantId)
+      .select('shopType defaultEta pickupTime deliveryTime isBusy')
+      .lean()
+    const isGrocery = String(restaurant?.shopType || '').toLowerCase() === 'grocery'
+
+    // Grocery delivery: store "accept" opens the rider pool instead of
+    // showing ACCEPTED to the customer. Pickup still goes straight to ACCEPTED.
+    if (
+      isGrocery &&
+      !order.isPickedUp &&
+      order.orderStatus === 'PENDING' &&
+      (orderStatus === 'ACCEPTED' || orderStatus === 'SEEKING_RIDER')
+    ) {
+      orderStatus = 'SEEKING_RIDER'
+    }
+
     order.orderStatus = orderStatus
     const now = new Date()
+    if (orderStatus === 'SEEKING_RIDER') {
+      order.isRinged = false
+      // Keep ETA hint for when a rider later accepts, but do not stamp acceptedAt.
+      if (preparationEtaMinutes != null || deliveryEtaMinutes != null) {
+        const { total } = applyOrderEtaFields(
+          order,
+          { preparationEtaMinutes, deliveryEtaMinutes },
+          now.getTime()
+        )
+        order.acceptedEtaMinutes = total
+      } else if (order.acceptedEtaMinutes == null) {
+        const fallback = resolveDefaultEta(restaurant)
+        const { total } = applyOrderEtaFields(
+          order,
+          { preparationEtaMinutes: fallback, deliveryEtaMinutes: 0 },
+          now.getTime()
+        )
+        order.acceptedEtaMinutes = total
+      }
+    }
     if (orderStatus === 'ACCEPTED') {
       order.acceptedAt = now
       order.isRinged = false
+      order.isRiderRinged = false
     }
     if (orderStatus === 'ASSIGNED') order.assignedAt = now
     if (orderStatus === 'PICKED') order.pickedAt = now
@@ -310,10 +348,12 @@ export const adminMutations = {
       order.deliveredAt = now
       order.completionTime = now
       order.isRinged = false
+      order.isRiderRinged = false
     }
     if (orderStatus === 'CANCELLED' || orderStatus === 'REJECTED') {
       order.cancelledAt = now
       order.isRinged = false
+      order.isRiderRinged = false
     }
 
     if (
@@ -327,7 +367,6 @@ export const adminMutations = {
       )
       order.acceptedEtaMinutes = total
     } else if (orderStatus === 'ACCEPTED' && order.acceptedEtaMinutes == null) {
-      const restaurant = await Restaurant.findById(order.restaurantId).lean()
       const fallback = resolveDefaultEta(restaurant)
       const { total } = applyOrderEtaFields(
         order,
@@ -343,7 +382,9 @@ export const adminMutations = {
     }
     const serialized = await serializeOrder(order.toObject())
     pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
-    await publishOrderChanged(order, serialized, 'updateStatus')
+    await publishOrderChanged(order, serialized, 'updateStatus', {
+      notifyExtraRiders: orderStatus === 'SEEKING_RIDER'
+    })
     return serialized
   },
 
@@ -360,6 +401,135 @@ export const adminMutations = {
       },
       ctx
     )
+  },
+
+  assignOrder: async (_p, { id: orderId }, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['RIDER', 'SUPER_ADMIN'])
+    const riderUser = await User.findById(auth.userId)
+    if (!riderUser || riderUser.role !== 'RIDER') {
+      if (auth.role !== 'SUPER_ADMIN') throw forbidden()
+    }
+    const riderDoc = riderUser || (await User.findById(auth.userId))
+    if (!riderDoc) throw forbidden()
+
+    const orderRef = String(orderId || '')
+    const existing =
+      (await Order.findById(orderRef).catch(() => null)) ||
+      (await Order.findOne({ orderId: orderRef }))
+    if (!existing) throw new GraphQLError('Order not found')
+
+    const isSeeking = existing.orderStatus === 'SEEKING_RIDER'
+    const isRestaurantOpen =
+      existing.orderStatus === 'ACCEPTED' && !existing.rider && !existing.isPickedUp
+
+    if (!isSeeking && !isRestaurantOpen) {
+      throw badInput('Order is not available for assignment')
+    }
+
+    if (isSeeking) {
+      if (riderDoc.available === false || !riderDoc.acceptExtraOrders) {
+        throw forbidden('Włącz przyjmowanie dodatkowych zamówień')
+      }
+    } else if (String(riderDoc.restaurantId) !== String(existing.restaurantId)) {
+      throw forbidden()
+    }
+
+    const riderPayload = {
+      _id: String(riderDoc._id),
+      id: String(riderDoc._id),
+      name: riderDoc.name,
+      username: String(riderDoc.email || '').split('@')[0],
+      phone: riderDoc.phone || '',
+      available: riderDoc.available !== false
+    }
+
+    const now = new Date()
+    // Atomic claim — first rider wins.
+    const claimed = await Order.findOneAndUpdate(
+      {
+        _id: existing._id,
+        orderStatus: isSeeking ? 'SEEKING_RIDER' : 'ACCEPTED',
+        $or: [{ rider: null }, { rider: { $exists: false } }]
+      },
+      {
+        $set: {
+          rider: riderPayload,
+          orderStatus: 'ACCEPTED',
+          acceptedAt: existing.acceptedAt || now,
+          isRinged: false,
+          isRiderRinged: true
+        }
+      },
+      { new: true }
+    )
+    if (!claimed) {
+      throw badInput('Zamówienie zostało już przejęte przez innego kierowcę')
+    }
+
+    if (!claimed.acceptedEtaMinutes) {
+      const restaurant = await Restaurant.findById(claimed.restaurantId).lean()
+      const fallback = resolveDefaultEta(restaurant)
+      const { total } = applyOrderEtaFields(
+        claimed,
+        { preparationEtaMinutes: fallback, deliveryEtaMinutes: 0 },
+        now.getTime()
+      )
+      claimed.acceptedEtaMinutes = total
+      await claimed.save()
+      await syncRestaurantTimesFromOrder(claimed)
+    }
+
+    const serialized = await serializeOrder(claimed.toObject())
+    pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
+    await publishOrderChanged(claimed, serialized, 'assignOrder')
+    return serialized
+  },
+
+  toggleAvailablity: async (_p, { id: riderId }, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['RIDER', 'SUPER_ADMIN'])
+    const targetId = riderId || auth.userId
+    if (auth.role === 'RIDER' && String(targetId) !== String(auth.userId)) {
+      throw forbidden()
+    }
+    const rider = await User.findById(targetId)
+    if (!rider || rider.role !== 'RIDER') throw badInput('Rider not found')
+    rider.available = !(rider.available !== false)
+    await rider.save()
+    return {
+      _id: id(rider),
+      name: rider.name,
+      username: String(rider.email || '').split('@')[0],
+      available: rider.available !== false,
+      acceptExtraOrders: Boolean(rider.acceptExtraOrders),
+      phone: rider.phone || '',
+      restaurantId: rider.restaurantId ? id(rider.restaurantId) : null,
+      location: null
+    }
+  },
+
+  toggleAcceptExtraOrders: async (_p, { id: riderId }, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['RIDER', 'SUPER_ADMIN'])
+    const targetId = riderId || auth.userId
+    if (auth.role === 'RIDER' && String(targetId) !== String(auth.userId)) {
+      throw forbidden()
+    }
+    const rider = await User.findById(targetId)
+    if (!rider || rider.role !== 'RIDER') throw badInput('Rider not found')
+    rider.acceptExtraOrders = !Boolean(rider.acceptExtraOrders)
+    await rider.save()
+    return {
+      _id: id(rider),
+      name: rider.name,
+      username: String(rider.email || '').split('@')[0],
+      available: rider.available !== false,
+      acceptExtraOrders: Boolean(rider.acceptExtraOrders),
+      phone: rider.phone || '',
+      restaurantId: rider.restaurantId ? id(rider.restaurantId) : null,
+      location: null
+    }
   },
 
   cancelOrder: async (_p, { _id, reason }, ctx) => {
@@ -395,6 +565,7 @@ export const adminMutations = {
     if (!order) throw new GraphQLError('Order not found')
     await assertCanManageRestaurantOrder(ctx, order)
     order.isRinged = false
+    order.isRiderRinged = false
     await order.save()
     const serialized = await serializeOrder(order.toObject())
     pubsub.publish(ORDER_STATUS, { subscriptionOrder: serialized })
@@ -822,7 +993,9 @@ export const adminMutations = {
       name: String(name || bareLogin).trim() || bareLogin,
       role: 'RIDER',
       restaurantId: restaurant._id,
-      isActive: true
+      isActive: true,
+      available: true,
+      acceptExtraOrders: false
     })
 
     return {

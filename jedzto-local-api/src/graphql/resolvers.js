@@ -50,7 +50,7 @@ import {
 
 export { pubsub }
 
-const ACTIVE = new Set(['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'])
+const ACTIVE = new Set(['PENDING', 'SEEKING_RIDER', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'])
 const TEST_OTP = '123456'
 
 const CONFIG = {

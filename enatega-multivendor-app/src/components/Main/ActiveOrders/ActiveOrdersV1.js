@@ -51,7 +51,7 @@ const orderStatuses = [
   }
 ]
 
-const orderStatusActive = ['PENDING', 'PICKED', 'ACCEPTED', 'ASSIGNED']
+const orderStatusActive = ['PENDING', 'SEEKING_RIDER', 'PICKED', 'ACCEPTED', 'ASSIGNED']
 
 const ActiveOrders = () => {
 

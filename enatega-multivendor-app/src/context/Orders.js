@@ -76,7 +76,7 @@ export const OrdersProvider = ({ children }) => {
   const activeOrders = useMemo(
     () =>
       dedupeById(dataActive?.getUsersActiveOrders ?? []).filter((order) =>
-        ['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'].includes(order?.orderStatus)
+        ['PENDING', 'SEEKING_RIDER', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'].includes(order?.orderStatus)
       ),
     [dataActive]
   )
@@ -89,7 +89,7 @@ export const OrdersProvider = ({ children }) => {
           ['DELIVERED', 'COMPLETED', 'CANCELLED', 'CANCELLEDBYREST', 'REJECTED'].includes(order?.orderStatus)
         )
       ]).filter((order) =>
-        !['PENDING', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'].includes(order?.orderStatus)
+        !['PENDING', 'SEEKING_RIDER', 'ACCEPTED', 'ASSIGNED', 'PICKED', 'PREPARING'].includes(order?.orderStatus)
       ),
     [dataActive, dataPast]
   )

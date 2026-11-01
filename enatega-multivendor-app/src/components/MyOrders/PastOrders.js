@@ -24,7 +24,7 @@ function EmptyViewPastOrders() {
   if (errorOrders) return <TextError text={errorOrders.message} />
 
   const hasActiveOrders = orders.filter((o) =>
-    ['PENDING', 'PICKED', 'ACCEPTED', 'ASSIGNED', 'PREPARING'].includes(o.orderStatus)
+    ['PENDING', 'SEEKING_RIDER', 'PICKED', 'ACCEPTED', 'ASSIGNED', 'PREPARING'].includes(o.orderStatus)
   ).length > 0
   const hasPastOrders = orders.filter((o) =>
     ['DELIVERED', 'COMPLETED', 'CANCELLED', 'CANCELLEDBYREST', 'REJECTED'].includes(o.orderStatus)

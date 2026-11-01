@@ -44,6 +44,7 @@ const orderSchema = new mongoose.Schema(
       default: 'PENDING',
       enum: [
         'PENDING',
+        'SEEKING_RIDER',
         'ACCEPTED',
         'ASSIGNED',
         'PICKED',

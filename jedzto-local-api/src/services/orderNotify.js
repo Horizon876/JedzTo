@@ -1,4 +1,4 @@
-import { Restaurant, Order } from '../models/index.js'
+import { Restaurant, Order, User } from '../models/index.js'
 import { pubsub } from '../graphql/orderPubsub.js'
 
 const ORDER_CHANGED = 'ORDER_CHANGED'
@@ -23,13 +23,13 @@ export const kitchenOrdersMongoFilter = (restaurantId) => ({
  * @param {object} orderDoc
  * @param {object} serialized
  * @param {string} origin
- * @param {{ notifyKitchen?: boolean }} [opts]
+ * @param {{ notifyKitchen?: boolean, notifyExtraRiders?: boolean }} [opts]
  */
 export async function publishOrderChanged(
   orderDoc,
   serialized,
   origin,
-  { notifyKitchen = true } = {}
+  { notifyKitchen = true, notifyExtraRiders = false } = {}
 ) {
   const recipients = new Set()
   const customerId = orderDoc?.customerId
@@ -42,6 +42,27 @@ export async function publishOrderChanged(
       if (restaurant?.ownerId) recipients.add(String(restaurant.ownerId))
     }
   }
+
+  const shouldPingPool =
+    notifyExtraRiders ||
+    String(orderDoc?.orderStatus || serialized?.orderStatus || '') === 'SEEKING_RIDER'
+  if (shouldPingPool) {
+    const poolRiders = await User.find({
+      role: 'RIDER',
+      isActive: true,
+      available: { $ne: false },
+      acceptExtraOrders: true
+    })
+      .select('_id')
+      .lean()
+    for (const rider of poolRiders) {
+      recipients.add(String(rider._id))
+    }
+  }
+
+  // Assigned rider on the order (after assignOrder / status updates).
+  const riderId = orderDoc?.rider?._id || orderDoc?.rider?.id || serialized?.rider?._id
+  if (riderId) recipients.add(String(riderId))
 
   for (const userId of recipients) {
     pubsub.publish(ORDER_CHANGED, {

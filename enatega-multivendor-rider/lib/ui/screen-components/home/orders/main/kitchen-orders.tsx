@@ -11,6 +11,7 @@ import { useWorkMode } from '@/lib/context/global/work-mode.context'
 import { useApptheme } from '@/lib/context/global/theme.context'
 import { IOrder } from '@/lib/utils/interfaces/order.interface'
 import { getPaymentLabel } from '@/lib/utils/payment-label'
+import { formatCustomerAddress } from '@/lib/utils/format-customer-address'
 import SpinnerComponent from '@/lib/ui/useable-components/spinner'
 
 const ACCENT = '#00A8FF'
@@ -30,13 +31,27 @@ type ModeConfig = {
 }
 
 function getModeConfig(
-  workMode: 'kitchen' | 'delivery' | null,
+  workMode: 'kitchen' | 'delivery',
   tab: OrdersTab
 ): ModeConfig {
   if (workMode === 'delivery') {
+    // index screen passes tab="processing" → pool of SEEKING_RIDER
     if (tab === 'processing') {
       return {
-        filters: [KITCHEN_STATUS.SENT, 'PICKED'],
+        filters: [KITCHEN_STATUS.SEEKING_RIDER],
+        nextStatus: null,
+        actionLabelKey: 'Take order',
+        showOverlay: false,
+      }
+    }
+    // processing.tsx passes tab="sent" → active deliveries
+    if (tab === 'sent') {
+      return {
+        filters: [
+          KITCHEN_STATUS.IN_PROGRESS,
+          KITCHEN_STATUS.SENT,
+          'PICKED',
+        ],
         nextStatus: KITCHEN_STATUS.RECEIVED,
         actionLabelKey: 'Mark as delivered',
         showOverlay: false,
@@ -52,7 +67,11 @@ function getModeConfig(
 
   if (tab === 'processing') {
     return {
-      filters: [KITCHEN_STATUS.NEW, KITCHEN_STATUS.IN_PROGRESS],
+      filters: [
+        KITCHEN_STATUS.NEW,
+        KITCHEN_STATUS.SEEKING_RIDER,
+        KITCHEN_STATUS.IN_PROGRESS,
+      ],
       nextStatus: KITCHEN_STATUS.SENT,
       actionLabelKey: 'Send for delivery',
       showOverlay: true,
@@ -93,9 +112,12 @@ function OrderCard({
 }) {
   const { t } = useTranslation()
   const address =
-    order.deliveryAddress?.deliveryAddress ||
+    formatCustomerAddress(order.deliveryAddress?.deliveryAddress) ||
     (order.isPickedUp ? t('Pickup') : '—')
   const isPending = order.orderStatus === KITCHEN_STATUS.NEW
+  const isSeeking = order.orderStatus === KITCHEN_STATUS.SEEKING_RIDER
+  const needsPrep =
+    order.orderStatus === KITCHEN_STATUS.IN_PROGRESS && Boolean(order.isRiderRinged)
   const payment = getPaymentLabel(order.paymentMethod, order.paymentStatus, t)
 
   return (
@@ -107,6 +129,17 @@ function OrderCard({
         </View>
 
         {isPending ? <Text style={styles.newBadge}>{t('New order')}</Text> : null}
+        {isSeeking ? (
+          <Text style={styles.seekingBadge}>{t('Looking for a rider')}</Text>
+        ) : null}
+        {needsPrep ? (
+          <Text style={styles.prepBadge}>{t('Start preparing')}</Text>
+        ) : null}
+        {order.orderStatus === KITCHEN_STATUS.IN_PROGRESS && order.rider?.name ? (
+          <Text style={styles.riderLine}>
+            {t('Rider')}: {order.rider.name}
+          </Text>
+        ) : null}
 
         {payment.needsCash ? (
           <Text style={styles.cashBanner}>{t('Cash payment')}</Text>
@@ -114,6 +147,9 @@ function OrderCard({
           <Text style={styles.paidBanner}>{t('Order paid')}</Text>
         )}
 
+        {order.restaurant?.name ? (
+          <Text style={styles.riderLine}>{order.restaurant.name}</Text>
+        ) : null}
         <Text style={styles.customer}>
           {order.user?.name || t('Customer')}
           {order.user?.phone ? ` · ${order.user.phone}` : ''}
@@ -130,7 +166,7 @@ function OrderCard({
         ))}
       </TouchableOpacity>
 
-      {isPending && onAccept && onReject ? (
+      {onAccept && onReject ? (
         <View style={styles.actionsRow}>
           <TouchableOpacity
             disabled={busy}
@@ -157,6 +193,19 @@ function OrderCard({
             )}
           </TouchableOpacity>
         </View>
+      ) : onAccept ? (
+        <TouchableOpacity
+          disabled={busy}
+          onPress={onAccept}
+          activeOpacity={0.85}
+          style={[styles.actionBtn, styles.acceptBtn, styles.fullAction]}
+        >
+          {busy ? (
+            <SpinnerComponent />
+          ) : (
+            <Text style={styles.actionText}>{t('Take order')}</Text>
+          )}
+        </TouchableOpacity>
       ) : !!actionLabel && onAction ? (
         <TouchableOpacity
           disabled={busy}
@@ -191,8 +240,11 @@ export default function KitchenOrdersList({
     loadingAssigned,
     errorAssigned,
     setOrderStatus,
+    assignOrder,
     updatingStatus,
+    assigningOrder,
     refetchAssigned,
+    userId,
   } = useContext(UserContext)
   const { logout } = useContext(AuthContext)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -205,25 +257,27 @@ export default function KitchenOrdersList({
       errorAssigned?.message || ''
     )
 
-  const effectiveTab: OrdersTab =
-    workMode === 'delivery'
-      ? tab === 'received'
-        ? 'received'
-        : 'processing'
-      : tab
-
   const config = useMemo(
-    () => getModeConfig(workMode, effectiveTab),
-    [workMode, effectiveTab]
+    () => getModeConfig(workMode, tab),
+    [workMode, tab]
   )
 
-  const orders = useMemo(
-    () =>
-      (assignedOrders || []).filter((o) =>
-        config.filters.includes(o.orderStatus)
-      ),
-    [assignedOrders, config.filters]
-  )
+  const orders = useMemo(() => {
+    const list = (assignedOrders || []).filter((o) =>
+      config.filters.includes(o.orderStatus)
+    )
+    if (workMode !== 'delivery') return list
+    // Active delivery tab: only my jobs (or unassigned ACCEPTED waiting at store).
+    if (tab === 'sent') {
+      return list.filter((o) => {
+        if (o.orderStatus === KITCHEN_STATUS.SEEKING_RIDER) return false
+        if (!userId) return true
+        const riderId = o.rider?._id
+        return !riderId || String(riderId) === String(userId)
+      })
+    }
+    return list
+  }, [assignedOrders, config.filters, workMode, tab, userId])
 
   const onAction = useCallback(
     async (orderId: string) => {
@@ -240,34 +294,42 @@ export default function KitchenOrdersList({
 
   const onAccept = useCallback(
     async (order: IOrder) => {
-      if (!setOrderStatus) return
       setBusyId(order._id)
-      const restaurant = order.restaurant as
-        | {
-            pickupTime?: number
-            deliveryTime?: number
-            defaultEta?: number
-            currentEta?: number
-          }
-        | undefined
-      const total = (() => {
-        if (
-          order.preparationEtaMinutes != null ||
-          order.deliveryEtaMinutes != null
-        ) {
-          return (
-            Number(order.preparationEtaMinutes ?? 0) +
-            (order.isPickedUp ? 0 : Number(order.deliveryEtaMinutes ?? 0))
-          )
-        }
-        if (restaurant?.defaultEta != null) return Number(restaurant.defaultEta)
-        if (restaurant?.currentEta != null) return Number(restaurant.currentEta)
-        const sum =
-          Number(restaurant?.pickupTime || 0) +
-          Number(restaurant?.deliveryTime || 0)
-        return sum > 0 ? sum : 45
-      })()
       try {
+        // Delivery pool: claim SEEKING_RIDER via assignOrder.
+        if (
+          workMode === 'delivery' &&
+          order.orderStatus === KITCHEN_STATUS.SEEKING_RIDER
+        ) {
+          await assignOrder?.(order._id)
+          return
+        }
+        if (!setOrderStatus) return
+        const restaurant = order.restaurant as
+          | {
+              pickupTime?: number
+              deliveryTime?: number
+              defaultEta?: number
+              currentEta?: number
+            }
+          | undefined
+        const total = (() => {
+          if (
+            order.preparationEtaMinutes != null ||
+            order.deliveryEtaMinutes != null
+          ) {
+            return (
+              Number(order.preparationEtaMinutes ?? 0) +
+              (order.isPickedUp ? 0 : Number(order.deliveryEtaMinutes ?? 0))
+            )
+          }
+          if (restaurant?.defaultEta != null) return Number(restaurant.defaultEta)
+          if (restaurant?.currentEta != null) return Number(restaurant.currentEta)
+          const sum =
+            Number(restaurant?.pickupTime || 0) +
+            Number(restaurant?.deliveryTime || 0)
+          return sum > 0 ? sum : 45
+        })()
         await setOrderStatus(order._id, KITCHEN_STATUS.IN_PROGRESS, {
           preparationEtaMinutes: Math.max(5, Math.min(240, total || 45)),
           deliveryEtaMinutes: 0,
@@ -276,7 +338,7 @@ export default function KitchenOrdersList({
         setBusyId(null)
       }
     },
-    [setOrderStatus]
+    [assignOrder, setOrderStatus, workMode]
   )
 
   const onReject = useCallback(
@@ -313,27 +375,57 @@ export default function KitchenOrdersList({
   const renderItem = useCallback<ListRenderItem<IOrder>>(
     ({ item }) => {
       const isPending = item.orderStatus === KITCHEN_STATUS.NEW
+      const isSeeking = item.orderStatus === KITCHEN_STATUS.SEEKING_RIDER
+      const isDeliveryPool =
+        workMode === 'delivery' && isSeeking
+      const canSendKitchen =
+        workMode === 'kitchen' &&
+        !isPending &&
+        !isSeeking &&
+        item.orderStatus === KITCHEN_STATUS.IN_PROGRESS &&
+        Boolean(config.nextStatus)
+      const canMarkDelivered =
+        workMode === 'delivery' &&
+        (item.orderStatus === KITCHEN_STATUS.SENT ||
+          item.orderStatus === 'PICKED') &&
+        Boolean(config.nextStatus)
+      const waitingForStore =
+        workMode === 'delivery' &&
+        item.orderStatus === KITCHEN_STATUS.IN_PROGRESS
       return (
         <OrderCard
           order={item}
           actionLabel={
-            !isPending && config.actionLabelKey
-              ? t(config.actionLabelKey)
-              : undefined
+            canSendKitchen || canMarkDelivered
+              ? t(config.actionLabelKey || '')
+              : waitingForStore
+                ? t('Waiting for store')
+                : undefined
           }
           onAction={
-            !isPending && config.nextStatus
+            canSendKitchen || canMarkDelivered
               ? () => onAction(item._id)
               : undefined
           }
-          onAccept={isPending ? () => onAccept(item) : undefined}
-          onReject={isPending ? () => onReject(item._id) : undefined}
+          onAccept={
+            isPending || isDeliveryPool ? () => onAccept(item) : undefined
+          }
+          onReject={
+            isPending && workMode === 'kitchen'
+              ? () => onReject(item._id)
+              : undefined
+          }
           onOpen={() => openOrder(item)}
-          busy={updatingStatus || busyId === item._id}
+          busy={
+            updatingStatus ||
+            assigningOrder ||
+            busyId === item._id
+          }
         />
       )
     },
     [
+      assigningOrder,
       busyId,
       config.actionLabelKey,
       config.nextStatus,
@@ -343,6 +435,7 @@ export default function KitchenOrdersList({
       openOrder,
       t,
       updatingStatus,
+      workMode,
     ]
   )
 
@@ -437,6 +530,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: ACCENT,
+  },
+  seekingBadge: {
+    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: '#FF9F0A',
+  },
+  prepBadge: {
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: '#30D158',
+  },
+  riderLine: {
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: MUTED,
   },
   cashBanner: {
     marginBottom: 10,

@@ -1,15 +1,18 @@
 import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 
-import { UPDATE_AVAILABILITY } from "@/lib/apollo/mutations/rider.mutation";
+import {
+  TOGGLE_ACCEPT_EXTRA_ORDERS,
+  UPDATE_AVAILABILITY,
+} from "@/lib/apollo/mutations/rider.mutation";
 import { RIDER_PROFILE } from "@/lib/apollo/queries";
 import { useApptheme } from "@/lib/context/global/theme.context";
 import { useUserContext } from "@/lib/context/global/user.context";
+import { useWorkMode } from "@/lib/context/global/work-mode.context";
 import SpinnerComponent from "@/lib/ui/useable-components/spinner";
 import CustomSwitch from "@/lib/ui/useable-components/switch-button";
 import { IRiderProfile } from "@/lib/utils/interfaces";
 import { MutationTuple, useMutation } from "@apollo/client";
-// import { showMessage } from "react-native-flash-message";
 import { useEffect, useState } from "react";
 import { showMessage } from "react-native-flash-message";
 import { isBoolean } from "lodash";
@@ -18,37 +21,34 @@ const CustomDrawerHeader = () => {
   // Hook
   const { appTheme } = useApptheme();
   const { t } = useTranslation();
-  const { dataProfile, loadingProfile } = useUserContext();
+  const { workMode } = useWorkMode();
+  const { dataProfile, loadingProfile, refetchProfile } = useUserContext();
   const [isRiderAvailable, setIsRiderAvailable] = useState(false);
+  const [acceptExtra, setAcceptExtra] = useState(false);
 
   useEffect(() => {
     setIsRiderAvailable(dataProfile?.available || false);
-  }, [dataProfile?.available]);
+    setAcceptExtra(Boolean(dataProfile?.acceptExtraOrders));
+  }, [dataProfile?.available, dataProfile?.acceptExtraOrders]);
+
+  const profileVars = { id: dataProfile?._id?.toString() ?? "" };
 
   // Queries
   const [toggleAvailablity, { loading }] = useMutation(UPDATE_AVAILABILITY, {
-    refetchQueries: [
-      { query: RIDER_PROFILE, variables: { id: dataProfile?._id?.toString() } },
-    ],
+    refetchQueries: [{ query: RIDER_PROFILE, variables: profileVars }],
     awaitRefetchQueries: true,
-    // onCompleted: () => {
-    // Don't manually update state - let the refetch handle it through useEffect
-    // The refetch will update dataProfile and trigger the useEffect to update isRiderAvailable
-    // showMessage({
-    //   message: t(!isRiderAvailable ? "You are now online" : "You are now offline"),
-    //   type: "success",
-    // });
-    // },
-    // onError: (error) => {
-    //   showMessage({
-    //     message:
-    //       error.graphQLErrors[0]?.message ||
-    //       error?.networkError?.message ||
-    //       t("Unable to update availability"),
-    //     type: "danger",
-    //   });
-    // },
   }) as MutationTuple<IRiderProfile | undefined, { id: string }>;
+
+  const [toggleExtra, { loading: loadingExtra }] = useMutation(
+    TOGGLE_ACCEPT_EXTRA_ORDERS,
+    {
+      refetchQueries: [{ query: RIDER_PROFILE, variables: profileVars }],
+      awaitRefetchQueries: true,
+      onCompleted: () => {
+        void refetchProfile?.();
+      },
+    }
+  );
 
   return (
     <View
@@ -149,6 +149,41 @@ const CustomDrawerHeader = () => {
               : t("Not Available")
             : ""}
         </Text>
+
+        {workMode === "delivery" ? (
+          <>
+            <Text
+              className="text-md mt-2"
+              style={{ color: appTheme.secondaryTextColor }}
+            >
+              {t("Accept extra orders")}
+            </Text>
+            {loadingExtra || loadingProfile ? (
+              <SpinnerComponent color={appTheme.secondaryTextColor} />
+            ) : (
+              <CustomSwitch
+                value={acceptExtra}
+                isDisabled={loadingExtra}
+                onToggle={async () => {
+                  try {
+                    if (!dataProfile?._id?.toString()) {
+                      showMessage({
+                        message: t("User ID is missing"),
+                        type: "danger",
+                      });
+                      return;
+                    }
+                    await toggleExtra({
+                      variables: { id: dataProfile._id.toString() },
+                    });
+                  } catch (error) {
+                    console.error("Toggle extra orders error:", error);
+                  }
+                }}
+              />
+            )}
+          </>
+        ) : null}
       </View>
     </View>
   );

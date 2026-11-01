@@ -722,12 +722,57 @@ export const queries = {
     ]
   }),
 
-  rider: (_p, { id: riderId }) => ({
-    _id: riderId || 'jedzto-rider-1',
-    name: 'Kurier Demo',
-    phone: '+48111000000',
-    location: { coordinates: [19.9381, 49.8339] }
-  }),
+  rider: async (_p, { id: riderId }, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['RIDER', 'SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    const targetId = riderId || auth.userId
+    if (auth.role === 'RIDER' && String(targetId) !== String(auth.userId)) {
+      throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+    }
+    const rider = await User.findById(targetId).lean()
+    if (!rider || rider.role !== 'RIDER') {
+      throw new GraphQLError('Rider not found', { extensions: { code: 'BAD_USER_INPUT' } })
+    }
+    return {
+      _id: String(rider._id),
+      name: rider.name,
+      username: String(rider.email || '').split('@')[0],
+      available: rider.available !== false,
+      acceptExtraOrders: Boolean(rider.acceptExtraOrders),
+      phone: rider.phone || '',
+      restaurantId: rider.restaurantId ? String(rider.restaurantId) : null,
+      location: { coordinates: [19.9381, 49.8339] }
+    }
+  },
+
+  extraOrders: async (_p, _a, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['RIDER', 'SUPER_ADMIN'])
+    if (auth.role === 'RIDER') {
+      const me = await User.findById(auth.userId).select('acceptExtraOrders available isActive').lean()
+      if (!me?.isActive || me.available === false || !me.acceptExtraOrders) {
+        return []
+      }
+    }
+    const groceryIds = await Restaurant.find({ shopType: 'grocery' }).select('_id').lean()
+    if (!groceryIds.length) return []
+    const rows = await Order.find({
+      restaurantId: { $in: groceryIds.map((r) => r._id) },
+      orderStatus: 'SEEKING_RIDER',
+      isPickedUp: { $ne: true },
+      $or: [{ rider: null }, { rider: { $exists: false } }],
+      $nor: [
+        {
+          paymentMethod: { $in: ['STRIPE', 'PAYPAL', 'stripe', 'paypal'] },
+          paymentStatus: { $nin: ['PAID', 'paid'] }
+        }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .limit(MAX_ORDER_PAGE_SIZE)
+      .lean()
+    return serializeOrders(rows)
+  },
 
   chat: () => [],
   GetReviewsByRestaurant: async (_p, { restaurant: restaurantId }, ctx) => {

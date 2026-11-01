@@ -28,7 +28,7 @@ import { useTranslation } from 'react-i18next'
 import CachedImage from '../../components/CachedImage'
 import { formatMoney } from '../../utils/formatMoney'
 
-const orderStatusActive = ['PENDING', 'PICKED', 'ACCEPTED', 'ASSIGNED']
+const orderStatusActive = ['PENDING', 'SEEKING_RIDER', 'PICKED', 'ACCEPTED', 'ASSIGNED']
 const orderStatusInactive = ['DELIVERED', 'COMPLETED']
 
 function MyOrders(props) {
