@@ -1,5 +1,5 @@
 import React, { useState, useRef, useContext, useEffect, useMemo } from 'react'
-import { View, TouchableOpacity, KeyboardAvoidingView, Platform, StatusBar, Modal, ScrollView, AppState, Linking, Switch, ActivityIndicator } from 'react-native'
+import { View, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, StatusBar, Modal, ScrollView, AppState, Linking, Switch, ActivityIndicator } from 'react-native'
 import { useMutation } from '@apollo/client'
 import gql from 'graphql-tag'
 import { scale } from '../../utils/scaling'
@@ -12,7 +12,7 @@ import styles from './styles'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import TextDefault from '../../components/Text/TextDefault/TextDefault'
 import { alignment } from '../../utils/alignment'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import analytics from '../../utils/analytics'
 import { Feather, MaterialIcons, EvilIcons } from '@expo/vector-icons'
 import { HeaderBackButton } from '@react-navigation/elements'
@@ -34,6 +34,7 @@ import Constants from 'expo-constants'
 
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
+import { shouldRememberPersonalDetails } from '../../utils/customerDetailsStorage'
 
 const PUSH_TOKEN = gql`
   ${pushToken}
@@ -51,6 +52,7 @@ const PROFILE = gql`
 `
 
 function Account(props) {
+  const embedded = Boolean(props?.embedded)
   const Analytics = analytics()
   const navigation = useNavigation()
   const route = useRoute()
@@ -72,12 +74,28 @@ function Account(props) {
   const [offerNotification, offerNotificationSetter] = useState()
   const [btnText, setBtnText] = useState(null)
   const [appState, setAppState] = useState(AppState.currentState)
+  const [showSavedPersonal, setShowSavedPersonal] = useState(true)
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true
+      ;(async () => {
+        const remember = await shouldRememberPersonalDetails()
+        if (active) setShowSavedPersonal(remember)
+      })()
+      return () => {
+        active = false
+      }
+    }, [])
+  )
 
   const [uploadToken] = useMutation(PUSH_TOKEN)
   const { logout } = useContext(UserContext)
   const themeContext = useContext(ThemeContext)
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
   const { profile, loadingProfile, errorProfile } = useContext(UserContext)
+  const termsUrl = 'https://jedzto.com/regulamin'
+  const privacyUrl = 'https://jedzto.com/polityka-prywatności'
   const [mutate, { loading }] = useMutation(UPDATE_NOTIFICATION_TOKEN, {
     onCompleted,
     onError
@@ -115,6 +133,11 @@ function Account(props) {
     Track()
   }, [])
   useEffect(() => {
+    if (embedded) {
+      props.navigation.setOptions({ headerShown: false })
+      checkPermission()
+      return
+    }
     props.navigation.setOptions({
       title: t('Account'),
       headerRight: null,
@@ -154,7 +177,7 @@ function Account(props) {
       )
     })
     checkPermission()
-  }, [props.navigation, showPass, toggleView, themeContext.ThemeValue, selectedLanguage])
+  }, [embedded, props.navigation, showPass, toggleView, themeContext.ThemeValue, selectedLanguage])
 
   useEffect(() => {
     AppState.addEventListener('change', _handleAppStateChange)
@@ -404,11 +427,9 @@ function Account(props) {
     })
   }
 
-  if (errorProfile) {
-    FlashMessage({
-      message: t('errorInProfile')
-    })
-  }
+  // Do not toast on errorProfile here: AccountHub stays mounted in tabs, so a
+  // transient profile miss after account delete / re-login would flash
+  // "Błąd w profilu" even while checkout continues successfully.
 
   // Show the full-screen loader ONLY until the profile has loaded the first
   // time. After that, background refetches (e.g. toggling a notification
@@ -416,9 +437,158 @@ function Account(props) {
   // from the cache-first refetch — but we must never blank the screen again,
   // or all the content below the toggles disappears and flickers back.
   if (resolvedProfile) hasLoadedProfileRef.current = true
+  if (!profile && !loadingProfile) {
+    hasLoadedProfileRef.current = false
+    stableProfileRef.current = null
+  }
   if ((loadingProfile && !hasLoadedProfileRef.current) || spinnerLoading) return <Spinner backColor={currentTheme.CustomLoadingBG} spinnerColor={currentTheme.main} />
 
   if (!connect) return <ErrorView refetchFunctions={[]} />
+
+  const deleteModal = (
+    <Modal
+      transparent
+      animationType='slide'
+      visible={deleteModalVisible}
+      onRequestClose={() => {
+        if (!deactivateLoading) setDeleteModalVisible(false)
+      }}
+    >
+      <View style={styles(currentTheme).centeredView}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => !deactivateLoading && setDeleteModalVisible(false)}
+        />
+        <View style={styles(currentTheme).modalView}>
+          <TextDefault
+            bolder
+            H3
+            textColor={currentTheme.fontMainColor}
+            style={styles(currentTheme).modalTitle}
+            isRTL
+          >
+            {t('DeleteConfirmation')}
+          </TextDefault>
+          <TextDefault
+            textColor={currentTheme.fontMainColor}
+            style={styles(currentTheme).modalBody}
+            isRTL
+          >
+            {t('permanentDeleteMessage')}
+          </TextDefault>
+          <View style={styles(currentTheme).modalActions}>
+            <TouchableOpacity
+              style={[
+                styles(currentTheme).btn,
+                styles(currentTheme).btnDelete,
+                { opacity: deactivateLoading ? 0.5 : 1 }
+              ]}
+              onPress={deactivatewithemail}
+              disabled={deactivateLoading}
+            >
+              {deactivateLoading ? (
+                <Spinner backColor='transparent' spinnerColor='#FFFFFF' size='small' />
+              ) : (
+                <TextDefault bolder H4 textColor='#FFFFFF'>
+                  {t('yesSure')}
+                </TextDefault>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles(currentTheme).btn, styles(currentTheme).btnCancel]}
+              onPress={() => setDeleteModalVisible(false)}
+              disabled={deactivateLoading}
+            >
+              <TextDefault bolder H4 textColor={currentTheme.linkColor || '#00A8FF'}>
+                {t('Cancel')}
+              </TextDefault>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  )
+
+  if (embedded) {
+    const isDark = themeContext.ThemeValue === 'Dark'
+    const muted = isDark ? '#8E8E93' : '#6B7280'
+    const accent = currentTheme.linkColor || '#00A8FF'
+    const InfoRow = ({ label, value }) => (
+      <View style={styles(currentTheme).hubRow}>
+        <TextDefault small textColor={muted} isRTL>
+          {label}
+        </TextDefault>
+        <TextDefault H5 bolder textColor={currentTheme.fontMainColor} isRTL>
+          {value || '—'}
+        </TextDefault>
+      </View>
+    )
+    const LinkRow = ({ label, onPress, isLast }) => (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={onPress}
+        style={[styles(currentTheme).hubLinkRow, !isLast && styles(currentTheme).hubRowDivider]}
+      >
+        <TextDefault H5 bolder textColor={currentTheme.fontMainColor} isRTL>
+          {label}
+        </TextDefault>
+        <EvilIcons
+          name={currentTheme.isRTL ? 'chevron-left' : 'chevron-right'}
+          size={scale(28)}
+          color={accent}
+        />
+      </TouchableOpacity>
+    )
+
+    return (
+      <View style={[styles(currentTheme).formContainer, styles(currentTheme).hubScreen]}>
+        <ScrollView
+          style={styles().flex}
+          contentContainerStyle={styles(currentTheme).hubContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {showSavedPersonal ? (
+            <View style={styles(currentTheme).hubCard}>
+              <InfoRow label={t('fullName')} value={resolvedProfile?.name} />
+              <View style={styles(currentTheme).hubRowDivider} />
+              <InfoRow label={t('phoneNumber')} value={resolvedProfile?.phone} />
+            </View>
+          ) : (
+            <View style={styles(currentTheme).hubCard}>
+              <View style={styles(currentTheme).hubRow}>
+                <TextDefault H5 bolder textColor={currentTheme.fontMainColor} isRTL>
+                  {t('guestSessionNoSave')}
+                </TextDefault>
+                <TextDefault small textColor={muted} style={{ marginTop: scale(6) }} isRTL>
+                  {t('guestSessionNoSaveHint')}
+                </TextDefault>
+              </View>
+            </View>
+          )}
+
+          <View style={styles(currentTheme).hubCard}>
+            <LinkRow label={t('serviceTerms')} onPress={() => Linking.openURL(termsUrl)} />
+            <LinkRow
+              label={t('privacyPolicy')}
+              onPress={() => Linking.openURL(privacyUrl)}
+              isLast
+            />
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles(currentTheme).hubDeleteBtn}
+            onPress={() => setDeleteModalVisible(true)}
+          >
+            <TextDefault bolder H5 textColor='#FFFFFF'>
+              {t('deleteMyData')}
+            </TextDefault>
+          </TouchableOpacity>
+        </ScrollView>
+        {deleteModal}
+      </View>
+    )
+  }
 
   return (
     <>
@@ -512,7 +682,6 @@ function Account(props) {
                     >
                       <View style={styles(currentTheme).notificationChekboxContainer}>
                         <TextDefault
-                          // numberOfLines={1}
                           textColor={currentTheme.darkBgFont}
                           style={alignment.MLsmall}
                           isRTL
@@ -577,7 +746,7 @@ function Account(props) {
                     detail={''}
                     status='null'
                     onPress={() => {
-                      Linking.openURL('https://multivendor.enatega.com/terms')
+                      Linking.openURL(termsUrl)
                     }}
                   />
                   <View style={styles(currentTheme).line} />
@@ -587,20 +756,10 @@ function Account(props) {
                     detail={''}
                     status='null'
                     onPress={() => {
-                      Linking.openURL('https://multivendor.enatega.com/privacy')
+                      Linking.openURL(privacyUrl)
                     }}
                   />
                 </View>
-
-                {/* <View style={styles().padding}>
-                  <TextDefault
-                    H2
-                    bolder
-                    textColor={currentTheme.fontThirdColor}
-                  >
-                    {t('legal')}
-                  </TextDefault>
-                </View> */}
 
                 <View style={styles(currentTheme).containerButton}>
                   <TouchableOpacity activeOpacity={0.5} style={styles(currentTheme).addButton} onPress={logoutClick}>
@@ -615,50 +774,7 @@ function Account(props) {
             </View>
           </ScrollView>
 
-          <Modal
-            onBackdropPress={() => setDeleteModalVisible(false)}
-            onBackButtonPress={() => setDeleteModalVisible(false)}
-            visible={deleteModalVisible}
-            onRequestClose={() => {
-              setDeleteModalVisible(false)
-            }}
-          >
-            <View style={styles().centeredView}>
-              <View style={styles(currentTheme).modalView}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: 24,
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: scale(10)
-                  }}
-                >
-                  <TextDefault bolder H3 textColor={currentTheme.newFontcolor} isRTL>
-                    {t('DeleteConfirmation')}
-                  </TextDefault>
-                  <Feather name='x-circle' size={24} color={currentTheme.newFontcolor} onPress={() => setDeleteModalVisible(!deleteModalVisible)} />
-                </View>
-                <TextDefault H5 textColor={currentTheme.newFontcolor} isRTL>
-                  {t('permanentDeleteMessage')}
-                </TextDefault>
-                <TouchableOpacity style={[styles(currentTheme).btn, styles().btnDelete, { opacity: deactivateLoading ? 0.5 : 1 }]} onPress={deactivatewithemail} disabled={deactivateLoading}>
-                  {deactivateLoading ? (
-                    <Spinner backColor='transparent' size='small' />
-                  ) : (
-                    <TextDefault bolder H4 textColor={currentTheme.white}>
-                      {t('yesSure')}
-                    </TextDefault>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles(currentTheme).btn, styles().btnCancel]} onPress={() => setDeleteModalVisible(false)} disabled={deactivateLoading}>
-                  <TextDefault bolder H4 textColor={currentTheme.black}>
-                    {t('noDelete')}
-                  </TextDefault>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
+          {deleteModal}
 
           <LogoutModal visible={modalVisible} onCancel={handleCancel} onLogout={handleLogout} showCrossButton />
           <LanguageModal currentTheme={currentTheme} modalVisible={lngModalVisible} setModalVisible={setLngModalVisible} setselectedLanguage={setselectedLanguage} showCrossButton />

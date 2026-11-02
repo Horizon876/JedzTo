@@ -297,9 +297,13 @@ export async function priceOrder(restaurant, args, opts = {}) {
     )
   }
 
+  // Customer pays everything; cash fee (taxationAmount) is platform revenue,
+  // but still counts toward the commission base.
   const orderAmount = round2(goodsTotal + deliveryCharges + taxationAmount + tipping)
   if (orderAmount <= 0) throw badInput('Nieprawidłowa kwota zamówienia')
 
+  // Commission: products + delivery + tip/transport + COD cash fee.
+  const commissionBase = orderAmount
   const commissionRate = Number(restaurant.commissionRate ?? 10)
 
   return {
@@ -313,7 +317,8 @@ export async function priceOrder(restaurant, args, opts = {}) {
     paymentMethod,
     isPickup,
     commissionRate,
-    platformCommission: round2((orderAmount * commissionRate) / 100),
+    commissionBase,
+    platformCommission: round2((commissionBase * commissionRate) / 100),
     coupon
   }
 }

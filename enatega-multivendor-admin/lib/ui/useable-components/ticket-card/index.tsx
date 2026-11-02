@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
+import { formatDateTime, timeAgo } from '@/lib/utils/methods';
 
 // Interfaces
 export interface ITicket {
@@ -55,61 +56,10 @@ function TicketCard({
     return ticket.title;
   };
 
-  // Format time ago
-  const formatTimeAgo = (timestamp: string) => {
-    try {
-      const date = new Date(parseInt(timestamp));
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
+  const formatTimeAgo = (timestamp: string) => timeAgo(timestamp);
 
-      // Less than a minute
-      if (diffMs < 60000) {
-        return 'just now';
-      }
-
-      // Less than an hour
-      const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins < 60) {
-        return `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
-      }
-
-      // Less than a day
-      const diffHours = Math.floor(diffMins / 60);
-      if (diffHours < 24) {
-        return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-      }
-
-      // Less than a week
-      const diffDays = Math.floor(diffHours / 24);
-      if (diffDays < 7) {
-        return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-      }
-
-      // Format date for older messages
-      return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch (error) {
-      return "unknown time";
-    }
-  };
-
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(parseInt(dateString));
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      return "unknown date";
-    }
-  };
+  const formatDateLabel = (dateString: string) =>
+    formatDateTime(dateString);
 
   // Use last message time or updated time
   const displayTime = ticket.lastMessageAt || ticket.updatedAt;
@@ -145,7 +95,7 @@ function TicketCard({
 
         {/* Format date */}
         <span className="text-xs text-gray-500 dark:text-white">
-          {formatDate(displayTime)}
+          {formatDateLabel(displayTime)}
         </span>
       </div>
     </div>

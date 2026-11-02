@@ -18,6 +18,7 @@ const CUISINE_GROUPS = [
   ['sushi', 'japonska', 'japonski'],
   ['kebab', 'kebabowa', 'turcja', 'turecka'],
   ['kurczak', 'chicken', 'poultry', 'stripsy'],
+  ['zeberka', 'ribs', 'bbq', 'barbecue'],
   ['zakupy', 'sklep', 'delikatesy', 'grocery', 'spożywcze']
 ]
 

@@ -10,6 +10,7 @@ export const SETTLE_RESTAURANT_PERIOD = gql`
       status
       settledAt
       onlinePayoutDue
+      cashFeeDue
       cashCommissionOwed
       commissionDue
       totalGross

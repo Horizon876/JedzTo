@@ -22,7 +22,7 @@ import { isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions
 import { useFavourites } from '../../context/Favourites'
 import { Icons } from '../../components/BottomTabIcon/icons'
 
-function Favourite() {
+function Favourite({ embedded = false } = {}) {
   const analytics = Analytics()
   const { t, i18n } = useTranslation()
   const navigation = useNavigation()
@@ -36,7 +36,8 @@ function Favourite() {
   }
   const themed = styles(currentTheme)
   const { PAGE, SURFACE, text } = themed.colors
-  const isTabScreen = route?.name === 'Favourites'
+  const isTabScreen = !embedded && route?.name === 'Favourites'
+  const showPageHeader = !embedded && isTabScreen
   const { favourites, ready } = useFavourites()
 
   const favouriteRestaurants = useMemo(
@@ -56,6 +57,10 @@ function Favourite() {
       StatusBar.setBarStyle(statusBarStyleForTheme(themeContext.ThemeValue))
       if (Platform.OS === 'android') {
         StatusBar.setBackgroundColor(PAGE)
+      }
+      if (embedded) {
+        navigation.setOptions({ headerShown: false })
+        return
       }
       navigation.setOptions({
         headerShown: !isTabScreen,
@@ -80,7 +85,7 @@ function Favourite() {
               )
             })
       })
-    }, [PAGE, SURFACE, isTabScreen, navigation, t, text, themeContext.ThemeValue])
+    }, [PAGE, SURFACE, embedded, isTabScreen, navigation, t, text, themeContext.ThemeValue])
   )
 
   const { isConnected: connect } = useNetworkStatus()
@@ -92,7 +97,7 @@ function Favourite() {
 
   return (
     <View style={themed.screen}>
-      {isTabScreen ? (
+      {showPageHeader ? (
         <View style={[themed.header, { paddingTop: insets.top + scale(8) }]}>
           <View style={themed.headerTitleRow}>
             <TextDefault bolder H4 textColor={text} isRTL>
@@ -110,7 +115,11 @@ function Favourite() {
         style={themed.list}
         contentContainerStyle={[
           themed.contentContainer,
-          { paddingBottom: Math.max(insets.bottom, scale(12)) + (isTabScreen ? scale(72) : scale(16)) }
+          {
+            paddingBottom:
+              Math.max(insets.bottom, scale(12)) +
+              (embedded || isTabScreen ? scale(72) : scale(16))
+          }
         ]}
         ListEmptyComponent={
           <EmptyView

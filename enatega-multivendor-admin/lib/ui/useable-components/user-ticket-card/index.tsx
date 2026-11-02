@@ -1,5 +1,6 @@
 import Image from '@/lib/ui/useable-components/safe-image';
 import { memo } from 'react';
+import { timeAgo } from '@/lib/utils/methods';
 
 // Interfaces
 export interface IUser {
@@ -39,42 +40,7 @@ function UserTicketCard({
   onClick,
   formatDate
 }: IUserTicketCardProps) {
-  // Format time ago from timestamp
-  const formatTimeAgo = (timestamp: string) => {
-    try {
-      const date = new Date(parseInt(timestamp));
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      
-      // Less than a minute
-      if (diffMs < 60000) {
-        return 'just now';
-      }
-      
-      // Less than an hour
-      const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins < 60) {
-        return `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
-      }
-      
-      // Less than a day
-      const diffHours = Math.floor(diffMins / 60);
-      if (diffHours < 24) {
-        return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-      }
-      
-      // Less than a week
-      const diffDays = Math.floor(diffHours / 24);
-      if (diffDays < 7) {
-        return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-      }
-      
-      // Use date format for older messages
-      return formatDate(timestamp);
-    } catch (error) {
-      return "unknown time";
-    }
-  };
+  const formatTimeAgo = (timestamp: string) => timeAgo(timestamp);
 
   return (
     <div 

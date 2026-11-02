@@ -37,6 +37,7 @@ function Paypal(props) {
   const { clearCart } = useContext(UserContext)
   const client = useApolloClient()
   const [_id] = useState(props?.route.params._id ?? null)
+  const orderParam = props?.route.params?.order
   const isHandlingSuccessRef = useRef(false)
   const backendHost = useRef(null)
   const paypalAllowedHosts = useRef([
@@ -90,7 +91,7 @@ function Paypal(props) {
               { name: 'Main' },
               {
                 name: 'OrderDetail',
-                params: { _id: order._id }
+                params: { _id: order._id, order: orderParam || order }
               }
             ]
           })

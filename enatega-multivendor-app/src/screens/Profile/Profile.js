@@ -22,8 +22,8 @@ import ErrorView from '../../components/ErrorView/ErrorView'
 import useEnvVars from '../../../environment'
 import styles, { ACCENT } from './styles'
 
-const FALLBACK_TERMS_URL = 'https://multivendor.enatega.com/terms'
-const FALLBACK_PRIVACY_URL = 'https://multivendor.enatega.com/privacy'
+const FALLBACK_TERMS_URL = 'https://jedzto.com/regulamin'
+const FALLBACK_PRIVACY_URL = 'https://jedzto.com/polityka-prywatności'
 
 const SectionHeader = ({ title, themedStyles }) => (
   <View style={themedStyles.sectionHeader}>

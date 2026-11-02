@@ -1,4 +1,4 @@
-import { User, Restaurant, Category, Food, Order, ShopType } from './models/index.js'
+import { User, Restaurant, Category, Food, Order, ShopType, TasteCategory } from './models/index.js'
 import { publishRestaurantMenu } from './services/menu.js'
 
 const IMG = {
@@ -224,6 +224,56 @@ export async function ensureShopTypes() {
       { upsert: true }
     )
   }
+}
+
+/** Home-screen "Na co masz dziś ochotę?" chips — editable via GraphQL, no app rebuild. */
+const DEFAULT_TASTE_CATEGORIES = [
+  {
+    name: 'Zakupy',
+    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80',
+    imageContain: false,
+    shopType: 'restaurant',
+    sortOrder: 10
+  },
+  {
+    name: 'Pizza',
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&q=80',
+    shopType: 'restaurant',
+    sortOrder: 20
+  },
+  {
+    name: 'Burger',
+    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80',
+    shopType: 'restaurant',
+    sortOrder: 30
+  },
+  {
+    name: 'Kebab',
+    image: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=800&q=80',
+    shopType: 'restaurant',
+    sortOrder: 40
+  },
+  {
+    name: 'Kurczak',
+    image: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=800&q=80',
+    shopType: 'restaurant',
+    sortOrder: 50
+  },
+  {
+    name: 'Żeberka',
+    image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80',
+    shopType: 'restaurant',
+    sortOrder: 60
+  }
+]
+
+export async function ensureTasteCategories() {
+  const count = await TasteCategory.countDocuments()
+  if (count > 0) return
+  await TasteCategory.insertMany(
+    DEFAULT_TASTE_CATEGORIES.map((row) => ({ ...row, isActive: true }))
+  )
+  console.log(`[seed] inserted ${DEFAULT_TASTE_CATEGORIES.length} taste categories`)
 }
 
 // Keeps taste-chip labels (Burger, Pizza, …) in sync with restaurant cuisine

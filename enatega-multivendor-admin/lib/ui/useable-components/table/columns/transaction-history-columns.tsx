@@ -1,6 +1,7 @@
 import { IActionMenuProps } from '@/lib/utils/interfaces/action-menu.interface';
 import { ITransactionHistory } from '@/lib/utils/interfaces';
 import ActionMenu from '@/lib/ui/useable-components/action-menu';
+import { formatDate } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 
 export const TRANSACTION_HISTORY_COLUMNS = ({
@@ -47,11 +48,9 @@ export const TRANSACTION_HISTORY_COLUMNS = ({
     {
       headerName: t('Created At'),
       propertyName: 'createdAt',
-      body: (transaction: ITransactionHistory) => {
-        const date = new Date(transaction.createdAt);
-        const formattedDate = date?.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-        return <div>{formattedDate}</div>;
-      },
+      body: (transaction: ITransactionHistory) => (
+        <div>{formatDate(transaction.createdAt)}</div>
+      ),
     },
     {
       headerName: t('Status'),

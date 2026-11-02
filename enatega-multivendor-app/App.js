@@ -1,3 +1,5 @@
+import 'react-native-gesture-handler'
+import './src/utils/interactionManagerPolyfill'
 import { ApolloProvider } from '@apollo/client'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import 'react-native-get-random-values';
@@ -13,7 +15,6 @@ import { THEME_PREFERENCE_KEY } from './src/ui/ThemeReducer/ThemeReducer'
 import { statusBarStyleForTheme } from './src/utils/statusBar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import FlashMessage from 'react-native-flash-message'
-import 'react-native-gesture-handler'
 import useEnvVars from './environment'
 import setupApolloClient from './src/apollo/index'
 import { MessageComponent } from './src/components/FlashMessage/MessageComponent'

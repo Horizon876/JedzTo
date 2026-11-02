@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_TICKET_MESSAGES,
@@ -12,6 +12,7 @@ import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
 import useToast from '@/lib/hooks/useToast';
 import ChatSkeleton from '../custom-skeletons/chat-skeleton';
+import { formatDateTime } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 
 interface ITicketChatModalProps {
@@ -149,19 +150,7 @@ export default function TicketChatModal({
     }
   }, [data, visible]);
 
-  // Format timestamp
-  const formatTimestamp = (timestamp: string) => {
-    try {
-      const date = new Date(parseInt(timestamp));
-      return (
-        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
-        ' ' +
-        date.toLocaleDateString()
-      );
-    } catch (error) {
-      return 'unknown time';
-    }
-  };
+  const formatTimestamp = (timestamp: string) => formatDateTime(timestamp);
 
   // Handle sending a message
   const handleSendMessage = () => {

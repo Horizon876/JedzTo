@@ -10,6 +10,7 @@ import NoData from '@/lib/ui/useable-components/no-data';
 import HeaderText from '@/lib/ui/useable-components/header-text';
 import UserTicketSkeleton from '@/lib/ui/useable-components/custom-skeletons/user-ticket.skeleton';
 import TicketCardSkeleton from '@/lib/ui/useable-components/custom-skeletons/ticket-card.skeleton';
+import { formatDateTime } from '@/lib/utils/methods';
 import { Chip } from 'primereact/chip';
 
 // Interface
@@ -182,19 +183,7 @@ export default function CustomerSupportMain({ activeTab = 'tickets' }: ICustomer
     }
   }, [ticketsData, ticketsLoading]);
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(parseInt(dateString));
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch (error) {
-      return "unknown date";
-    }
-  };
+  const formatDate = (dateString: string) => formatDateTime(dateString);
 
   // Fetch latest ticket for a specific user
   const fetchUserLatestTicket = async (userId: string): Promise<UserWithLatestTicket | null> => {

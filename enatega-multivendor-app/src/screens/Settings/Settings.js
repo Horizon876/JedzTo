@@ -280,11 +280,6 @@ function Settings(props) {
       }
     })
   }
-  if (errorProfile) {
-    FlashMessage({
-      message: t('errorInProfile')
-    })
-  }
   if (loadingProfile)
     return (
       <Spinner backColor={currentTheme.CustomLoadingBG} spinnerColor={currentTheme.main} />

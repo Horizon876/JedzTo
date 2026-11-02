@@ -1,4 +1,6 @@
-﻿import * as FileSystem from 'expo-file-system'
+﻿// SDK 54+ moved getInfoAsync/downloadAsync to the legacy entry; importing from
+// "expo-file-system" throws (and floods Expo Go) on every media cache hit.
+import * as FileSystem from 'expo-file-system/legacy'
 import * as Crypto from 'expo-crypto'
 import { useEffect, useMemo, useState } from 'react'
 import { isSignedUrlExpired, stripQueryAndHash } from './signedMediaUrl'
@@ -6,7 +8,7 @@ import { rewriteLocalUploadUrl } from './resolveImageUrl'
 
 const { getEnvironmentConfig } = require('../../environment.config')
 
-const CACHE_DIR = `${FileSystem.cacheDirectory}signed-media-cache-v2/`
+const CACHE_DIR = `${FileSystem.cacheDirectory || ''}signed-media-cache-v2/`
 const pendingDownloads = new Map()
 
 const getServerBaseUrl = () => {
@@ -29,6 +31,7 @@ function getFileExtension(url = '', fallback = 'bin') {
 }
 
 async function ensureCacheDir() {
+  if (!FileSystem.cacheDirectory) return
   const info = await FileSystem.getInfoAsync(CACHE_DIR)
   if (!info.exists) {
     await FileSystem.makeDirectoryAsync(CACHE_DIR, { intermediates: true })
@@ -37,6 +40,7 @@ async function ensureCacheDir() {
 
 export async function getCachedMediaUri(remoteUrl, type = 'file') {
   if (!remoteUrl || remoteUrl.startsWith('file://')) return remoteUrl
+  if (!FileSystem.cacheDirectory) return toReachableUrl(remoteUrl)
 
   const reachableUrl = toReachableUrl(remoteUrl)
   const normalized = stripQueryAndHash(reachableUrl)
@@ -69,7 +73,9 @@ export async function getCachedMediaUri(remoteUrl, type = 'file') {
       await FileSystem.deleteAsync(localUri, { idempotent: true })
       return reachableUrl
     } catch (_e) {
-      await FileSystem.deleteAsync(localUri, { idempotent: true })
+      try {
+        await FileSystem.deleteAsync(localUri, { idempotent: true })
+      } catch (_) {}
       return reachableUrl
     } finally {
       pendingDownloads.delete(normalized)
@@ -101,10 +107,15 @@ export function useCachedMediaUri(remoteUrl, type = 'image') {
       return current.uri?.startsWith('file://') ? current : { key, uri: reachableUrl }
     })
 
-    getCachedMediaUri(reachableUrl, type).then((uri) => {
-      if (!isMounted) return
-      setSource({ key, uri })
-    })
+    getCachedMediaUri(reachableUrl, type)
+      .then((uri) => {
+        if (!isMounted) return
+        setSource({ key, uri })
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setSource({ key, uri: reachableUrl })
+      })
 
     return () => {
       isMounted = false

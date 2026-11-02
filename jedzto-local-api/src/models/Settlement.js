@@ -3,7 +3,8 @@ import mongoose from 'mongoose'
 /**
  * Monthly settlement snapshot per restaurant.
  * Online: platform holds money → payout = onlineGross - commissionOnOnline
- * Cash: restaurant holds money → they owe = commissionOnCash
+ * Cash: restaurant holds money → they owe commissionOnCash + cashFeeDue
+ * COD cash fee (taxationAmount) is 100% platform revenue, not restaurant gross.
  */
 const settlementSchema = new mongoose.Schema(
   {
@@ -22,7 +23,9 @@ const settlementSchema = new mongoose.Schema(
     commissionOnOnline: { type: Number, default: 0 },
     commissionOnCash: { type: Number, default: 0 },
     commissionDue: { type: Number, default: 0 },
-    /** Restaurant owes platform (cash commission). */
+    /** COD cash handling fees owed to platform (not restaurant turnover). */
+    cashFeeDue: { type: Number, default: 0 },
+    /** Restaurant owes platform (cash commission + cash fees). */
     cashCommissionOwed: { type: Number, default: 0 },
     /** Platform pays restaurant (online - commission). */
     onlinePayoutDue: { type: Number, default: 0 },

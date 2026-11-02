@@ -15,7 +15,8 @@ import {
   Order,
   ShopType,
   Coupon,
-  CouponRedemption
+  CouponRedemption,
+  TasteCategory
 } from '../../models/index.js'
 import {
   assertPublicAccess,
@@ -153,11 +154,21 @@ export const adminMutations = {
     return serialized
   },
 
-  /** Customer checkout — validate code + phone (one redemption per number). */
+  /** Customer checkout — validate code; requires a verified phone on the account. */
   coupon: async (_p, { coupon, restaurantId, phone, itemsTotal }, ctx) => {
     assertPublicAccess(ctx)
-    const phoneKey = normalizePhone(phone)
-    if (!phoneKey) {
+    const auth = requireUser(ctx)
+    const customer = await User.findById(auth.userId).select('phone phoneIsVerified').lean()
+    const phoneKey = normalizePhone(phone) || normalizePhone(customer?.phone)
+    if (!phoneKey || !customer?.phoneIsVerified) {
+      return {
+        success: false,
+        message: 'Aby użyć kuponu, zweryfikuj numer telefonu',
+        coupon: null
+      }
+    }
+    // Ignore a client-supplied number that does not match the verified account phone.
+    if (normalizePhone(customer.phone) && normalizePhone(customer.phone) !== phoneKey) {
       return {
         success: false,
         message: 'Aby użyć kuponu, zweryfikuj numer telefonu',
@@ -1054,6 +1065,72 @@ export const adminMutations = {
     return { ...shopType, slug: shopType._id }
   },
 
+  createTasteCategory: async (_p, { input }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const name = String(input?.name || '').trim()
+    if (!name) {
+      throw new GraphQLError('name is required', { extensions: { code: 'BAD_USER_INPUT' } })
+    }
+    const maxSort = await TasteCategory.findOne()
+      .sort({ sortOrder: -1 })
+      .select('sortOrder')
+      .lean()
+    const created = await TasteCategory.create({
+      name,
+      image: String(input?.image || '').trim(),
+      imageContain: Boolean(input?.imageContain),
+      shopType: String(input?.shopType || 'restaurant').trim() || 'restaurant',
+      sortOrder:
+        input?.sortOrder != null ? Number(input.sortOrder) : (maxSort?.sortOrder || 0) + 10,
+      isActive: input?.isActive !== false
+    })
+    return created.toObject()
+  },
+
+  updateTasteCategory: async (_p, { id: categoryId, input }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    if (!categoryId) {
+      throw new GraphQLError('id is required', { extensions: { code: 'BAD_USER_INPUT' } })
+    }
+    const update = {}
+    if (input?.name !== undefined) {
+      const name = String(input.name || '').trim()
+      if (!name) {
+        throw new GraphQLError('name is required', { extensions: { code: 'BAD_USER_INPUT' } })
+      }
+      update.name = name
+    }
+    if (input?.image !== undefined) update.image = String(input.image || '').trim()
+    if (input?.imageContain !== undefined) update.imageContain = Boolean(input.imageContain)
+    if (input?.shopType !== undefined) {
+      update.shopType = String(input.shopType || 'restaurant').trim() || 'restaurant'
+    }
+    if (input?.sortOrder !== undefined) update.sortOrder = Number(input.sortOrder) || 0
+    if (input?.isActive !== undefined) update.isActive = Boolean(input.isActive)
+    return TasteCategory.findByIdAndUpdate(categoryId, update, { new: true }).lean()
+  },
+
+  deleteTasteCategory: async (_p, { id: categoryId }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const deleted = await TasteCategory.findByIdAndDelete(categoryId).lean()
+    return Boolean(deleted)
+  },
+
+  reorderTasteCategories: async (_p, { ids }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const list = Array.isArray(ids) ? ids.map(String) : []
+    await Promise.all(
+      list.map((categoryId, index) =>
+        TasteCategory.updateOne({ _id: categoryId }, { $set: { sortOrder: (index + 1) * 10 } })
+      )
+    )
+    return TasteCategory.find({ isActive: true }).sort({ sortOrder: 1, name: 1 }).lean()
+  },
+
   updateDeliveryAreas: async (_p, { restaurantId, areas }, ctx) => {
     assertPublicAccess(ctx)
     requireRestaurantOwner(ctx, restaurantId)
@@ -1108,7 +1185,7 @@ export const adminMutations = {
 
     const customer = await User.findById(auth.userId).lean()
     const phoneKey = normalizePhone(customer?.phone)
-    if (args.couponCode && !phoneKey) {
+    if (args.couponCode && (!phoneKey || !customer?.phoneIsVerified)) {
       throw new GraphQLError('Aby użyć kuponu, zweryfikuj numer telefonu', {
         extensions: { code: 'BAD_USER_INPUT' }
       })

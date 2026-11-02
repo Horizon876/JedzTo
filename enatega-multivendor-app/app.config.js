@@ -4,6 +4,10 @@ module.exports = () => {
     process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_ANDROID
   const reversedGoogleIosClientId =
     process.env.EXPO_PUBLIC_GOOGLE_IOS_REVERSED_CLIENT_ID
+  // Local Expo Go works without login when owner/EAS project are omitted.
+  const useEasAccount = Boolean(
+    process.env.EXPO_TOKEN || process.env.EXPO_PUBLIC_USE_EAS === '1'
+  )
 
   const fallbackUrlTypes = [
     {
@@ -28,10 +32,10 @@ module.exports = () => {
     description:
       'JedzTo is a food ordering & delivery app built in React Native using Expo for iOS and Android.',
     slug: 'enategamultivendor',
-    owner: 'ninjas_code',
-    experiments: {
-      buildCacheProvider: 'eas'
-    },
+    ...(useEasAccount ? { owner: 'ninjas_code' } : {}),
+    ...(useEasAccount
+      ? { experiments: { buildCacheProvider: 'eas' } }
+      : {}),
     androidStatusBar: {
       backgroundColor: '#00000000',
       translucent: true,
@@ -156,14 +160,20 @@ module.exports = () => {
       'expo-apple-authentication',
       '@react-native-community/datetimepicker'
     ],
-    extra: {
-      eas: {
-        projectId: '331d4e5b-b12a-434a-92ec-d6d283dc0e46'
-      }
-    },
+    extra: useEasAccount
+      ? {
+          eas: {
+            projectId: '331d4e5b-b12a-434a-92ec-d6d283dc0e46'
+          }
+        }
+      : {},
     runtimeVersion: '1.1.27',
-    updates: {
-      url: 'https://u.expo.dev/331d4e5b-b12a-434a-92ec-d6d283dc0e46'
-    }
+    ...(useEasAccount
+      ? {
+          updates: {
+            url: 'https://u.expo.dev/331d4e5b-b12a-434a-92ec-d6d283dc0e46'
+          }
+        }
+      : {})
   }
 }

@@ -144,8 +144,8 @@
   "OnlineGross": "Płatności Online",
   "CashGross": "Gotówka",
   "CommissionDue": "Należna prowizja",
-  "CashOwedToPlatform": "Restauracja oddaje (prowizja z gotówki)",
-  "OnlinePayoutDue": "Ty wypłacasz (online)",
+  "CashOwedToPlatform": "Lokale oddają",
+  "OnlinePayoutDue": "Do wypłaty dla lokali",
   "SettlementStatus": "Status",
   "Settled": "Rozliczone",
   "OpenPeriod": "Otwarte",
@@ -1220,5 +1220,15 @@
   "HolidayClosedHint": "Lokal nie przyjmuje zamówień",
   "HolidayCustomHoursHint": "Krótszy lub inny grafik",
   "HolidayList": "Zaplanowane wyjątki",
-  "HolidayDateRequired": "Wybierz datę na kalendarzu"
+  "HolidayDateRequired": "Wybierz datę na kalendarzu",
+  "CurrentMonth": "Bieżący miesiąc",
+  "PreviousMonths": "Poprzednie miesiące",
+  "SelectMonth": "Wybierz miesiąc",
+  "Period": "Okres",
+  "PrintPdf": "Drukuj PDF",
+  "FinalSettlement": "Ostateczne rozliczenie",
+  "PlatformPays": "Platforma wypłaca",
+  "RestaurantPays": "Restauracja dopłaca",
+  "SettledZero": "Na zero",
+  "NoSettlementsThisPeriod": "Brak restauracji / zamówień w tym okresie."
 }

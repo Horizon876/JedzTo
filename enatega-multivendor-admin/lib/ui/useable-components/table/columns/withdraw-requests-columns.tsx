@@ -18,6 +18,7 @@ import {
 } from '@/lib/api/graphql';
 import { IWithDrawRequest } from '@/lib/utils/interfaces/withdraw-request.interface';
 import { IActionMenuProps } from '@/lib/utils/interfaces/action-menu.interface';
+import { formatDate } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 
 export const WITHDRAW_REQUESTS_TABLE_COLUMNS = ({
@@ -258,11 +259,9 @@ export const WITHDRAW_REQUESTS_TABLE_COLUMNS = ({
       {
         headerName: t('Date'),
         propertyName: 'requestTime',
-        body: (rowData: IWithDrawRequest) => {
-          const date = new Date(rowData.requestTime);
-          const formattedDate = date?.toISOString().split('T')[0];
-          return <div>{formattedDate}</div>;
-        },
+        body: (rowData: IWithDrawRequest) => (
+          <div>{formatDate(rowData.requestTime)}</div>
+        ),
       },
       {
         headerName: t('Status'),

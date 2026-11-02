@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import ThemeContext from '../../ui/ThemeContext/ThemeContext'
 import { theme } from '../../utils/themeColors'
 import AuthContext from '../../context/Auth'
+import UserContext from '../../context/User'
 import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import { nameRegex } from '../../utils/regex'
 import { isValidPhoneNumber, toE164 } from '../../utils/phone'
@@ -15,7 +16,12 @@ import { profile as PROFILE_QUERY } from '../../apollo/queries'
 import {
   loadCustomerDetails,
   saveCustomerDetails,
-  clearCustomerDetails
+  clearCustomerDetails,
+  hasSavedCustomerDetails,
+  setRememberPersonalDetails,
+  shouldRememberPersonalDetails,
+  setCheckoutDetailsReady,
+  isCheckoutDetailsReady
 } from '../../utils/customerDetailsStorage'
 import analytics from '../../utils/analytics'
 
@@ -33,6 +39,7 @@ const useGuestCheckout = () => {
   const client = useApolloClient()
   const { t, i18n } = useTranslation()
   const { setTokenAsync } = useContext(AuthContext)
+  const { profile } = useContext(UserContext)
   const themeContext = useContext(ThemeContext)
   const currentTheme = {
     isRTL: i18n.dir() === 'rtl',
@@ -67,19 +74,39 @@ const useGuestCheckout = () => {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const saved = await loadCustomerDetails()
-      if (cancelled || !saved) return
-      setFirstName(saved.firstName || '')
-      setLastName(saved.lastName || '')
-      setPhone(saved.phone || '')
-      if (saved.countryCode) {
-        setCountryCode(saved.countryCode)
+      const remember = await shouldRememberPersonalDetails()
+      const remembered = remember && (await hasSavedCustomerDetails())
+      const saved = remembered ? await loadCustomerDetails() : null
+      if (cancelled) return
+
+      if (saved?.firstName || saved?.lastName || saved?.phone) {
+        setFirstName(saved.firstName || '')
+        setLastName(saved.lastName || '')
+        setPhone(saved.phone || '')
+        setSaveDetails(true)
+        if (saved.countryCode) {
+          setCountryCode(saved.countryCode)
+        }
+        return
+      }
+
+      // Mid-checkout edit only — fill from session profile, not as "saved".
+      if (await isCheckoutDetailsReady()) {
+        const full = String(profile?.name || '').trim()
+        if (full) {
+          const parts = full.split(/\s+/).filter(Boolean)
+          setFirstName(parts[0] || '')
+          setLastName(parts.slice(1).join(' ') || '')
+        }
+        if (profile?.phone) {
+          setPhone(String(profile.phone).replace(/^\+\d{1,3}/, ''))
+        }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [profile?.name, profile?.phone, setCountryCode])
 
   function validate() {
     let result = true
@@ -131,9 +158,10 @@ const useGuestCheckout = () => {
           phone,
           countryCode: country?.cca2 || countryCode || ''
         })
+        await setRememberPersonalDetails(true)
       } else {
-        // Explicitly opted out — do not keep previous saved details either.
         await clearCustomerDetails()
+        await setRememberPersonalDetails(false)
       }
 
       // Profile tab: save local details only (no checkout navigation).
@@ -155,8 +183,12 @@ const useGuestCheckout = () => {
         throw new Error(t('somethingWentWrong'))
       }
 
-      // Without "Zapisz dane", keep auth only for this checkout — cleared after order / cold start.
-      await setTokenAsync(created.token, { ephemeral: !shouldPersistDetails })
+      // Always keep the session (orders + favourites). Checkbox only controls name/phone memory.
+      await setTokenAsync(created.token, {
+        rememberPersonal: shouldPersistDetails,
+        ephemeral: !shouldPersistDetails
+      })
+      await setCheckoutDetailsReady(true)
       await client
         .query({
           query: PROFILE,

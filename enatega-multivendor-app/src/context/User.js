@@ -70,19 +70,23 @@ export const UserProvider = (props) => {
 
   const onCompleted = useCallback(
     async (data) => {
-      const { _id: userId, name, email, phone } = data?.profile
-      await Analytics.identify(
-        {
-          userId,
-          name,
-          email,
-          phone
-        },
-        userId
-      )
-      await Analytics.track(Analytics.events.USER_RECONNECTED, {
-        userId: data?.profile?._id
-      })
+      const nextProfile = data?.profile
+      if (!nextProfile?._id) return
+      const { _id: userId, name, email, phone } = nextProfile
+      try {
+        await Analytics.identify(
+          {
+            userId,
+            name,
+            email,
+            phone
+          },
+          userId
+        )
+        await Analytics.track(Analytics.events.USER_RECONNECTED, {
+          userId
+        })
+      } catch (_) {}
     },
     [Analytics]
   )

@@ -1,6 +1,7 @@
 // Interfaces and Types
 import { ActionMenu } from '@/lib/ui/screen-components/protected/super-admin/users/view/main/ActionMenu';
 import { IUserResponse } from '@/lib/utils/interfaces/users.interface';
+import { formatDate, formatDateTime } from '@/lib/utils/methods';
 
 // Icons
 import { faUser } from '@fortawesome/free-solid-svg-icons';
@@ -69,24 +70,9 @@ export const USERS_TABLE_COLUMNS = (openMenuId?: string | null, setOpenMenuId?: 
       headerName: t('last_login'), propertyName: 'lastLogin',
       body: (user: IUserResponse) => {
         if (!user.lastLogin) return <div className="text-gray-400">—</div>;
-
-        const date = new Date(user.lastLogin);
-
-        // Format date and time
-        const formattedDate = date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        });
-
-        const formattedTime = date.toLocaleTimeString('en-GB', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-
         return (
           <div className="flex items-center flex-shrink-0 gap-1 text-sm">
-            {formattedDate} : {formattedTime}
+            {formatDateTime(user.lastLogin)}
           </div>
         );
       },
@@ -95,12 +81,11 @@ export const USERS_TABLE_COLUMNS = (openMenuId?: string | null, setOpenMenuId?: 
     {
       headerName: t('Created At'),
       propertyName: 'createdAt',
-      body: (user: IUserResponse) => {
-        const formattedDate = new Date(
-          Number(user.createdAt)
-        ).toLocaleDateString('en-GB');
-        return <div className="flex items-center gap-2">{formattedDate}</div>;
-      },
+      body: (user: IUserResponse) => (
+        <div className="flex items-center gap-2">
+          {formatDate(user.createdAt)}
+        </div>
+      ),
     },
     {
       headerName: t('Actions'),

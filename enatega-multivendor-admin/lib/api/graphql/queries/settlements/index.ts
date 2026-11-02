@@ -16,6 +16,7 @@ export const GET_RESTAURANT_SETTLEMENTS = gql`
       commissionOnOnline
       commissionOnCash
       commissionDue
+      cashFeeDue
       cashCommissionOwed
       onlinePayoutDue
       status

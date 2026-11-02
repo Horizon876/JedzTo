@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const STORAGE_KEY = '@jedzto/customer-details'
+const REMEMBER_PERSONAL_KEY = '@jedzto/remember-personal-details'
+const CHECKOUT_READY_KEY = '@jedzto/checkout-details-ready'
+/** @deprecated kept so old installs clear cleanly */
 const EPHEMERAL_GUEST_KEY = '@jedzto/ephemeral-guest'
 
 export async function loadCustomerDetails() {
@@ -40,16 +43,52 @@ export async function hasSavedCustomerDetails() {
   return Boolean(details?.firstName && details?.lastName && details?.phone)
 }
 
-/** Guest opted out of "Zapisz dane" — keep token only for the current checkout. */
+/** User checked "Zapisz dane" — remember name/phone for next orders. */
+export async function setRememberPersonalDetails(enabled) {
+  if (enabled) {
+    await AsyncStorage.setItem(REMEMBER_PERSONAL_KEY, '1')
+    return
+  }
+  await AsyncStorage.removeItem(REMEMBER_PERSONAL_KEY)
+}
+
+export async function shouldRememberPersonalDetails() {
+  try {
+    return (await AsyncStorage.getItem(REMEMBER_PERSONAL_KEY)) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Mid-checkout after GuestCheckout — allow Cart → Checkout once. */
+export async function setCheckoutDetailsReady(enabled) {
+  if (enabled) {
+    await AsyncStorage.setItem(CHECKOUT_READY_KEY, '1')
+    return
+  }
+  await AsyncStorage.removeItem(CHECKOUT_READY_KEY)
+}
+
+export async function isCheckoutDetailsReady() {
+  try {
+    return (await AsyncStorage.getItem(CHECKOUT_READY_KEY)) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** @deprecated use setRememberPersonalDetails(false) */
 export async function setEphemeralGuestSession(enabled) {
   if (enabled) {
-    await AsyncStorage.setItem(EPHEMERAL_GUEST_KEY, '1')
+    await setRememberPersonalDetails(false)
     return
   }
   await AsyncStorage.removeItem(EPHEMERAL_GUEST_KEY)
 }
 
+/** @deprecated use !shouldRememberPersonalDetails() */
 export async function isEphemeralGuestSession() {
+  if (await shouldRememberPersonalDetails()) return false
   try {
     return (await AsyncStorage.getItem(EPHEMERAL_GUEST_KEY)) === '1'
   } catch {
@@ -62,12 +101,14 @@ export async function clearEphemeralGuestSession() {
 }
 
 /**
- * After a placed order, drop remembered guest details when the user opted out
- * of "Zapisz dane". Keep the auth token so OrderDetail stays mounted
- * (logging out remounts MainNavigator and the order screen vanishes).
+ * After placing an order when personal details were not saved:
+ * clear local name/phone autofill and the mid-checkout flag.
+ * Keeps the auth session so orders + favourites stay available.
  */
 export async function endEphemeralGuestAfterOrder() {
-  if (!(await isEphemeralGuestSession())) return
+  await setCheckoutDetailsReady(false)
+  if (await shouldRememberPersonalDetails()) return false
   await clearCustomerDetails()
   await clearEphemeralGuestSession()
+  return false
 }

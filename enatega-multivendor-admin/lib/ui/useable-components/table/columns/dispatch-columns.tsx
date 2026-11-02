@@ -1,4 +1,4 @@
-﻿// Interfaces
+// Interfaces
 import {
   IActiveOrders,
   IAssignRider,
@@ -32,6 +32,7 @@ import { ToastContext } from '@/lib/context/global/toast.context';
 // CSS
 import classes from '@/lib/ui/screen-components/protected/super-admin/dispatch/view/main/index.module.css';
 import { useQueryGQL } from '@/lib/hooks/useQueryQL';
+import { formatDateTime } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 
 // Status templates
@@ -366,11 +367,7 @@ export const DISPATCH_TABLE_COLUMNS = () => {
       propertyName: 'createdAt',
       headerName: t('Order Time'),
       body: (rowData: IActiveOrders) => (
-        <span>
-          {new Date(rowData.createdAt)
-            .toLocaleDateString()
-            .concat(', ', new Date(rowData.createdAt).toLocaleTimeString())}
-        </span>
+        <span>{formatDateTime(rowData.createdAt)}</span>
       ),
     },
     // {

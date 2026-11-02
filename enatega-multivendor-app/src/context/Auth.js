@@ -9,10 +9,8 @@ import {
   subscribeToSessionInvalidation
 } from '../utils/session'
 import {
-  clearCustomerDetails,
   clearEphemeralGuestSession,
-  isEphemeralGuestSession,
-  setEphemeralGuestSession
+  setRememberPersonalDetails
 } from '../utils/customerDetailsStorage'
 
 const AuthContext = React.createContext()
@@ -23,11 +21,14 @@ export const AuthProvider = ({ children }) => {
 
   const setTokenAsync = async (nextToken, options = {}) => {
     await AsyncStorage.setItem('token', nextToken)
+    // ephemeral / rememberPersonal: only controls name/phone autofill — never drops the session
+    // so orders and favourites stay available.
     if (options.ephemeral) {
-      await setEphemeralGuestSession(true)
-    } else {
-      await clearEphemeralGuestSession()
+      await setRememberPersonalDetails(false)
+    } else if (options.rememberPersonal === true) {
+      await setRememberPersonalDetails(true)
     }
+    await clearEphemeralGuestSession()
     setToken(nextToken)
   }
 
@@ -38,15 +39,6 @@ export const AuthProvider = ({ children }) => {
         const storedToken = await AsyncStorage.getItem('token')
 
         if (!storedToken) {
-          isSubscribed && setToken(null)
-          return
-        }
-
-        // Guest unchecked "Zapisz dane" — do not restore identity on cold start.
-        if (await isEphemeralGuestSession()) {
-          await AsyncStorage.removeItem('token')
-          await clearEphemeralGuestSession()
-          await clearCustomerDetails()
           isSubscribed && setToken(null)
           return
         }

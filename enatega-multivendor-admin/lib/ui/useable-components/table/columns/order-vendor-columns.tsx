@@ -1,18 +1,9 @@
-import { IExtendedOrder } from '@/lib/utils/interfaces';
-import { useTranslations } from 'next-intl';
-const dateOptions: Intl.DateTimeFormatOptions = {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-  hour: 'numeric',
-  minute: 'numeric',
-  second: 'numeric',
-  hour12: true,
-};
+import { IExtendedOrder } from '@/lib/utils/interfaces'
+import { formatDateTime } from '@/lib/utils/methods'
+import { useTranslations } from 'next-intl'
 
 export const ORDER_COLUMNS = () => {
-  // Hooks
-  const t = useTranslations();
+  const t = useTranslations()
   return [
     {
       headerName: t('Order ID'),
@@ -33,16 +24,13 @@ export const ORDER_COLUMNS = () => {
     {
       headerName: t('Created At'),
       propertyName: 'DateCreated',
-      body: (rowData: IExtendedOrder) => {
-        const formatedDate = new Date(
-          Number(rowData?.createdAt)
-        ).toLocaleDateString('en-US', dateOptions);
-        return <span>{formatedDate}</span>;
-      },
+      body: (rowData: IExtendedOrder) => (
+        <span>{formatDateTime(rowData?.createdAt)}</span>
+      ),
     },
     {
       headerName: t('Delivery Address'),
       propertyName: 'OrderdeliveryAddress',
     },
-  ];
-};
+  ]
+}

@@ -1,5 +1,6 @@
 
 export * from './currency';
+export * from './date';
 export * from './error';
 export * from './filter';
 export * from './global';
@@ -11,5 +12,6 @@ export * from './image';
 export * from './video';
 export * from './security';
 export * from './timing';
+export * from './timeAgo';
 export * from './decryption/decrypt';
 export * from './decryption/decrypt-config-fields';

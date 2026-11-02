@@ -100,8 +100,8 @@
   "OnlineGross": "Online payments",
   "CashGross": "Cash payments",
   "CommissionDue": "Commission due",
-  "CashOwedToPlatform": "Restaurant owes (cash commission)",
-  "OnlinePayoutDue": "You pay out (online)",
+  "CashOwedToPlatform": "Restaurants owe",
+  "OnlinePayoutDue": "Payout to restaurants",
   "SettlementStatus": "Status",
   "Settled": "Settled",
   "OpenPeriod": "Open",
@@ -1209,5 +1209,15 @@
   "HolidayClosedHint": "Restaurant will not accept orders",
   "HolidayCustomHoursHint": "Shorter or different hours",
   "HolidayList": "Scheduled exceptions",
-  "HolidayDateRequired": "Pick a date on the calendar"
+  "HolidayDateRequired": "Pick a date on the calendar",
+  "CurrentMonth": "Current month",
+  "PreviousMonths": "Previous months",
+  "SelectMonth": "Select month",
+  "Period": "Period",
+  "PrintPdf": "Print PDF",
+  "FinalSettlement": "Final settlement",
+  "PlatformPays": "Platform pays",
+  "RestaurantPays": "Restaurant owes",
+  "SettledZero": "Settled to zero",
+  "NoSettlementsThisPeriod": "No restaurants / orders in this period."
 }

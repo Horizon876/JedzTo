@@ -8,7 +8,10 @@ import styles from './styles'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import { alignment } from '../../../utils/alignment'
 import { useTranslation } from 'react-i18next'
-import { loadCustomerDetails } from '../../../utils/customerDetailsStorage'
+import {
+  loadCustomerDetails,
+  shouldRememberPersonalDetails
+} from '../../../utils/customerDetailsStorage'
 
 function DrawerProfile(props) {
   const { t } = useTranslation()
@@ -16,14 +19,19 @@ function DrawerProfile(props) {
   const currentTheme = theme[themeContext.ThemeValue]
   const { isLoggedIn, loadingProfile, profile } = useContext(UserContext)
   const [savedName, setSavedName] = useState('')
+  const [showPersonal, setShowPersonal] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const saved = await loadCustomerDetails()
-      if (cancelled || !saved) return
-      const name = `${saved.firstName || ''} ${saved.lastName || ''}`.trim()
-      if (name) setSavedName(name)
+      const remember = await shouldRememberPersonalDetails()
+      const saved = remember ? await loadCustomerDetails() : null
+      if (cancelled) return
+      setShowPersonal(remember)
+      const name = saved
+        ? `${saved.firstName || ''} ${saved.lastName || ''}`.trim()
+        : ''
+      setSavedName(name)
     })()
     return () => {
       cancelled = true
@@ -57,11 +65,11 @@ function DrawerProfile(props) {
           <View style={styles().subContainer}>
             <View style={styles(currentTheme).imgContainer}>
               <TextDefault textColor={currentTheme.tagColor} bold H1>
-                {profile.name.substr(0, 1).toUpperCase()}
+                {(showPersonal ? profile.name : t('Account')).substr(0, 1).toUpperCase()}
               </TextDefault>
             </View>
             <TextDefault textColor={currentTheme.color4} bolder H2>
-              {profile.name}
+              {showPersonal ? profile.name : t('Account')}
             </TextDefault>
           </View>
         )}

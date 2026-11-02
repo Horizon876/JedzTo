@@ -47,7 +47,10 @@ import { isOpen, sortRestaurantsByOpenStatus } from '../../utils/customFunctions
 import { restaurantMatchesCuisine } from '../../utils/cuisineMatch'
 import Ripple from 'react-native-material-ripple'
 import useGeocoding from '../../ui/hooks/useGeocoding'
-import { TASTE_CATEGORIES } from '../../components/Main/TasteCategories/TasteCategories'
+import {
+  TASTE_CATEGORIES,
+  useTasteCategories
+} from '../../components/Main/TasteCategories/TasteCategories'
 import ShimmerImage from '../../components/ShimmerImage/ShimmerImage'
 import { IMAGE_LINK } from '../../utils/constants'
 
@@ -89,6 +92,7 @@ function Menu({ route, props }) {
   const queryType = route.params?.queryType
   const collection = route.params?.collection
   const isShopType = route.params?.isShopType
+  const tasteCategories = useTasteCategories()
   const { t, i18n } = useTranslation()
   const { getAddress } = useGeocoding()
   const [busy, setBusy] = useState(false)
@@ -337,18 +341,19 @@ function Menu({ route, props }) {
       (routeData?.name === 'Restaurants' ? 'restaurant' : routeData?.name === 'Store' ? 'grocery' : '')
     )?.toLowerCase()
 
-    // Discovery taste chips drive restaurant browse — keep the same set/images.
+    // Discovery taste chips from API (editable without app rebuild).
     if (normalizedShopType === 'restaurant' || selectedType === 'restaurant') {
+      const tasteChips = tasteCategories?.length ? tasteCategories : TASTE_CATEGORIES
       const apiCuisines = allCuisines?.cuisines ?? []
       const extras = apiCuisines.filter(
         (cuisine) =>
-          !TASTE_CATEGORIES.some(
+          !tasteChips.some(
             (taste) =>
               taste.name?.toLowerCase() === cuisine?.name?.toLowerCase() ||
               restaurantMatchesCuisine({ cuisines: [taste.name] }, cuisine?.name)
           )
       )
-      return [...TASTE_CATEGORIES, ...extras]
+      return [...tasteChips, ...extras]
     }
 
     if (normalizedShopType === 'grocery') {
@@ -358,7 +363,7 @@ function Menu({ route, props }) {
     }
 
     return allCuisines?.cuisines ?? []
-  }, [allCuisines, isShopType, routeData, selectedType])
+  }, [allCuisines, isShopType, routeData, selectedType, tasteCategories])
 
   // "Wszystkie" first; selected cuisine stays in place and is highlighted.
   const orderedCollections = useMemo(() => {

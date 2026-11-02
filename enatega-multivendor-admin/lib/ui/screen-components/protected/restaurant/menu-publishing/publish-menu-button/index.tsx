@@ -14,6 +14,7 @@ import { RestaurantLayoutContext } from '@/lib/context/restaurant/layout-restaur
 
 // Components
 import TextIconClickable from '@/lib/ui/useable-components/text-icon-clickable';
+import { formatDateTime } from '@/lib/utils/methods';
 import { faCircleCheck, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 
 interface IMenuPublishStatus {
@@ -68,7 +69,7 @@ const PublishMenuButton = () => {
 
   const pending = status?.hasUnpublishedMenuChanges;
   const publishedAt = status?.menuPublishedAt
-    ? new Date(status.menuPublishedAt).toLocaleString('pl-PL')
+    ? formatDateTime(status.menuPublishedAt)
     : null;
 
   return (

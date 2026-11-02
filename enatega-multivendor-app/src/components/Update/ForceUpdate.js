@@ -22,8 +22,9 @@ const VERSIONS = gql`
 `
 
 const compareVersions = (version1, version2) => {
-  const v1Parts = version1.split('.').map(Number)
-  const v2Parts = version2.split('.').map(Number)
+  if (!version1 || !version2) return 0
+  const v1Parts = String(version1).split('.').map(Number)
+  const v2Parts = String(version2).split('.').map(Number)
 
   for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
     const v1 = v1Parts[i] || 0

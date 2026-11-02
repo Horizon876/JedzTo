@@ -1,6 +1,6 @@
 /* eslint-disable react/display-name */
 import React, { useRef, useContext, useLayoutEffect, useState, useEffect, useCallback, useMemo } from 'react'
-import { View, TouchableOpacity, StatusBar, Platform, ScrollView, RefreshControl, InteractionManager } from 'react-native'
+import { View, TouchableOpacity, StatusBar, Platform, ScrollView, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AntDesign, SimpleLineIcons } from '@expo/vector-icons'
 import { useMutation, useQuery, gql } from '@apollo/client'
@@ -245,7 +245,11 @@ function Main(props) {
     // makes the close animation stutter / appear to "do nothing". Defer it
     // until after the close animation so the interaction stays smooth.
     modalRef.current?.close()
-    InteractionManager.runAfterInteractions(() => {
+    const runAfterIdle =
+      typeof globalThis.requestIdleCallback === 'function'
+        ? (cb) => globalThis.requestIdleCallback(cb)
+        : (cb) => setTimeout(cb, 0)
+    runAfterIdle(() => {
       setLocation({
         _id: address._id,
         label: address.label,

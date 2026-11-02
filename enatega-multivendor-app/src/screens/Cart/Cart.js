@@ -28,7 +28,11 @@ import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
 import { populateCart, pruneCartToRestaurant } from '../../utils/populateCart'
-import { hasSavedCustomerDetails, isEphemeralGuestSession } from '../../utils/customerDetailsStorage'
+import {
+  hasSavedCustomerDetails,
+  shouldRememberPersonalDetails,
+  isCheckoutDetailsReady
+} from '../../utils/customerDetailsStorage'
 import { deliveryQuote } from '../../apollo/queries'
 import { calculateAmount, calculateDistance } from '../../utils/customFunctions'
 import { formatMoney as formatMoneyValue } from '../../utils/formatMoney'
@@ -320,16 +324,17 @@ function Cart(props) {
     }
 
     if (isLoggedIn && profile?.phone) {
-      const remembered = await hasSavedCustomerDetails()
-      const ephemeral = await isEphemeralGuestSession()
+      const rememberPersonal = await shouldRememberPersonalDetails()
+      const remembered = rememberPersonal && (await hasSavedCustomerDetails())
+      const checkoutReady = await isCheckoutDetailsReady()
       const isGuestAccount =
         typeof profile?.email === 'string' &&
         (profile.email.includes('@jedzto.local') || profile.email.startsWith('guest+'))
 
       if (isGuestAccount) {
-        // Only skip the form when the guest opted into "Zapisz dane",
-        // or when they are mid-checkout after just entering details.
-        if (remembered || ephemeral) {
+        // Skip form when "Zapisz dane" was checked, or mid-checkout after just entering details.
+        // Without save: next order asks for name/phone again; session (orders/favourites) stays.
+        if (remembered || checkoutReady) {
           navigation.navigate('Checkout')
           return
         }

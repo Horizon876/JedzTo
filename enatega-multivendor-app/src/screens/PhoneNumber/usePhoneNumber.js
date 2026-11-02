@@ -73,6 +73,19 @@ const useRegister = () => {
   async function onCompleted(data) {
     let concatPhone = '+'.concat(country.callingCode[0] ?? "").concat(phone ?? "")
     if (navigation && route && profile) {
+      const returnScreen = route?.params?.screen
+      // Placing an order only needs a saved phone — OTP is for discount codes.
+      if (returnScreen === 'Checkout') {
+        FlashMessage({
+          message: 'Phone number has been added successfully!'
+        })
+        await refetchProfile()
+        navigation.navigate({
+          name: 'Checkout',
+          merge: true
+        })
+        return
+      }
       if (configuration.twilioEnabled) {
         FlashMessage({
           message: 'Phone number has been added successfully!'
@@ -81,7 +94,7 @@ const useRegister = () => {
         navigation.navigate({
           name: 'PhoneOtp',
           merge: true,
-          params: {name, phone: concatPhone, screen: route?.params?.screen}
+          params: {name, phone: concatPhone, screen: returnScreen}
         })
       } else {
         mutate({

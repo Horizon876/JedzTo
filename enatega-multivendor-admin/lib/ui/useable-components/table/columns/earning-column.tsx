@@ -1,5 +1,6 @@
 import { IActionMenuProps } from '@/lib/utils/interfaces';
 import { IEarning } from '@/lib/utils/interfaces';
+import { formatDate } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 import { useConfiguration } from '@/lib/hooks/useConfiguration';
 
@@ -22,14 +23,9 @@ export const EARNING_COLUMNS = ({
     {
       headerName: t('Created At'),
       propertyName: 'createdAt',
-      body: (earning: IEarning) => {
-        const date = new Date(earning?.createdAt);
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        const formattedDate = `${day}/${month}/${year}`;
-        return <div>{formattedDate}</div>;
-      },
+      body: (earning: IEarning) => (
+        <div>{formatDate(earning?.createdAt)}</div>
+      ),
     },
     {
       headerName: t('Order Type'),

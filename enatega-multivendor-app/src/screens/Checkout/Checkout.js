@@ -42,11 +42,10 @@ import { IMAGE_LINK } from '../../utils/constants'
 
 import useNetworkStatus from '../../utils/useNetworkStatus'
 import ErrorView from '../../components/ErrorView/ErrorView'
-import useEnvVars from '../../../environment'
 import { endEphemeralGuestAfterOrder } from '../../utils/customerDetailsStorage'
 
-const FALLBACK_TERMS_URL = 'https://multivendor.enatega.com/terms'
-const FALLBACK_PRIVACY_URL = 'https://multivendor.enatega.com/privacy'
+const FALLBACK_TERMS_URL = 'https://jedzto.com/regulamin'
+const FALLBACK_PRIVACY_URL = 'https://jedzto.com/polityka-prywatności'
 
 const PLACEORDER = gql`
   ${placeOrder}
@@ -101,14 +100,10 @@ function Checkout(props) {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [termsError, setTermsError] = useState(false)
   const COD_CASH_FEE = 2
-  const { TERMS_AND_CONDITIONS, PRIVACY_POLICY } = useEnvVars()
-
-  const openLegalUrl = useCallback(async (url, fallback) => {
-    const target = url || fallback
+  const openLegalUrl = useCallback(async (url) => {
+    const target = url || FALLBACK_TERMS_URL
     try {
-      const can = await Linking.canOpenURL(target)
-      if (can) await Linking.openURL(target)
-      else if (fallback && fallback !== target) await Linking.openURL(fallback)
+      await Linking.openURL(target)
     } catch (_) {}
   }, [])
   const cashFee = paymentMode === 'COD' ? COD_CASH_FEE : 0
@@ -1245,14 +1240,14 @@ function Checkout(props) {
                     {t('acceptTermsPrivacyStart')}
                     <Text
                       style={[styles().termsLink, termsError && !acceptedTerms && styles().termsLinkError]}
-                      onPress={() => openLegalUrl(TERMS_AND_CONDITIONS, FALLBACK_TERMS_URL)}
+                      onPress={() => openLegalUrl(FALLBACK_TERMS_URL)}
                     >
                       {t('acceptTermsLinkTerms')}
                     </Text>
                     {t('acceptTermsPrivacyMiddle')}
                     <Text
                       style={[styles().termsLink, termsError && !acceptedTerms && styles().termsLinkError]}
-                      onPress={() => openLegalUrl(PRIVACY_POLICY, FALLBACK_PRIVACY_URL)}
+                      onPress={() => openLegalUrl(FALLBACK_PRIVACY_URL)}
                     >
                       {t('acceptTermsLinkPrivacy')}
                     </Text>

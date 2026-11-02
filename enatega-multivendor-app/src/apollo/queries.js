@@ -1002,6 +1002,18 @@ export const getCuisines = `query Cuisines{
   }
 }`
 
+export const getTasteCategories = `query TasteCategories {
+  tasteCategories {
+    _id
+    name
+    image
+    imageContain
+    shopType
+    sortOrder
+    isActive
+  }
+}`
+
 export const rider = `query Rider($id:String){
   rider(id:$id){
     _id

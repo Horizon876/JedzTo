@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dialog } from 'primereact/dialog';
 import { ITransactionHistory } from '@/lib/utils/interfaces';
+import { formatDate } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 import { Rating } from 'primereact/rating';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -61,7 +62,7 @@ const TransactionDetailModal: React.FC<ITransactionDetailModalProps> = ({
             <div>
               <p className="text-gray-600 dark:text-white">{t('Date')}</p>
               <p className="font-medium">
-                {new Date(transaction?.createdAt).toLocaleDateString()}
+                {formatDate(transaction?.createdAt)}
               </p>
             </div>
             <div>

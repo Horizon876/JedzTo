@@ -29,44 +29,93 @@ const styles = (props = null) =>
     //Modal
     centeredView: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: '#000',
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.5)'
     },
     modalView: {
-      width: '90%',
-      alignItems: 'flex-start',
-      gap: 24,
-      margin: 20,
-      backgroundColor: props !== null ? props.themeBackground : 'white',
-      borderWidth: scale(1),
-      borderColor: props !== null ? props.color10 : 'white',
-      borderRadius: 20,
-      padding: 20,
+      width: '100%',
+      minHeight: scale(280),
+      gap: scale(16),
+      backgroundColor: props !== null ? (props.cardBackground || props.themeBackground) : '#FFFFFF',
+      borderTopLeftRadius: scale(24),
+      borderTopRightRadius: scale(24),
+      paddingHorizontal: scale(24),
+      paddingTop: scale(28),
+      paddingBottom: scale(40),
+      borderWidth: 1,
+      borderColor: props !== null ? (props.customBorder || props.color10) : '#E5E7EB',
+      alignItems: 'stretch'
+    },
+    modalTitle: {
+      marginBottom: scale(4)
+    },
+    modalBody: {
+      fontSize: scale(16),
+      lineHeight: scale(24),
+      marginBottom: scale(10)
+    },
+    modalActions: {
+      marginTop: scale(12),
+      gap: scale(16)
+    },
+    hubScreen: {
+      backgroundColor: props?.ThemeValue === 'Dark' ? '#121212' : (props?.gray100 || '#F3F4F6')
+    },
+    hubContent: {
+      flexGrow: 1,
+      paddingHorizontal: scale(16),
+      paddingTop: scale(16),
+      paddingBottom: scale(110),
+      gap: scale(14)
+    },
+    hubCard: {
+      backgroundColor: props?.ThemeValue === 'Dark' ? '#1C1C1E' : (props?.cardBackground || '#F8F9FA'),
+      borderRadius: scale(16),
+      borderWidth: 1,
+      borderColor: props?.ThemeValue === 'Dark' ? '#2C2C2E' : '#E5E7EB',
+      paddingHorizontal: scale(16),
+      paddingVertical: scale(4),
+      overflow: 'hidden'
+    },
+    hubRow: {
+      paddingVertical: scale(14),
+      gap: scale(4)
+    },
+    hubLinkRow: {
+      flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5
+      justifyContent: 'space-between',
+      paddingVertical: scale(16),
+      minHeight: scale(52)
+    },
+    hubRowDivider: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: props?.ThemeValue === 'Dark' ? '#2C2C2E' : '#E5E7EB'
+    },
+    hubDeleteBtn: {
+      marginTop: scale(4),
+      height: scale(48),
+      borderRadius: 40,
+      borderWidth: 0,
+      backgroundColor: props !== null ? props.red600 : '#DC2626',
+      alignItems: 'center',
+      justifyContent: 'center'
     },
     btn: {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
       alignSelf: 'stretch',
-      height: scale(50),
-      borderRadius: 40
+      height: scale(48),
+      borderRadius: 40,
+      borderWidth: 1,
+      backgroundColor: props !== null ? props.color3 : 'transparent'
     },
     btnCancel: {
-      backgroundColor: props !== null ? props.white : 'white',
-      borderWidth: 1,
-      borderColor: props !== null ? props.black : 'black'
+      borderColor: props !== null ? props.linkColor : '#00A8FF'
     },
     btnDelete: {
+      borderWidth: 0,
       backgroundColor: props !== null ? props.red600 : '#DC2626'
     },
     modalInput: {

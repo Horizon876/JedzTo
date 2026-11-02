@@ -58,6 +58,7 @@ import BottomTabIcon from '../components/BottomTabIcon/BottomTabIcon'
 import { useTranslation } from 'react-i18next'
 import Collection from '../screens/Collection/Collection'
 import Account from '../screens/Account/Account'
+import AccountHub from '../screens/AccountHub/AccountHub'
 import EditName from '../components/Account/EditName/EditName'
 import { Platform, StyleSheet } from 'react-native'
 // import HypCheckout from '../screens/Hyp/HypCheckout'
@@ -272,7 +273,9 @@ function BottomTabNavigator() {
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           // synced with BottomTabIcon, make sure to have the same name as icon in BottomTabIcon
-          return <BottomTabIcon name={route.name.toLowerCase()} size={focused ? '28' : size} color={color} />
+          const iconName =
+            route.name === 'Favourites' ? 'profile' : route.name.toLowerCase()
+          return <BottomTabIcon name={iconName} size={focused ? '28' : size} color={color} />
         },
         tabBarStyle: {
           paddingHorizontal: 15,
@@ -291,7 +294,7 @@ function BottomTabNavigator() {
         headerRight: () => <RightButton icon='cart' iconColor={currentTheme.iconColor} menuHeader={false} t={t} />
       })}
     >
-      {/* Krok "BottomTab" — Home, Explore, Orders, Favourites */}
+      {/* Krok "BottomTab" — Home, Explore, Orders, Account (Ulubione/Konto) */}
       <Tab.Screen
         name='Discovery'
         component={Main}
@@ -323,9 +326,9 @@ function BottomTabNavigator() {
       />
       <Tab.Screen
         name='Favourites'
-        component={Favourite}
+        component={AccountHub}
         options={{
-          tabBarLabel: t('Favourite'),
+          tabBarLabel: t('Account'),
           headerShown: false
         }}
       />

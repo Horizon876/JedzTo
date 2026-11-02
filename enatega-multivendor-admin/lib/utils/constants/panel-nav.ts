@@ -87,6 +87,7 @@ export const RESTAURANT_MODULES: PanelModule[] = [
   },
 ]
 
+/** Lean super-admin shell — ops only, no marketing/catalog clutter. */
 export const SUPER_ADMIN_MODULES: PanelModule[] = [
   {
     id: 'home',
@@ -104,15 +105,13 @@ export const SUPER_ADMIN_MODULES: PanelModule[] = [
     id: 'restaurants',
     labelKey: 'Restaurants',
     route: '/general/stores',
-    match: ['/general/stores', '/general/vendors', '/general/riders', '/general/staff'],
+    match: ['/general/stores', '/general/riders'],
     groups: [
       {
         titleKey: 'NavGroupRestaurants',
         items: [
           { labelKey: 'Restaurants', route: '/general/stores' },
-          { labelKey: 'Vendors', route: '/general/vendors' },
           { labelKey: 'Riders', route: '/general/riders' },
-          { labelKey: 'Staff', route: '/general/staff' },
         ],
       },
     ],
@@ -126,7 +125,7 @@ export const SUPER_ADMIN_MODULES: PanelModule[] = [
       {
         titleKey: 'NavGroupOrders',
         items: [
-          { labelKey: 'Orders', route: '/management/orders' },
+          { labelKey: 'OrderHistory', route: '/management/orders' },
           { labelKey: 'Dispatch', route: '/dispatch' },
         ],
       },
@@ -136,14 +135,11 @@ export const SUPER_ADMIN_MODULES: PanelModule[] = [
     id: 'customers',
     labelKey: 'Users',
     route: '/general/users',
-    match: ['/general/users', '/customerSupport'],
+    match: ['/general/users'],
     groups: [
       {
         titleKey: 'NavGroupCustomers',
-        items: [
-          { labelKey: 'Users', route: '/general/users' },
-          { labelKey: 'Customer Support', route: '/customerSupport' },
-        ],
+        items: [{ labelKey: 'Users', route: '/general/users' }],
       },
     ],
   },
@@ -151,80 +147,11 @@ export const SUPER_ADMIN_MODULES: PanelModule[] = [
     id: 'finance',
     labelKey: 'Finance',
     route: '/wallet/settlements',
-    match: ['/wallet'],
+    match: ['/wallet/settlements'],
     groups: [
       {
         titleKey: 'NavGroupFinance',
-        items: [
-          { labelKey: 'Settlements', route: '/wallet/settlements' },
-          { labelKey: 'Earnings', route: '/wallet/earnings' },
-          {
-            labelKey: 'Transaction History',
-            route: '/wallet/transaction-history',
-          },
-          {
-            labelKey: 'Withdraw Requests',
-            route: '/wallet/withdraw-requests',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'marketing',
-    labelKey: 'Marketing',
-    route: '/management/coupons',
-    match: [
-      '/management/coupons',
-      '/management/banners',
-      '/management/cuisines',
-      '/management/shop-types',
-      '/management/tippings',
-      '/management/notifications',
-    ],
-    groups: [
-      {
-        titleKey: 'NavGroupMarketing',
-        items: [
-          { labelKey: 'Coupons', route: '/management/coupons' },
-          { labelKey: 'Banners', route: '/management/banners' },
-          { labelKey: 'Cuisines', route: '/management/cuisines' },
-          { labelKey: 'Shop Types', route: '/management/shop-types' },
-          { labelKey: 'Tippings', route: '/management/tippings' },
-          { labelKey: 'Notifications', route: '/management/notifications' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'system',
-    labelKey: 'System',
-    route: '/management/configurations',
-    match: [
-      '/management/configurations',
-      '/management/commission-rates',
-      '/zone',
-      '/settings',
-      '/language',
-      '/audit-logs',
-    ],
-    groups: [
-      {
-        titleKey: 'NavGroupSystem',
-        items: [
-          {
-            labelKey: 'Configurations',
-            route: '/management/configurations',
-          },
-          {
-            labelKey: 'Commission Rates',
-            route: '/management/commission-rates',
-          },
-          { labelKey: 'Zone', route: '/zone' },
-          { labelKey: 'Settings', route: '/settings' },
-          { labelKey: 'Language', route: '/language' },
-          { labelKey: 'Audit Logs', route: '/audit-logs' },
-        ],
+        items: [{ labelKey: 'Settlements', route: '/wallet/settlements' }],
       },
     ],
   },

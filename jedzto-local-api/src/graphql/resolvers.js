@@ -61,8 +61,8 @@ const CONFIG = {
   twilioEnabled: false,
   appAmplitudeApiKey: '',
   customerAppSentryUrl: '',
-  termsAndConditions: 'https://jedzto.pl/terms',
-  privacyPolicy: 'https://jedzto.pl/privacy',
+  termsAndConditions: 'https://jedzto.com/regulamin',
+  privacyPolicy: 'https://jedzto.com/polityka-prywatności',
   testOtp: TEST_OTP,
   skipMobileVerification: true,
   skipEmailVerification: true,
@@ -1838,17 +1838,19 @@ export const resolvers = {
         (sum, item) => sum + (item.variation?.price || 0) * item.quantity,
         0
       )
+      const taxationAmount = Number(args.taxationAmount || 0)
+      const deliveryCharges = Number(args.deliveryCharges || 0)
+      const tipping = Number(args.tipping || 0)
       const orderAmount =
-        itemsTotal +
-        (args.deliveryCharges || 0) +
-        (args.tipping || 0) +
-        (args.taxationAmount || 0)
+        itemsTotal + deliveryCharges + tipping + taxationAmount
+      // Commission on full order incl. COD cash fee.
+      const commissionBase = orderAmount
 
       const paymentMethod = (args.paymentMethod || 'COD').toUpperCase()
       const isPickup = Boolean(args.isPickedUp)
       const commissionRate = Number(restaurant.commissionRate ?? 10)
       const platformCommission =
-        Math.round(((orderAmount * commissionRate) / 100) * 100) / 100
+        Math.round(((commissionBase * commissionRate) / 100) * 100) / 100
       const prepMins = clampEtaMinutes(restaurant.pickupTime ?? 20, 20)
       const deliveryMins = isPickup
         ? 0
@@ -2093,13 +2095,32 @@ export const resolvers = {
     },
     Deactivate: async (_p, { isActive, email }, ctx) => {
       assertPublicAccess(ctx)
-      requireUser(ctx, ['SUPER_ADMIN'])
-      const user = await User.findOneAndUpdate(
-        { email: email.toLowerCase() },
-        { isActive },
-        { new: true }
-      )
+      const auth = requireUser(ctx)
+      const normalized = String(email || '').trim().toLowerCase()
+
+      let user
+      if (auth.role === 'SUPER_ADMIN' && normalized) {
+        user = await User.findOne({ email: normalized })
+      } else {
+        user = await User.findById(auth.userId)
+        if (user && normalized && String(user.email || '').toLowerCase() !== normalized) {
+          throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+        }
+      }
       if (!user) throw new GraphQLError('User not found')
+
+      if (isActive === false) {
+        const shape = profileShape(user)
+        shape.isActive = false
+        await User.deleteOne({ _id: user._id })
+        return shape
+      }
+
+      if (auth.role !== 'SUPER_ADMIN') {
+        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+      }
+      user.isActive = true
+      await user.save()
       return profileShape(user)
     },
     reviewOrder: async (_p, { order, rating, description }, ctx) => {

@@ -8,19 +8,14 @@ import {
   LayoutContextProps,
 } from '@/lib/utils/interfaces';
 import {
-  faCog,
   faHome,
   faStore,
   faReceipt,
-  faTicket,
-  faEllipsis,
   faWallet,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons';
-import useCheckAllowedRoutes from '@/lib/hooks/useCheckAllowedRoutes';
 import SidebarItem from './side-bar-item';
 import { useTranslations } from 'next-intl';
-import { faHeadset } from '@fortawesome/free-solid-svg-icons/faHeadset';
 
 function SuperAdminSidebar({ children }: IGlobalComponentProps) {
   const { isSuperAdminSidebarVisible } =
@@ -65,30 +60,6 @@ export default function MakeSidebar() {
       isClickable: true,
     },
     {
-      text: 'Finance',
-      label: t('Finance'),
-      route: '/wallet',
-      isParent: true,
-      icon: faWallet,
-      subMenu: useCheckAllowedRoutes([
-        {
-          text: 'Settlements',
-          label: t('Settlements'),
-          route: '/wallet/settlements',
-          isParent: false,
-        },
-        {
-          text: t('Earnings'),
-          label: t('Earnings'),
-          route: '/wallet/earnings',
-          isParent: false,
-        },
-      ]),
-      shouldShow: function () {
-        return this.subMenu ? this.subMenu.length > 0 : false;
-      },
-    },
-    {
       text: 'Orders',
       label: t('Orders'),
       route: '/management/orders',
@@ -105,11 +76,11 @@ export default function MakeSidebar() {
       isClickable: true,
     },
     {
-      text: 'Marketing',
-      label: t('Marketing'),
-      route: '/management/coupons',
+      text: 'Finance',
+      label: t('Finance'),
+      route: '/wallet/settlements',
       isParent: true,
-      icon: faTicket,
+      icon: faWallet,
       isClickable: true,
     },
   ];

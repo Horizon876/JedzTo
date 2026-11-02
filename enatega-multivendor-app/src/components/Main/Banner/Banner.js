@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState, useCallback } from 'react'
-import { View, ImageBackground, TouchableOpacity, Dimensions, Platform } from 'react-native'
+import { View, Image, TouchableOpacity, Dimensions, Platform, StyleSheet } from 'react-native'
 import styles from './styles'
 import TextDefault from '../../Text/TextDefault/TextDefault'
 import ThemeContext from '../../../ui/ThemeContext/ThemeContext'
@@ -51,9 +51,10 @@ const BannerSlide = React.memo(function BannerSlide({ item, width, cached, isAct
       ) : (
         <View style={styles(currentTheme).csd}>
           {imageUri ? (
-            <ImageBackground source={{ uri: imageUri }} style={styles(currentTheme).imgs1} resizeMode='cover'>
+            <View style={styles(currentTheme).imgs1}>
+              <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFillObject} resizeMode='cover' />
               <BannerContent item={item} currentTheme={currentTheme} />
-            </ImageBackground>
+            </View>
           ) : (
             <View style={[styles(currentTheme).imgs1, { backgroundColor: '#1f2937' }]}>
               <BannerContent item={item} currentTheme={currentTheme} />

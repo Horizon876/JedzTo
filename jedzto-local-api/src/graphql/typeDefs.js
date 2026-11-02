@@ -432,6 +432,26 @@ export const typeDefs = `#graphql
     shopType: String
   }
 
+  """Home-screen taste chips (\"Na co masz dziś ochotę?\"). Managed via API — no app rebuild."""
+  type TasteCategory {
+    _id: ID!
+    name: String!
+    image: String
+    imageContain: Boolean
+    shopType: String
+    sortOrder: Int
+    isActive: Boolean
+  }
+
+  input TasteCategoryInput {
+    name: String!
+    image: String
+    imageContain: Boolean
+    shopType: String
+    sortOrder: Int
+    isActive: Boolean
+  }
+
   type Banner {
     _id: ID
     title: String
@@ -1103,6 +1123,8 @@ export const typeDefs = `#graphql
     nearByRestaurantsPreview(latitude: Float, longitude: Float, shopType: String, page: Int, limit: Int): NearByRestaurantsPreview
     restaurant(id: String, latitude: Float, longitude: Float): Restaurant
     cuisines: [Cuisine!]
+    "Editable discovery chips for the customer home screen."
+    tasteCategories: [TasteCategory!]!
     banners: [Banner!]
     zones: [Zone!]
     tips: TipConfig
@@ -1240,6 +1262,10 @@ export const typeDefs = `#graphql
     createShopType(dto: CreateShopTypeInput): ShopType
     updateShopType(dto: UpdateShopTypeInput): ShopType
     deleteShopType(id: String!, type: DeleteTypeEnum): ShopType
+    createTasteCategory(input: TasteCategoryInput!): TasteCategory!
+    updateTasteCategory(id: ID!, input: TasteCategoryInput!): TasteCategory
+    deleteTasteCategory(id: ID!): Boolean!
+    reorderTasteCategories(ids: [ID!]!): [TasteCategory!]!
 
     # Vendor Panel — menu management (scoped to caller's restaurantId)
     createCategory(category: CategoryInput!): Restaurant
@@ -1312,6 +1338,7 @@ export const typeDefs = `#graphql
     commissionOnOnline: Float!
     commissionOnCash: Float!
     commissionDue: Float!
+    cashFeeDue: Float!
     cashCommissionOwed: Float!
     onlinePayoutDue: Float!
     status: String!

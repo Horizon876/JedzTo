@@ -5,6 +5,7 @@ import {
   ICustomDataViewProps,
   IReview,
 } from '@/lib/utils/interfaces/ratings.interface';
+import { formatDate } from '@/lib/utils/methods';
 
 const CustomDataView: React.FC<ICustomDataViewProps> = ({
   products,
@@ -20,9 +21,7 @@ const CustomDataView: React.FC<ICustomDataViewProps> = ({
       ? review.order.items.map((item) => item.title).join(', ')
       : '';
 
-    const createdAt = review?.createdAt
-      ? new Date(parseInt(review?.createdAt)).toLocaleDateString()
-      : '';
+    const createdAt = formatDate(review?.createdAt, 'pl-PL', undefined, '');
 
     return (
       <div className="col-12 sm:col-6 lg:col-4 xl:col-3 mb-2">

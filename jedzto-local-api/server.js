@@ -14,7 +14,13 @@ import { PORT, SEED_ON_START, ALLOWED_ORIGINS, NODE_ENV } from './src/config.js'
 import { typeDefs } from './src/graphql/typeDefs.js'
 import { resolvers } from './src/graphql/resolvers/index.js'
 import { verifyToken } from './src/auth/jwt.js'
-import { seedDatabase, CREDENTIALS, ensureTasteCuisineTags, ensureMenuItemCustomization } from './src/seed.js'
+import {
+  seedDatabase,
+  CREDENTIALS,
+  ensureTasteCuisineTags,
+  ensureTasteCategories,
+  ensureMenuItemCustomization
+} from './src/seed.js'
 import { Restaurant } from './src/models/index.js'
 import { connectMongo, disconnectMongo } from './src/db.js'
 import { UPLOADS_DIR } from './src/utils/imageUpload.js'
@@ -95,6 +101,7 @@ async function start() {
     await seedDatabase({ force: false })
   }
 
+  await ensureTasteCategories()
   await ensureTasteCuisineTags()
   await ensureMenuItemCustomization()
   await backfillUnpublishedMenus()

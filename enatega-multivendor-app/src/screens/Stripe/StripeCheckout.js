@@ -29,6 +29,7 @@ function StripeCheckout(props) {
   const { reFetchOrders } = useContext(OrdersContext)
   const orderIdParam = props?.route.params?._id
   const orderMongoIdParam = props?.route.params?.orderMongoId
+  const orderParam = props?.route.params?.order
   const isHandlingSuccessRef = useRef(false)
   const isHandlingCancelRef = useRef(false)
   const backendHost = useRef(null)
@@ -81,7 +82,7 @@ function StripeCheckout(props) {
         { name: 'Main' },
         {
           name: 'OrderDetail',
-          params: { _id: orderId }
+          params: { _id: orderId, order: orderParam }
         }
       ]
     })

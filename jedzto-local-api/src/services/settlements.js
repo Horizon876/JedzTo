@@ -22,6 +22,10 @@ function round2(n) {
 
 /**
  * Aggregate delivered (or paid) orders for a restaurant in a month.
+ *
+ * - Restaurant gross = order total minus COD cash fee (fee is platform-only).
+ * - Commission = % of full order (products + delivery + tip/transport + cash fee).
+ * - Cash fee is owed entirely to the platform.
  */
 export async function computeSettlementTotals(restaurantId, periodKey) {
   const restaurant = await Restaurant.findById(restaurantId).lean()
@@ -36,33 +40,37 @@ export async function computeSettlementTotals(restaurantId, periodKey) {
     createdAt: { $gte: periodStart, $lte: periodEnd },
     paymentStatus: { $nin: ['REFUNDED'] }
   })
-    .select('orderAmount paymentMethod paymentStatus platformCommission')
+    .select(
+      'orderAmount paymentMethod paymentStatus platformCommission platformCommissionRate taxationAmount tipping deliveryCharges'
+    )
     .lean()
 
   let onlineGross = 0
   let cashGross = 0
   let commissionOnOnline = 0
   let commissionOnCash = 0
+  let cashFeeDue = 0
 
   for (const o of orders) {
     if (o.paymentStatus === 'REFUNDED') continue
     const amount = Number(o.orderAmount || 0)
+    const cashFee = round2(Math.max(0, Number(o.taxationAmount || 0)))
+    const restaurantAmount = round2(Math.max(0, amount - cashFee))
     const method = String(o.paymentMethod || 'COD').toUpperCase()
     const isCash = method === 'COD'
-    const rateForOrder =
-      o.platformCommission != null && amount > 0
-        ? null
-        : rate
-    const commission =
-      o.platformCommission != null
-        ? Number(o.platformCommission)
-        : round2((amount * (rateForOrder ?? rate)) / 100)
+    const orderRate =
+      o.platformCommissionRate != null ? Number(o.platformCommissionRate) : rate
+
+    // Full order amount incl. COD cash fee (fee itself still goes to platform).
+    const commission = round2((amount * orderRate) / 100)
+
+    cashFeeDue += cashFee
 
     if (isCash) {
-      cashGross += amount
+      cashGross += restaurantAmount
       commissionOnCash += commission
     } else {
-      onlineGross += amount
+      onlineGross += restaurantAmount
       commissionOnOnline += commission
     }
   }
@@ -71,8 +79,10 @@ export async function computeSettlementTotals(restaurantId, periodKey) {
   cashGross = round2(cashGross)
   commissionOnOnline = round2(commissionOnOnline)
   commissionOnCash = round2(commissionOnCash)
+  cashFeeDue = round2(cashFeeDue)
   const commissionDue = round2(commissionOnOnline + commissionOnCash)
-  const cashCommissionOwed = commissionOnCash
+  // Everything the restaurant owes from the cash side: commission + COD fee.
+  const cashCommissionOwed = round2(commissionOnCash + cashFeeDue)
   const onlinePayoutDue = round2(Math.max(0, onlineGross - commissionOnOnline))
 
   return {
@@ -87,6 +97,7 @@ export async function computeSettlementTotals(restaurantId, periodKey) {
     commissionOnOnline,
     commissionOnCash,
     commissionDue,
+    cashFeeDue,
     cashCommissionOwed,
     onlinePayoutDue,
     totalGross: round2(onlineGross + cashGross)
@@ -121,6 +132,7 @@ export async function upsertSettlementPreview(restaurantId, periodKey) {
         commissionOnOnline: totals.commissionOnOnline,
         commissionOnCash: totals.commissionOnCash,
         commissionDue: totals.commissionDue,
+        cashFeeDue: totals.cashFeeDue,
         cashCommissionOwed: totals.cashCommissionOwed,
         onlinePayoutDue: totals.onlinePayoutDue,
         status: existing?.status || 'OPEN'

@@ -1,12 +1,26 @@
-import * as amplitude from '@amplitude/analytics-react-native'
+import Constants from 'expo-constants'
 import { getTrackingPermissions } from './useAppTrackingTrasparency'
 
 let apiKey = null
 let isInitialized = false
+let amplitude = null
 
 /** Call when remote configuration loads so Amplitude can init without React hooks. */
 export function configureAnalytics(key) {
   if (key) apiKey = key
+}
+
+const canUseNativeAmplitude = () => Constants.appOwnership !== 'expo'
+
+const loadAmplitude = async () => {
+  if (amplitude || !canUseNativeAmplitude()) return amplitude
+  try {
+    amplitude = await import('@amplitude/analytics-react-native')
+  } catch (error) {
+    console.log('Amplitude unavailable', error?.message ?? error)
+    amplitude = null
+  }
+  return amplitude
 }
 
 const events = {
@@ -50,10 +64,12 @@ const events = {
 const initialize = async () => {
   try {
     await getTrackingPermissions()
-    if (isInitialized || !apiKey) {
+    if (isInitialized || !apiKey || !canUseNativeAmplitude()) {
       return
     }
-    amplitude.init(apiKey)
+    const sdk = await loadAmplitude()
+    if (!sdk) return
+    sdk.init(apiKey)
     isInitialized = true
   } catch (error) {
     console.log('Amplitude init error', error)
@@ -64,16 +80,18 @@ const identify = async (options, userId) => {
   try {
     await initialize()
     if (!isInitialized || !apiKey) return
+    const sdk = await loadAmplitude()
+    if (!sdk) return
 
     if (userId) {
-      amplitude.setUserId(userId)
+      sdk.setUserId(userId)
     }
     if (options) {
-      amplitude.Identify(options)
+      sdk.Identify(options)
     } else {
-      const identifyObj = new amplitude.Identify()
+      const identifyObj = new sdk.Identify()
       identifyObj.remove(options)
-      amplitude.Identify(identifyObj)
+      sdk.Identify(identifyObj)
     }
   } catch (err) {}
 }
@@ -82,11 +100,13 @@ const track = async (event, options) => {
   try {
     await initialize()
     if (!isInitialized || !apiKey) return
+    const sdk = await loadAmplitude()
+    if (!sdk) return
 
     if (options) {
-      await amplitude.track(event, options)
+      await sdk.track(event, options)
     } else {
-      await amplitude.track(event)
+      await sdk.track(event)
     }
   } catch (err) {}
 }

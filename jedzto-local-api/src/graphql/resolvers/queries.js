@@ -14,7 +14,8 @@ import {
   Food,
   Order,
   ShopType,
-  Coupon
+  Coupon,
+  TasteCategory
 } from '../../models/index.js'
 import { assertPublicAccess, requireUser, requireRestaurantOwner } from '../../auth/jwt.js'
 import { liveCategories, mapFood } from '../../services/menu.js'
@@ -70,8 +71,8 @@ const CONFIG = {
   twilioEnabled: SMSAPI_ENABLED,
   appAmplitudeApiKey: '',
   customerAppSentryUrl: '',
-  termsAndConditions: 'https://jedzto.pl/terms',
-  privacyPolicy: 'https://jedzto.pl/privacy',
+  termsAndConditions: 'https://jedzto.com/regulamin',
+  privacyPolicy: 'https://jedzto.com/polityka-prywatno%C5%9Bci',
   // Never expose the phone bypass / test codes to clients.
   testOtp: '',
   skipMobileVerification: NODE_ENV !== 'production',
@@ -488,6 +489,13 @@ export const queries = {
       image: restaurants[0]?.image || '',
       shopType: 'restaurant'
     }))
+  },
+
+  tasteCategories: async (_p, _a, ctx) => {
+    assertPublicAccess(ctx)
+    return TasteCategory.find({ isActive: true })
+      .sort({ sortOrder: 1, name: 1 })
+      .lean()
   },
 
   banners: (_p, _a, ctx) => {

@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { IUserResponse } from '@/lib/utils/interfaces/users.interface';
+import { formatDate, formatDateTime } from '@/lib/utils/methods';
 import { useTranslations } from 'next-intl';
 
 interface PersonalInfoProps {
@@ -44,9 +45,7 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({ user }) => {
         </div>
         <div>
           <h4 className="text-base font-semibold">{t('Last Login')}</h4>
-          <p>
-            {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'N/A'}
-          </p>
+          <p>{formatDateTime(user.lastLogin, 'pl-PL', undefined, 'N/A')}</p>
         </div>
         <div>
           <h4 className="text-base font-semibold">
@@ -62,19 +61,11 @@ const PersonalInfo: React.FC<PersonalInfoProps> = ({ user }) => {
         </div>
         <div>
           <h4 className="text-base font-semibold">{t('Member Since')}</h4>
-          <p>
-            {user.createdAt
-              ? new Date(Number(user.createdAt)).toLocaleDateString()
-              : ''}
-          </p>
+          <p>{formatDate(user.createdAt)}</p>
         </div>
         <div>
           <h4 className="text-base font-semibold">{t('Last Updated')}</h4>
-          <p>
-            {user.updatedAt
-              ? new Date(Number(user.updatedAt)).toLocaleString()
-              : 'N/A'}
-          </p>
+          <p>{formatDateTime(user.updatedAt, 'pl-PL', undefined, 'N/A')}</p>
         </div>
         <div>
           <h4 className="text-base font-semibold">
