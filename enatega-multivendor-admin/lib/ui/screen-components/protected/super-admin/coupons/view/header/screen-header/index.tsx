@@ -1,31 +1,16 @@
-//Components
-import HeaderText from '@/lib/ui/useable-components/header-text';
-import TextIconClickable from '@/lib/ui/useable-components/text-icon-clickable';
-
-//Interfaces
-import { ICouponScreenHeaderProps } from '@/lib/utils/interfaces/coupons.interface';
-
-//Icons
-import { faAdd } from '@fortawesome/free-solid-svg-icons';
-import { useTranslations } from 'next-intl';
+import { ICouponScreenHeaderProps } from '@/lib/utils/interfaces/coupons.interface'
+import { PageHeader } from '@/lib/ui/screen-components/protected/layout/shared'
+import { useTranslations } from 'next-intl'
 
 export default function CouponScreenHeader({
   handleButtonClick,
 }: ICouponScreenHeaderProps) {
-  // Hooks
-  const t = useTranslations();
+  const t = useTranslations()
   return (
-    <div className="sticky top-0 z-10 w-full flex-shrink-0 bg-white dark:bg-dark-950 p-3 shadow-sm">
-      <div className="flex w-full justify-between">
-        <HeaderText text={t('Coupons')} />
-        <TextIconClickable
-          className="rounded border dark:border-dark-600  border-gray-300 bg-black text-white sm:w-auto"
-          icon={faAdd}
-          iconStyles={{ color: 'white' }}
-          onClick={handleButtonClick}
-          title={t('Add Coupon')}
-        />
-      </div>
-    </div>
-  );
+    <PageHeader
+      title={t('Coupons')}
+      addLabel={t('Add Coupon')}
+      onAdd={handleButtonClick}
+    />
+  )
 }

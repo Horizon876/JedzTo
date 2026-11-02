@@ -1326,6 +1326,9 @@ export const typeDefs = `#graphql
     onlineGross: Float!
     cashGross: Float!
     orderCount: Int!
+    commissionRate: Float!
+    platformCommission: Float!
+    restaurantNet: Float!
     topItems: [PopularItem!]
     byWeekday: [WeekdaySales!]
   }

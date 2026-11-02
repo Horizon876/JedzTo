@@ -1,79 +1,47 @@
-// Core
-import {
-  LazyQueryResultTuple,
-  QueryResult,
-  useLazyQuery,
-  useMutation,
-  useQuery,
-} from '@apollo/client';
-import { useContext, useEffect, useMemo, useState } from 'react';
+'use client'
 
-// Prime React
-import { FilterMatchMode } from 'primereact/api';
+import { useContext, useEffect, useMemo, useState } from 'react'
+import { useMutation } from '@apollo/client'
+import { useTranslations } from 'next-intl'
 
-// Interface and Types
+import { FoodsContext } from '@/lib/context/restaurant/foods.context'
+import { RestaurantLayoutContext } from '@/lib/context/restaurant/layout-restaurant.context'
+import { useQueryGQL } from '@/lib/hooks/useQueryQL'
+import useToast from '@/lib/hooks/useToast'
 import {
-  IActionMenuItem,
-  IAddon,
-  IAddonByRestaurantResponse,
-  IDropdownSelectItem,
+  DELETE_FOOD,
+  GET_FOODS_BY_RESTAURANT_ID,
+  UPDATE_FOOD_OUT_OF_STOCK,
+} from '@/lib/api/graphql'
+import {
   IFood,
   IFoodByRestaurantResponse,
   IFoodNew,
   IQueryResult,
-  ISubCategoryResponse,
-  ISubCategorySingleResponse,
   IVariationForm,
-} from '@/lib/utils/interfaces';
+} from '@/lib/utils/interfaces'
+import Image from '@/lib/ui/useable-components/safe-image'
+import CustomInputSwitch from '@/lib/ui/useable-components/custom-input-switch'
+import CustomDialog from '@/lib/ui/useable-components/delete-dialog'
+import CustomTextField from '@/lib/ui/useable-components/input-field'
 
-// Components
-import Table from '@/lib/ui/useable-components/table';
-import FoodsTableHeader from '../header/table-header';
-import { FOODS_TABLE_COLUMNS } from '@/lib/ui/useable-components/table/columns/foods-columns';
-
-// Utilities and Data
-import CustomDialog from '@/lib/ui/useable-components/delete-dialog';
-
-// Context
-import { useQueryGQL } from '@/lib/hooks/useQueryQL';
-import { FoodsContext } from '@/lib/context/restaurant/foods.context';
-import { RestaurantLayoutContext } from '@/lib/context/restaurant/layout-restaurant.context';
-
-// Hooks
-import useToast from '@/lib/hooks/useToast';
-
-// GraphQL
-import { DELETE_FOOD } from '@/lib/api/graphql';
-import {
-  GET_ADDONS_BY_RESTAURANT_ID,
-  GET_FOODS_BY_RESTAURANT_ID,
-} from '@/lib/api/graphql/queries';
-import {
-  GET_SUBCATEGORIES,
-  GET_SUBCATEGORY,
-} from '@/lib/api/graphql/queries/sub-categories';
-import { useTranslations } from 'next-intl';
+function priceOf(food: IFoodNew) {
+  const p = food.variations?.[0]?.price
+  return p != null ? `${Number(p).toFixed(2)} zł` : '—'
+}
 
 export default function FoodsMain() {
-  // Context
-  const { restaurantLayoutContextData } = useContext(RestaurantLayoutContext);
-  const { onSetFoodContextData, onFoodFormVisible } = useContext(FoodsContext);
-  const restaurantId = restaurantLayoutContextData?.restaurantId || '';
+  const t = useTranslations()
+  const { showToast } = useToast()
+  const { restaurantLayoutContextData } = useContext(RestaurantLayoutContext)
+  const { onSetFoodContextData, onFoodFormVisible } = useContext(FoodsContext)
+  const restaurantId = restaurantLayoutContextData?.restaurantId || ''
 
-  // Hooks
-  const t = useTranslations();
-  const { showToast } = useToast();
+  const [foodItems, setFoodItems] = useState<IFoodNew[]>([])
+  const [search, setSearch] = useState('')
+  const [deleteId, setDeleteId] = useState({ id: '', categoryId: '' })
+  const [stockLoadingId, setStockLoadingId] = useState('')
 
-  // State - Table
-  const [foodItems, setFoodItems] = useState<IFoodNew[] | null>(null);
-  const [deleteId, setDeleteId] = useState({ id: '', categoryId: '' });
-  const [selectedProducts, setSelectedProducts] = useState<IFoodNew[]>([]);
-  const [globalFilterValue, setGlobalFilterValue] = useState('');
-  const [filters, setFilters] = useState({
-    global: { value: '' as string | null, matchMode: FilterMatchMode.CONTAINS },
-  });
-
-  // Query
   const {
     data: foodsData,
     loading,
@@ -84,210 +52,225 @@ export default function FoodsMain() {
     {
       fetchPolicy: 'cache-and-network',
       enabled: !!restaurantId,
-      onError: onErrorFetchFoodsByRestaurant,
     }
-  ) as IQueryResult<IFoodByRestaurantResponse | undefined, undefined>;
+  ) as IQueryResult<IFoodByRestaurantResponse | undefined, undefined>
 
-  const { data } = useQueryGQL(
-    GET_ADDONS_BY_RESTAURANT_ID,
-    { id: restaurantId },
-    {
-      fetchPolicy: 'cache-and-network',
-      enabled: !!restaurantId,
-    }
-  ) as IQueryResult<IAddonByRestaurantResponse | undefined, undefined>;
-  const [fetchSubcategory, { loading: subCategoriesLoading }] = useLazyQuery(
-    GET_SUBCATEGORY,
-    {
-      fetchPolicy: 'cache-and-network',
-      refetchWritePolicy: 'overwrite',
-      onError(err) {
-        console.error('Subcategory fetch failed:', err);
-      },
-    }
-  ) as LazyQueryResultTuple<
-    ISubCategorySingleResponse | undefined,
-    { id: string }
-  >;
+  const [deleteFood, { loading: deleting }] = useMutation(DELETE_FOOD, {
+    onCompleted: () => {
+      showToast({
+        type: 'success',
+        title: t('Delete Food'),
+        message: t('Food has been deleted successfully'),
+      })
+      setDeleteId({ id: '', categoryId: '' })
+      refetch()
+    },
+  })
 
-  const { data: sub_categories } = useQuery(
-    GET_SUBCATEGORIES
-  ) as QueryResult<ISubCategoryResponse>;
-
-  //Mutation
-  const [deleteFood, { loading: mutationLoading }] = useMutation(DELETE_FOOD, {
+  const [updateFoodOutOfStock] = useMutation(UPDATE_FOOD_OUT_OF_STOCK, {
     refetchQueries: [
       {
         query: GET_FOODS_BY_RESTAURANT_ID,
         variables: { id: restaurantId },
       },
     ],
-    onCompleted: () => {
+    onCompleted: () => setStockLoadingId(''),
+    onError: () => {
+      setStockLoadingId('')
       showToast({
-        type: 'success',
-        title: t('Delete Food'),
-        message: `${t('Food has been deleted successfully')}.`,
-      });
-      setDeleteId({ id: '', categoryId: '' });
-      refetch();
+        type: 'error',
+        title: t('Food Stock'),
+        message: t('Food Stock status failed'),
+      })
     },
-  });
+  })
 
-  // Memoized Data
-  const addons = useMemo(
-    () =>
-      data?.restaurant?.addons.map((addon: IAddon) => {
-        return { label: addon.title, code: addon._id };
-      }),
-    [data?.restaurant?.addons]
-  );
-
-  // Handlers
-  const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const _filters = { ...filters };
-    _filters['global'].value = value;
-    setFilters(_filters);
-    setGlobalFilterValue(value);
-  };
-  // Restaurant Profile Complete
-  function onFetchFoodsByRestaurantCompleted() {
-    if (!foodsData) return;
-    const refined_food_items: IFoodNew[] = [];
-    foodsData.restaurant.categories.map((ctg) =>
-      ctg.foods.map((fd: IFood) => {
-        return refined_food_items.push({
+  useEffect(() => {
+    if (!foodsData?.restaurant?.categories) return
+    const refined: IFoodNew[] = []
+    foodsData.restaurant.categories.forEach((ctg) => {
+      ctg.foods.forEach((fd: IFood) => {
+        refined.push({
           __typename: fd.__typename,
           _id: fd._id,
           description: fd.description,
           image: fd.image,
           isActive: fd.isActive,
           isOutOfStock: fd.isOutOfStock,
-          subCategory: {
-            code: fd.subCategory,
-            label: sub_categories?.subCategories.find(
-              (sub_ctg) => sub_ctg._id === fd.subCategory
-            )?.title,
-          },
-          category: {
-            code: ctg._id,
-            label: ctg.title,
-          },
+          subCategory: { code: fd.subCategory || '', label: '' },
+          category: { code: ctg._id, label: ctg.title },
           title: fd.title,
           ingredients: fd.ingredients || [],
           variations: fd.variations,
-        });
+        })
       })
-    );
-    setFoodItems(refined_food_items);
-  }
-  // Restaurant Zone Info Error
-  function onErrorFetchFoodsByRestaurant() {
-    showToast({
-      type: 'error',
-      title: t('Foods Fetch'),
-      message: t('Foods fetch failed'),
-      duration: 2500,
-    });
-  }
+    })
+    setFoodItems(refined)
+  }, [foodsData])
 
-  // Constants
-  const menuItems: IActionMenuItem<IFoodNew>[] = [
-    {
-      label: t('Edit'),
-      command: async (data?: IFoodNew) => {
-        if (subCategoriesLoading) {
-          return;
-        }
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return foodItems
+    return foodItems.filter(
+      (f) =>
+        f.title?.toLowerCase().includes(q) ||
+        f.category?.label?.toLowerCase().includes(q)
+    )
+  }, [foodItems, search])
 
-        const sub_ctg_id = foodsData?.restaurant.categories.flatMap((fd) =>
-          fd.foods.filter((_fd) => _fd._id === data?._id)
-        )[0].subCategory;
+  const grouped = useMemo(() => {
+    const map = new Map<string, IFoodNew[]>()
+    for (const item of filtered) {
+      const key = item.category?.label || t('Category')
+      const list = map.get(key) || []
+      list.push(item)
+      map.set(key, list)
+    }
+    return [...map.entries()]
+  }, [filtered, t])
 
-        await fetchSubcategory({
-          variables: {
-            id: sub_ctg_id || '',
-          },
-        });
+  const openEdit = (data: IFoodNew) => {
+    const variations =
+      (data.variations?.map(({ discounted, ...variation }) => ({
+        ...variation,
+        discounted,
+        addons: (variation.addons || []).map((addonId: string) => ({
+          code: addonId,
+          label: addonId,
+        })),
+      })) as IVariationForm[]) || []
 
-        if (data && !subCategoriesLoading) {
-          let _variation = null;
-          const _variations =
-            (data?.variations?.map(({ discounted, ...variation }) => {
-              _variation = { ...variation };
-              // delete _variation.__typename;
-
-              return {
-                ..._variation,
-                discounted: discounted,
-                addons: variation?.addons?.map((addonId) => {
-                  return (
-                    addons?.find(
-                      (addon: IDropdownSelectItem) => addon.code === addonId
-                    ) ?? ({} as IDropdownSelectItem)
-                  );
-                }),
-              };
-            }) as IVariationForm[]) ?? ([] as IVariationForm[]);
-
-          if (!subCategoriesLoading) {
-            await onSetFoodContextData({
-              food: {
-                _id: data._id ?? null,
-                data: data,
-                variations: _variations,
-              },
-              isEditing: true,
-            });
-            onFoodFormVisible(true);
-          }
-        }
+    onSetFoodContextData({
+      food: {
+        _id: data._id,
+        data,
+        variations,
       },
-    },
-    {
-      label: t('Delete'),
-      command: (data?: IFoodNew) => {
-        if (data) {
-          setDeleteId({ id: data._id, categoryId: data?.category?.code ?? '' });
-        }
-      },
-    },
-  ];
-
-  // Use Effect
-  useEffect(() => {
-    onFetchFoodsByRestaurantCompleted();
-  }, [foodsData?.restaurant.categories]);
+      isEditing: true,
+    })
+    onFoodFormVisible(true)
+  }
 
   return (
-    <div className="p-3">
-      <Table
-        header={
-          <FoodsTableHeader
-            globalFilterValue={globalFilterValue}
-            onGlobalFilterChange={onGlobalFilterChange}
-          />
-        }
-        data={foodItems || []}
-        filters={filters}
-        setSelectedData={setSelectedProducts}
-        selectedData={selectedProducts}
-        loading={loading}
-        columns={FOODS_TABLE_COLUMNS({ menuItems })}
-      />
+    <div className="panel-list-screen">
+      <div className="mb-4 max-w-md">
+        <CustomTextField
+          type="text"
+          name="menu-search"
+          showLabel={false}
+          placeholder={t('Keyword Search')}
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setSearch(e.target.value)
+          }
+        />
+      </div>
+
+      {loading && !foodItems.length ? (
+        <p className="text-[var(--panel-muted)]">{t('Loading')}…</p>
+      ) : null}
+
+      {!loading && !filtered.length ? (
+        <p className="text-[var(--panel-muted)]">{t('NoData')}</p>
+      ) : null}
+
+      <div className="flex flex-col gap-6">
+        {grouped.map(([category, items]) => (
+          <section key={category}>
+            <h3 className="mb-2 mt-0 text-xs font-bold uppercase tracking-wide text-[var(--panel-muted)]">
+              {category}
+            </h3>
+            <div className="overflow-hidden rounded-xl border border-[var(--panel-border)] bg-white">
+              {items.map((item) => (
+                <div
+                  key={item._id}
+                  className="flex items-center gap-3 border-b border-[var(--panel-border)] px-3 py-3 last:border-b-0"
+                >
+                  <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-[#F5F7FA]">
+                    {item.image ? (
+                      <Image
+                        src={item.image}
+                        width={56}
+                        height={56}
+                        alt={item.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 bg-transparent p-0 text-left"
+                    onClick={() => openEdit(item)}
+                  >
+                    <div className="truncate font-semibold text-[var(--panel-text)]">
+                      {item.title}
+                    </div>
+                    <div className="text-sm text-[var(--panel-muted)]">
+                      {priceOf(item)}
+                    </div>
+                  </button>
+                  <div className="flex flex-col items-center gap-1">
+                    <span
+                      className={`text-[10px] font-bold uppercase ${
+                        item.isOutOfStock
+                          ? 'text-[#FF9F0A]'
+                          : 'text-[#30D158]'
+                      }`}
+                    >
+                      {item.isOutOfStock ? t('OutOfStock') : t('Available')}
+                    </span>
+                    <CustomInputSwitch
+                      loading={stockLoadingId === item._id}
+                      isActive={!item.isOutOfStock}
+                      onChange={async () => {
+                        setStockLoadingId(item._id)
+                        await updateFoodOutOfStock({
+                          variables: {
+                            id: item._id,
+                            categoryId: item.category?.code,
+                            restaurant: restaurantId,
+                          },
+                        })
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 text-sm font-semibold text-[var(--primary-color)]"
+                    onClick={() => openEdit(item)}
+                  >
+                    {t('Edit')}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 text-sm font-semibold text-red-500"
+                    onClick={() =>
+                      setDeleteId({
+                        id: item._id,
+                        categoryId: item.category?.code || '',
+                      })
+                    }
+                  >
+                    {t('Delete')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+
       <CustomDialog
-        loading={mutationLoading}
+        loading={deleting}
         visible={!!deleteId?.id}
-        onHide={() => {
-          setDeleteId({ id: '', categoryId: '' });
-        }}
+        onHide={() => setDeleteId({ id: '', categoryId: '' })}
         onConfirm={() => {
           deleteFood({
             variables: { ...deleteId, restaurant: restaurantId },
-          });
+          })
         }}
         message={t('Are you sure you want to delete this option?')}
       />
     </div>
-  );
+  )
 }

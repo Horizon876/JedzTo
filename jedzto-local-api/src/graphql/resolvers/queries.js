@@ -1073,17 +1073,24 @@ export const queries = {
     requireRestaurantOwner(ctx, restaurantId)
     const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 864e5)
     const toDate = to ? new Date(to) : new Date()
+    const restaurant = await Restaurant.findById(restaurantId)
+      .select('commissionRate')
+      .lean()
+    const fallbackRate = Number(restaurant?.commissionRate ?? 10)
     const orders = await Order.find({
       restaurantId,
       createdAt: { $gte: fromDate, $lte: toDate },
       orderStatus: { $nin: ['CANCELLED', 'REJECTED'] },
       paymentStatus: { $ne: 'REFUNDED' }
     })
-      .select('orderAmount paymentMethod createdAt items.title items.quantity')
+      .select(
+        'orderAmount paymentMethod createdAt items.title items.quantity platformCommission platformCommissionRate'
+      )
       .lean()
 
     let onlineGross = 0
     let cashGross = 0
+    let platformCommission = 0
     const byWeekday = Array.from({ length: 7 }, (_, weekday) => ({
       weekday,
       label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][weekday],
@@ -1097,6 +1104,15 @@ export const queries = {
       const isCash = String(o.paymentMethod || 'COD').toUpperCase() === 'COD'
       if (isCash) cashGross += amount
       else onlineGross += amount
+      const rate =
+        o.platformCommissionRate != null
+          ? Number(o.platformCommissionRate)
+          : fallbackRate
+      const commission =
+        o.platformCommission != null
+          ? Number(o.platformCommission)
+          : Math.round(((amount * rate) / 100) * 100) / 100
+      platformCommission += commission
       const wd = new Date(o.createdAt).getDay()
       byWeekday[wd].gross += amount
       byWeekday[wd].orderCount += 1
@@ -1109,15 +1125,21 @@ export const queries = {
     }
 
     const topItems = [...itemMap.values()].sort((a, b) => b.count - a.count).slice(0, 10)
+    const totalGross = Math.round((onlineGross + cashGross) * 100) / 100
+    platformCommission = Math.round(platformCommission * 100) / 100
+    const restaurantNet = Math.round((totalGross - platformCommission) * 100) / 100
 
     return {
       restaurantId: String(restaurantId),
       from: fromDate.toISOString(),
       to: toDate.toISOString(),
-      totalGross: Math.round((onlineGross + cashGross) * 100) / 100,
+      totalGross,
       onlineGross: Math.round(onlineGross * 100) / 100,
       cashGross: Math.round(cashGross * 100) / 100,
       orderCount: orders.length,
+      commissionRate: fallbackRate,
+      platformCommission,
+      restaurantNet,
       topItems,
       byWeekday: byWeekday.map((w) => ({ ...w, gross: Math.round(w.gross * 100) / 100 }))
     }

@@ -16,6 +16,7 @@ import { DataTableRowClickEvent } from 'primereact/datatable';
 import OrderDetailModal from '@/lib/ui/useable-components/popup-menu/order-details-modal';
 import { useTranslations } from 'next-intl';
 import useDebounce from '@/lib/hooks/useDebounce';
+import { PageTabs } from '@/lib/ui/screen-components/protected/layout/shared';
 
 export default function OrderVendorMain() {
   // Hooks
@@ -92,8 +93,32 @@ export default function OrderVendorMain() {
     return null;
   }
 
+  const statusTabs = useMemo(
+    () => [
+      { id: 'ALL', label: t('All') },
+      { id: 'PENDING', label: t('PENDING') },
+      { id: 'SEEKING_RIDER', label: t('SEEKING_RIDER') },
+      { id: 'ACCEPTED', label: t('ACCEPTED') },
+      { id: 'ASSIGNED', label: t('ASSIGNED') },
+      { id: 'PICKED', label: t('PICKED') },
+      { id: 'DELIVERED', label: t('DELIVERED') },
+      { id: 'CANCELLED', label: t('CANCELLED') },
+    ],
+    [t]
+  )
+
+  const activeTabId =
+    selectedActions.length === 1 ? selectedActions[0] : 'ALL'
+
   return (
-    <div className="p-3">
+    <div className="panel-list-screen">
+      <PageTabs
+        tabs={statusTabs}
+        activeId={activeTabId}
+        onChange={(id) =>
+          setSelectedActions(id === 'ALL' ? [] : [id])
+        }
+      />
       <OrderTableHeader
         selectedActions={selectedActions}
         setSelectedActions={setSelectedActions}

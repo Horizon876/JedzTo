@@ -25,6 +25,7 @@ import OrderDetailModal from '@/lib/ui/useable-components/popup-menu/order-detai
 import DashboardDateFilter from '@/lib/ui/useable-components/date-filter';
 import OrderTable from '../order-table';
 import ApiErrorAlert from '@/lib/ui/useable-components/api-error-alert';
+import { PageTabs } from '@/lib/ui/screen-components/protected/layout/shared';
 // Prime React
 import { FilterMatchMode } from 'primereact/api';
 import { DataTableRowClickEvent } from 'primereact/datatable';
@@ -152,8 +153,32 @@ export default function OrderSuperAdminMain() {
     return tableData;
   }, [loading, tableData]);
 
+  const statusTabs = useMemo(
+    () => [
+      { id: 'ALL', label: t('All') },
+      { id: 'PENDING', label: t('PENDING') },
+      { id: 'SEEKING_RIDER', label: t('SEEKING_RIDER') },
+      { id: 'ACCEPTED', label: t('ACCEPTED') },
+      { id: 'ASSIGNED', label: t('ASSIGNED') },
+      { id: 'PICKED', label: t('PICKED') },
+      { id: 'DELIVERED', label: t('DELIVERED') },
+      { id: 'CANCELLED', label: t('CANCELLED') },
+    ],
+    [t]
+  )
+
+  const activeTabId =
+    selectedActions.length === 1 ? selectedActions[0] : 'ALL'
+
   return (
-    <div className="p-3 screen-container">
+    <div className="panel-list-screen">
+      <PageTabs
+        tabs={statusTabs}
+        activeId={activeTabId}
+        onChange={(id) =>
+          setSelectedActions(id === 'ALL' ? [] : [id])
+        }
+      />
       {
         <>
           <OrderSuperAdminTableHeader

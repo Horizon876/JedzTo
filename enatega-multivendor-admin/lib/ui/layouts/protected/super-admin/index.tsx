@@ -1,37 +1,20 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-'use client';
+'use client'
 
-// Core
-import { useContext, useEffect } from 'react';
-import { initialize, isFirebaseSupported } from '@/firebase';
-import { getToken, onMessage } from 'firebase/messaging';
+import { useEffect } from 'react'
+import { initialize, isFirebaseSupported } from '@/firebase'
+import { getToken, onMessage } from 'firebase/messaging'
+import { useApolloClient } from '@apollo/client'
 
-// Context
-import { LayoutContext } from '@/lib/context/global/layout.context';
-
-// Components
-import AppTopbar from '@/lib/ui/screen-components/protected/layout/super-admin-layout/app-bar';
-import SuperAdminSidebar from '@/lib/ui/screen-components/protected/layout/super-admin-layout/side-bar';
-
-// Interface
-import { IProvider, LayoutContextProps } from '@/lib/utils/interfaces';
-
-// Hooks
-import { useUserContext } from '@/lib/hooks/useUser';
-import { useConfiguration } from '@/lib/hooks/useConfiguration';
-
-// GraphQl
-import { UPLOAD_TOKEN } from '@/lib/api/graphql/queries/token';
-import { useApolloClient } from '@apollo/client';
+import { PanelShell } from '@/lib/ui/screen-components/protected/layout/shared'
+import { SUPER_ADMIN_MODULES } from '@/lib/utils/constants/panel-nav'
+import { IProvider } from '@/lib/utils/interfaces'
+import { useUserContext } from '@/lib/hooks/useUser'
+import { useConfiguration } from '@/lib/hooks/useConfiguration'
+import { UPLOAD_TOKEN } from '@/lib/api/graphql/queries/token'
 
 const Layout = ({ children }: IProvider) => {
-  // Context
-  const { isSuperAdminSidebarVisible } =
-    useContext<LayoutContextProps>(LayoutContext);
-
-  // Hooks
-  const client = useApolloClient();
-  const { user } = useUserContext();
+  const client = useApolloClient()
+  const { user } = useUserContext()
   const {
     FIREBASE_AUTH_DOMAIN,
     FIREBASE_KEY,
@@ -41,11 +24,10 @@ const Layout = ({ children }: IProvider) => {
     FIREBASE_APP_ID,
     FIREBASE_MEASUREMENT_ID,
     FIREBASE_VAPID_KEY,
-  } = useConfiguration();
+  } = useConfiguration()
 
-  // Side Effects
   useEffect(() => {
-    if (!user) return;
+    if (!user) return
 
     const initializeFirebase = async () => {
       if (await isFirebaseSupported()) {
@@ -57,81 +39,57 @@ const Layout = ({ children }: IProvider) => {
           FIREBASE_MSG_SENDER_ID,
           FIREBASE_APP_ID,
           FIREBASE_MEASUREMENT_ID,
-        });
+        })
 
-        if (!messaging) {
-          console.error('🔥 Firebase Messaging failed to initialize.');
-          return;
-        }
+        if (!messaging) return
 
-        // Request Notification Permission
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          return;
-        }
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') return
 
-        // Retrieve the token
         getToken(messaging, { vapidKey: FIREBASE_VAPID_KEY })
           .then((token) => {
-            if (!token) {
-              return;
-            }
-
-            localStorage.setItem('messaging-token', token);
-
+            if (!token) return
+            localStorage.setItem('messaging-token', token)
             client
               .mutate({
                 mutation: UPLOAD_TOKEN,
                 variables: { id: user?.userId, pushToken: token },
               })
-              .catch((error) => console.error('🔥 Upload token error:', error));
+              .catch(() => undefined)
           })
-          .catch((err) => console.error('❌ getToken error:', err));
+          .catch(() => undefined)
 
-        // Handle foreground notifications
         onMessage(messaging, (payload) => {
-          if (!payload.notification) return;
-          const { title, body } = payload.notification;
-
-          const notification = new Notification(title ?? '', {
-            body,
-          });
-
+          if (!payload.notification) return
+          const { title, body } = payload.notification
+          const notification = new Notification(title ?? '', { body })
           notification.onclick = () => {
-            window.open('/home', '_blank');
-          };
-        });
+            window.open('/home', '_blank')
+          }
+        })
       }
-    };
+    }
 
-    initializeFirebase();
-  }, [user]);
+    void initializeFirebase()
+  }, [user])
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/firebase-messaging-sw.js')
-        .catch((err) => console.error('❌ Service Worker Error:', err));
+        .catch(() => undefined)
     }
-  }, []);
+  }, [])
 
   return (
-    <div className="layout-main bg-white dark:bg-dark-950 dark:text-white">
-      <div className="layout-top-container">
-        <AppTopbar />
-      </div>
-      <div className="layout-main-container">
-        <div className="relative left-0 z-50">
-          <SuperAdminSidebar />
-        </div>
-        <div
-          className={`h-full overflow-y-auto max-w-[100vw] dark:bg-dark-950 ${isSuperAdminSidebarVisible ? 'w-[calc(100vw-260px)]' : 'w-full'}`}
-        >
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-};
+    <PanelShell
+      role="super-admin"
+      modules={SUPER_ADMIN_MODULES}
+      brandFallback="JedzTo Admin"
+    >
+      {children}
+    </PanelShell>
+  )
+}
 
-export default Layout;
+export default Layout
