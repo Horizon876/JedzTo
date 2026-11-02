@@ -637,13 +637,34 @@ export const authMutations = {
 
   Deactivate: async (_p, { isActive, email }, ctx) => {
     assertPublicAccess(ctx)
-    requireUser(ctx, ['SUPER_ADMIN'])
-    const user = await User.findOneAndUpdate(
-      { email: normalizeEmail(email) },
-      { isActive },
-      { new: true }
-    )
+    const auth = requireUser(ctx)
+    const normalized = normalizeEmail(email)
+
+    // Self-service account deletion (app "Usuń dane") or SUPER_ADMIN by email.
+    let user
+    if (auth.role === 'SUPER_ADMIN' && normalized) {
+      user = await User.findOne({ email: normalized })
+    } else {
+      user = await User.findById(auth.userId)
+      if (user && normalized && normalizeEmail(user.email) !== normalized) {
+        throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+      }
+    }
     if (!user) throw new GraphQLError('User not found')
+
+    // Hard-delete from Mongo when deactivating — GDPR wipe, not soft flag.
+    if (isActive === false) {
+      const shape = profileShape(user)
+      shape.isActive = false
+      await User.deleteOne({ _id: user._id })
+      return shape
+    }
+
+    if (auth.role !== 'SUPER_ADMIN') {
+      throw new GraphQLError('FORBIDDEN', { extensions: { code: 'FORBIDDEN' } })
+    }
+    user.isActive = true
+    await user.save()
     return profileShape(user)
   }
 }
