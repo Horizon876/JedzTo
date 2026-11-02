@@ -52,12 +52,23 @@ export const SHOW_ALL_RESTAURANTS = process.env.SHOW_ALL_RESTAURANTS !== '0'
 export const LOCAL_API_OPEN =
   NODE_ENV === 'production' ? false : process.env.LOCAL_API_OPEN !== '0'
 
-// When unset, phone OTP stays fixed at 123456 (UI + logs) until an SMS
-// gateway is connected. Set SMS_GATEWAY_ENABLED=1 for random codes.
-export const SMS_GATEWAY_ENABLED = process.env.SMS_GATEWAY_ENABLED === '1'
+// SMSAPI.pl — single SMS for phone OTP. Token stays in env only.
+export const SMSAPI_TOKEN = String(process.env.SMSAPI_TOKEN || '').trim()
+export const SMSAPI_FROM = String(process.env.SMSAPI_FROM || 'Test').trim() || 'Test'
+// SMSAPI_TEST=1 → API accepts the request but does not deliver (dry run).
+export const SMSAPI_TEST = process.env.SMSAPI_TEST === '1'
+export const SMSAPI_ENABLED = Boolean(SMSAPI_TOKEN)
+
+// When SMSAPI is configured (or SMS_GATEWAY_ENABLED=1), phone OTPs are random
+// 6-digit codes delivered by SMS. Bypass code in services/otp.js still works.
+export const SMS_GATEWAY_ENABLED =
+  process.env.SMS_GATEWAY_ENABLED === '0'
+    ? false
+    : process.env.SMS_GATEWAY_ENABLED === '1' || SMSAPI_ENABLED
 
 // Dev convenience: accept the well-known 123456 OTP for email/reset too.
-// Always off in production (password-reset takeover risk).
+// Always off in production (password-reset takeover risk). Phone bypass is
+// separate (BYPASS_OTP) and stays on in every environment.
 export const ALLOW_TEST_OTP =
   NODE_ENV === 'production' ? false : process.env.ALLOW_TEST_OTP !== '0'
 

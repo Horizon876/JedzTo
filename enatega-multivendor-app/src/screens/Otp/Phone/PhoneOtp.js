@@ -101,7 +101,7 @@ function PhoneOtp(props) {
             </View>
             <View>
               <OTPInputView
-                pinCount={6}
+                pinCount={8}
                 style={styles().otpInput}
                 codeInputFieldStyle={[
                   styles(currentTheme).otpBox,

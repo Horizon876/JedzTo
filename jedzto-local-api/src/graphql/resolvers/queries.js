@@ -26,7 +26,7 @@ import {
   upsertSettlementPreview,
   currentPeriodKey
 } from '../../services/settlements.js'
-import { STRIPE_PUBLISHABLE_KEY, ALLOW_TEST_OTP, SMS_GATEWAY_ENABLED, NODE_ENV } from '../../config.js'
+import { STRIPE_PUBLISHABLE_KEY, NODE_ENV, SMSAPI_ENABLED } from '../../config.js'
 import { containsFilter, clampPageSize, clampNonNegative } from '../../utils/sanitize.js'
 import { googleReviewsPayload } from '../../services/googleReviews.js'
 import {
@@ -67,16 +67,13 @@ const CONFIG = {
   currency: 'PLN',
   currencySymbol: 'zł',
   deliveryRate: 9.99,
-  twilioEnabled: false,
+  twilioEnabled: SMSAPI_ENABLED,
   appAmplitudeApiKey: '',
   customerAppSentryUrl: '',
   termsAndConditions: 'https://jedzto.pl/terms',
   privacyPolicy: 'https://jedzto.pl/privacy',
-  // Only ever exposed while the dev OTP bypass is active; in production the
-  // client must not be told any code at all.
-  // Fixed phone OTP is active until SMS_GATEWAY_ENABLED=1; expose it so
-  // staging/QA can confirm the current code. Empty once a real gateway is on.
-  testOtp: ALLOW_TEST_OTP || !SMS_GATEWAY_ENABLED ? '123456' : '',
+  // Never expose the phone bypass / test codes to clients.
+  testOtp: '',
   skipMobileVerification: NODE_ENV !== 'production',
   skipEmailVerification: NODE_ENV !== 'production',
   costType: 'fixed',
@@ -1084,16 +1081,17 @@ export const queries = {
       paymentStatus: { $ne: 'REFUNDED' }
     })
       .select(
-        'orderAmount paymentMethod createdAt items.title items.quantity platformCommission platformCommissionRate'
+        'orderAmount paymentMethod createdAt items.title items.quantity platformCommission platformCommissionRate taxationAmount'
       )
       .lean()
 
     let onlineGross = 0
     let cashGross = 0
     let platformCommission = 0
+    let cashFeeDue = 0
     const byWeekday = Array.from({ length: 7 }, (_, weekday) => ({
       weekday,
-      label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][weekday],
+      label: ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So'][weekday],
       gross: 0,
       orderCount: 0
     }))
@@ -1101,20 +1099,20 @@ export const queries = {
 
     for (const o of orders) {
       const amount = Number(o.orderAmount || 0)
+      const cashFee = Math.round(Math.max(0, Number(o.taxationAmount || 0)) * 100) / 100
+      const restaurantAmount = Math.round(Math.max(0, amount - cashFee) * 100) / 100
       const isCash = String(o.paymentMethod || 'COD').toUpperCase() === 'COD'
-      if (isCash) cashGross += amount
-      else onlineGross += amount
+      cashFeeDue += cashFee
+      if (isCash) cashGross += restaurantAmount
+      else onlineGross += restaurantAmount
       const rate =
         o.platformCommissionRate != null
           ? Number(o.platformCommissionRate)
           : fallbackRate
-      const commission =
-        o.platformCommission != null
-          ? Number(o.platformCommission)
-          : Math.round(((amount * rate) / 100) * 100) / 100
+      const commission = Math.round(((amount * rate) / 100) * 100) / 100
       platformCommission += commission
       const wd = new Date(o.createdAt).getDay()
-      byWeekday[wd].gross += amount
+      byWeekday[wd].gross += restaurantAmount
       byWeekday[wd].orderCount += 1
       for (const item of o.items || []) {
         const key = item.title || 'Item'
@@ -1127,7 +1125,10 @@ export const queries = {
     const topItems = [...itemMap.values()].sort((a, b) => b.count - a.count).slice(0, 10)
     const totalGross = Math.round((onlineGross + cashGross) * 100) / 100
     platformCommission = Math.round(platformCommission * 100) / 100
-    const restaurantNet = Math.round((totalGross - platformCommission) * 100) / 100
+    cashFeeDue = Math.round(cashFeeDue * 100) / 100
+    // Net to restaurant: turnover minus commission minus COD fees (platform-only).
+    const restaurantNet =
+      Math.round((totalGross - platformCommission - cashFeeDue) * 100) / 100
 
     return {
       restaurantId: String(restaurantId),

@@ -94,6 +94,8 @@ function Checkout(props) {
   const [voucherOtp, setVoucherOtp] = useState('')
   const [voucherOtpSent, setVoucherOtpSent] = useState(false)
   const [voucherPhoneVerified, setVoucherPhoneVerified] = useState(false)
+  const [voucherOtpCooldown, setVoucherOtpCooldown] = useState(0)
+  const voucherOtpSendTimesRef = useRef([])
   const tip = null
   const [paymentMode, setPaymentMode] = useState(null)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -175,7 +177,13 @@ function Checkout(props) {
 
   const [sendVoucherOtp, { loading: voucherOtpSending }] = useMutation(SEND_OTP_TO_PHONE, {
     onCompleted: () => {
+      const now = Date.now()
+      voucherOtpSendTimesRef.current = [
+        ...voucherOtpSendTimesRef.current.filter((ts) => now - ts < 60 * 60 * 1000),
+        now
+      ]
       setVoucherOtpSent(true)
+      setVoucherOtpCooldown(60)
     },
     onError: (error) => {
       FlashMessage({
@@ -220,9 +228,18 @@ function Checkout(props) {
     setVoucherOtp('')
     setVoucherOtpSent(false)
     setVoucherPhoneVerified(false)
+    setVoucherOtpCooldown(0)
     setVoucherPhone(profile?.phone || '')
     setVoucherName(profile?.name || '')
   }, [profile?.name, profile?.phone])
+
+  useEffect(() => {
+    if (voucherOtpCooldown <= 0) return undefined
+    const timer = setInterval(() => {
+      setVoucherOtpCooldown((s) => (s <= 1 ? 0 : s - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [voucherOtpCooldown])
 
   const openVoucherModal = useCallback(() => {
     setVoucherCode('')
@@ -246,8 +263,24 @@ function Checkout(props) {
       FlashMessage({ message: t('mobileErr1') })
       return
     }
+    const now = Date.now()
+    const recent = voucherOtpSendTimesRef.current.filter((ts) => now - ts < 60 * 60 * 1000)
+    voucherOtpSendTimesRef.current = recent
+    if (recent.length >= 3) {
+      FlashMessage({ message: t('resendOtpHourlyLimit') })
+      return
+    }
+    if (voucherOtpSent && voucherOtpCooldown > 0) return
     sendVoucherOtp({ variables: { phone } })
-  }, [hasFullPersonName, sendVoucherOtp, t, voucherName, voucherPhone])
+  }, [
+    hasFullPersonName,
+    sendVoucherOtp,
+    t,
+    voucherName,
+    voucherPhone,
+    voucherOtpSent,
+    voucherOtpCooldown
+  ])
 
   const handleVerifyVoucherOtp = useCallback(async () => {
     const phone = String(voucherPhone || '').trim()
@@ -261,7 +294,7 @@ function Checkout(props) {
       FlashMessage({ message: t('mobileErr1') })
       return
     }
-    if (!/^\d{6}$/.test(otp)) {
+    if (!/^\d{6,8}$/.test(otp)) {
       FlashMessage({ message: t('wrongOtp') })
       return
     }
@@ -548,12 +581,14 @@ function Checkout(props) {
           ]
         })
         clearCart()
+        // Without "Zapisz dane" only name/phone autofill is cleared — session stays for orders/favourites.
         void endEphemeralGuestAfterOrder()
       } else if (paymentMode === 'PAYPAL') {
         setIsPickup(false)
         props?.navigation.replace('Paypal', {
           _id: placed.orderId,
-          currency: configuration.currency
+          currency: configuration.currency,
+          order: placed
         })
       } else if (paymentMode === 'STRIPE') {
         setIsPickup(false)
@@ -562,7 +597,8 @@ function Checkout(props) {
           orderMongoId: placed._id,
           amount: placed.orderAmount,
           email: placed?.user?.email,
-          currency: configuration.currency
+          currency: configuration.currency,
+          order: placed
         })
       }
     } catch (err) {
@@ -665,19 +701,9 @@ function Checkout(props) {
       setTermsError(true)
       return false
     }
+    // Phone number is enough to place an order — OTP verification is only
+    // required when applying a discount code (voucher modal).
     if (!profile?.phone?.length) {
-      props?.navigation.navigate('PhoneNumber', { name: profile?.name, screen: 'Checkout' })
-      return false
-    }
-    // Local JedzTo API skips OTP; don't trap guests on PhoneNumber.
-    if (
-      profile?.phone?.length > 0 &&
-      !profile?.phoneIsVerified &&
-      !configuration?.skipMobileVerification
-    ) {
-      FlashMessage({
-        message: t('numberVerificationAlert')
-      })
       props?.navigation.navigate('PhoneNumber', { name: profile?.name, screen: 'Checkout' })
       return false
     }
@@ -1302,70 +1328,91 @@ function Checkout(props) {
 
             {!canApplyVoucher ? (
               <View style={{ gap: scale(12) }}>
-                <TextDefault bold textColor='#8E8E93' isRTL>
-                  {t('voucherVerifyPhoneFirst')}
-                </TextDefault>
-                <TextDefault bold textColor='#8E8E93' isRTL>
-                  {t('customerDetailsName')}
-                </TextDefault>
-                <TextInput
-                  placeholder={t('voucherFullNamePlaceholder')}
-                  placeholderTextColor='#8E8E93'
-                  value={voucherName}
-                  onChangeText={setVoucherName}
-                  autoComplete='name'
-                  textContentType='name'
-                  style={styles(currentTheme).modalInput}
-                />
-                <TextDefault bold textColor='#8E8E93' isRTL>
-                  {t('phoneNumber')}
-                </TextDefault>
-                <TextInput
-                  placeholder={t('phoneNumber')}
-                  placeholderTextColor='#8E8E93'
-                  value={voucherPhone}
-                  onChangeText={setVoucherPhone}
-                  keyboardType='phone-pad'
-                  autoComplete='tel'
-                  textContentType='telephoneNumber'
-                  style={styles(currentTheme).modalInput}
-                />
-                <TouchableOpacity
-                  disabled={!voucherPhone || !hasFullPersonName(voucherName) || voucherOtpSending}
-                  activeOpacity={0.85}
-                  onPress={handleSendVoucherOtp}
-                  style={[
-                    styles().button,
-                    (!voucherPhone || !hasFullPersonName(voucherName) || voucherOtpSending) &&
-                      styles().buttonDisabled
-                  ]}
-                >
-                  {!voucherOtpSending ? (
-                    <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
-                      {voucherOtpSent ? t('resendOtpBtn') : t('voucherSendCode')}
+                {!voucherOtpSent ? (
+                  <>
+                    <TextDefault bold textColor='#8E8E93' isRTL>
+                      {t('voucherVerifyPhoneFirst')}
                     </TextDefault>
-                  ) : (
-                    <Spinner backColor={'transparent'} spinnerColor='#fff' />
-                  )}
-                </TouchableOpacity>
-
-                {voucherOtpSent ? (
-                  <View style={{ gap: scale(8) }}>
+                    <TextDefault bold textColor='#8E8E93' isRTL>
+                      {t('customerDetailsName')}
+                    </TextDefault>
+                    <TextInput
+                      placeholder={t('voucherFullNamePlaceholder')}
+                      placeholderTextColor='#8E8E93'
+                      value={voucherName}
+                      onChangeText={setVoucherName}
+                      autoComplete='name'
+                      textContentType='name'
+                      style={styles(currentTheme).modalInput}
+                    />
+                    <TextDefault bold textColor='#8E8E93' isRTL>
+                      {t('phoneNumber')}
+                    </TextDefault>
+                    <TextInput
+                      placeholder={t('phoneNumber')}
+                      placeholderTextColor='#8E8E93'
+                      value={voucherPhone}
+                      onChangeText={setVoucherPhone}
+                      keyboardType='phone-pad'
+                      autoComplete='tel'
+                      textContentType='telephoneNumber'
+                      style={styles(currentTheme).modalInput}
+                    />
+                    <TouchableOpacity
+                      disabled={!voucherPhone || !hasFullPersonName(voucherName) || voucherOtpSending}
+                      activeOpacity={0.85}
+                      onPress={handleSendVoucherOtp}
+                      style={[
+                        styles().button,
+                        (!voucherPhone || !hasFullPersonName(voucherName) || voucherOtpSending) &&
+                          styles().buttonDisabled
+                      ]}
+                    >
+                      {!voucherOtpSending ? (
+                        <TextDefault textColor='#FFFFFF' style={styles().checkoutBtn} bold H5>
+                          {t('voucherSendCode')}
+                        </TextDefault>
+                      ) : (
+                        <Spinner backColor={'transparent'} spinnerColor='#fff' />
+                      )}
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
                     <TextDefault bold textColor='#8E8E93' isRTL>
                       {t('voucherEnterSmsCode')}
                     </TextDefault>
                     <TextInput
-                      placeholder='123456'
+                      placeholder='______'
                       placeholderTextColor='#8E8E93'
                       value={voucherOtp}
                       onChangeText={setVoucherOtp}
                       keyboardType='number-pad'
-                      maxLength={6}
+                      maxLength={8}
                       style={styles(currentTheme).modalInput}
                     />
                     <TouchableOpacity
+                      disabled={voucherOtpSending || voucherOtpCooldown > 0}
+                      activeOpacity={0.7}
+                      onPress={handleSendVoucherOtp}
+                      style={{ alignSelf: 'center', paddingVertical: scale(6) }}
+                    >
+                      <TextDefault
+                        H5
+                        bolder
+                        textColor={voucherOtpCooldown > 0 ? '#8E8E93' : '#00A8FF'}
+                        center
+                      >
+                        {voucherOtpCooldown > 0
+                          ? t('resendOtpIn', { seconds: voucherOtpCooldown })
+                          : voucherOtpSending
+                            ? '...'
+                            : t('resendOtpBtn')}
+                      </TextDefault>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       disabled={
-                        voucherOtp.length !== 6 ||
+                        (voucherOtp.length !== 6 && voucherOtp.length !== 8) ||
                         !hasFullPersonName(voucherName) ||
                         voucherOtpVerifying ||
                         voucherUserUpdating
@@ -1374,7 +1421,7 @@ function Checkout(props) {
                       onPress={handleVerifyVoucherOtp}
                       style={[
                         styles().button,
-                        (voucherOtp.length !== 6 ||
+                        ((voucherOtp.length !== 6 && voucherOtp.length !== 8) ||
                           !hasFullPersonName(voucherName) ||
                           voucherOtpVerifying ||
                           voucherUserUpdating) &&
@@ -1389,8 +1436,8 @@ function Checkout(props) {
                         <Spinner backColor={'transparent'} spinnerColor='#fff' />
                       )}
                     </TouchableOpacity>
-                  </View>
-                ) : null}
+                  </>
+                )}
               </View>
             ) : (
               <View style={{ gap: scale(8) }}>

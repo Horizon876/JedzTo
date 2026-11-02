@@ -15,8 +15,9 @@ import {
   signUserToken,
   verifyToken
 } from '../../auth/jwt.js'
-import { MIN_PASSWORD_LENGTH } from '../../config.js'
+import { MIN_PASSWORD_LENGTH, SMSAPI_ENABLED } from '../../config.js'
 import { issueOtp, consumeOtp, OTP_PURPOSE } from '../../services/otp.js'
+import { sendSms, buildOtpSmsMessage } from '../../services/smsapi.js'
 import { verifySocialIdentity } from '../../services/socialAuth.js'
 import {
   assertPhoneClaimAllowed,
@@ -427,11 +428,32 @@ export const authMutations = {
     return { result: true }
   },
 
-  sendOtpToPhoneNumber: (_p, { phone }, ctx) => {
+  sendOtpToPhoneNumber: async (_p, { phone }, ctx) => {
     assertPublicAccess(ctx)
-    const code = issueOtp(OTP_PURPOSE.PHONE, String(phone || '').trim())
-    // TODO(production): send via the SMS provider instead of logging.
-    if (code) console.log(`[OTP phone ${phone}] => ${code}`)
+    const trimmed = String(phone || '').trim()
+    const code = issueOtp(OTP_PURPOSE.PHONE, trimmed)
+    // Throttled / hourly cap — still return true so callers cannot probe.
+    if (!code) return { result: true }
+
+    if (SMSAPI_ENABLED) {
+      const sent = await sendSms({
+        to: trimmed,
+        message: buildOtpSmsMessage(code)
+      })
+      if (!sent.ok) {
+        console.error(
+          `[SMSAPI] send failed phone=${trimmed} error=${sent.error || '?'} ${sent.message || ''}`
+        )
+      } else {
+        console.log(
+          `[SMSAPI] sent phone=${trimmed} id=${sent.id || '-'} status=${sent.status || '-'}`
+        )
+      }
+      return { result: true }
+    }
+
+    // No gateway configured (local/dev): keep code in logs only.
+    console.log(`[OTP phone ${trimmed}] => ${code}`)
     return { result: true }
   },
 

@@ -51,3 +51,11 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: SMSAPI_TOKEN
+        sync: false
+      - key: SMSAPI_FROM
+        value: Test
+      - key: SMSAPI_TEST
+        value: '0'
+      - key: SMS_GATEWAY_ENABLED
+        value: '1'

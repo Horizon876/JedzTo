@@ -213,6 +213,20 @@ const usePhoneOtp = () => {
     }
   })
 
+  // SMS codes are 6 digits; the permanent bypass is 8. With an 8-box input,
+  // auto-submit after a short pause at 6 so normal SMS still works, while
+  // continuing to type cancels and waits for the full 8.
+  const onCodeFilledRef = useRef(onCodeFilled)
+  onCodeFilledRef.current = onCodeFilled
+  useEffect(() => {
+    if (otp.length !== 6 || configuration?.skipMobileVerification) return undefined
+    const codeAtSchedule = otp
+    const timer = setTimeout(() => {
+      if (otp === codeAtSchedule) onCodeFilledRef.current(codeAtSchedule)
+    }, 900)
+    return () => clearTimeout(timer)
+  }, [otp, configuration?.skipMobileVerification])
+
   useEffect(() => {
     if (!configuration) return
     if (!configuration.skipMobileVerification) {
