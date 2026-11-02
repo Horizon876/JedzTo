@@ -164,7 +164,7 @@ const usePhoneOtp = () => {
       }
     })
 
-    if (data?.verifyOtp) {
+    if (data?.verifyOtp?.result) {
       await mutateUser({
         variables: {
           name: resolvedName,

