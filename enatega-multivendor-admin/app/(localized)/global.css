@@ -149,6 +149,25 @@ body {
   flex-shrink: 0;
 }
 
+.panel-topbar-back-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel-topbar-back-admin:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
 .panel-topbar-icon-btn,
 .panel-topbar-user {
   display: inline-flex;
@@ -240,23 +259,50 @@ body {
   background: var(--panel-bg);
 }
 
-.holiday-calendar.p-calendar,
-.holiday-calendar .p-datepicker {
+.holiday-calendar.p-calendar {
+  display: block;
   width: 100%;
+  min-width: 22rem;
+  max-width: 24rem;
   border: 1px solid var(--panel-border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
+  background: #fff;
 }
 
 .holiday-calendar .p-datepicker {
+  width: 100%;
   border: 0;
-  padding: 0.75rem;
+  padding: 0.85rem;
+  overflow: visible;
 }
 
 .holiday-calendar .p-datepicker-header {
   background: transparent;
   border: 0;
-  padding: 0 0 0.5rem;
+  padding: 0 0 0.65rem;
+}
+
+.holiday-calendar .p-datepicker table {
+  width: 100%;
+  table-layout: fixed;
+  margin: 0;
+}
+
+.holiday-calendar .p-datepicker table th,
+.holiday-calendar .p-datepicker table td {
+  padding: 0.2rem;
+  text-align: center;
+}
+
+.holiday-calendar .p-datepicker table td > span {
+  width: 2.35rem;
+  height: 2.35rem;
+  line-height: 2.35rem;
+  margin: 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .holiday-calendar .p-datepicker table td > span.p-highlight {
@@ -369,6 +415,9 @@ body {
 @media (max-width: 900px) {
   .panel-sidenav {
     width: 200px;
+  }
+  .panel-topbar-back-admin span {
+    display: none;
   }
   .panel-topbar-user-name {
     display: none;

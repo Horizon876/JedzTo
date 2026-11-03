@@ -46,6 +46,7 @@ export default function SidebarItem({
   route,
   isParent,
   isClickable,
+  onClick,
 }: ISidebarMenuItem) {
   // States
   const [expandSubMenu, setExpandSubMenu] = useState(false);
@@ -88,6 +89,9 @@ export default function SidebarItem({
               : `bg-${bg_color} text-${text_color} hover:bg-secondary-color`
           } ${!expanded && 'hidden sm:flex'} dark:text-white `}
           onClick={() => {
+            if (typeof onClick === 'function') {
+              onClick();
+            }
             if (!isParent || isClickable) {
               router.push(route ?? '');
               if (window.innerWidth < 650) {

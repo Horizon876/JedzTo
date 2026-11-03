@@ -177,15 +177,15 @@ export default function HolidaysScreen() {
         {t('HolidaysDescription')}
       </p>
 
-      <section className="mb-8 overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white">
+      <section className="mb-8 rounded-2xl border border-[var(--panel-border)] bg-white">
         <div className="border-b border-[var(--panel-border)] bg-[#F8FAFC] px-5 py-3">
           <h2 className="m-0 text-sm font-bold uppercase tracking-wide text-[var(--panel-muted)]">
             {t('AddHoliday')}
           </h2>
         </div>
 
-        <div className="grid gap-5 p-5 lg:grid-cols-[minmax(260px,320px)_1fr]">
-          <div>
+        <div className="grid gap-6 p-5 xl:grid-cols-[minmax(22rem,24rem)_minmax(0,1fr)]">
+          <div className="min-w-0">
             <label className="mb-2 block text-sm font-semibold text-[var(--panel-text)]">
               {t('HolidayDate')}
             </label>
@@ -194,7 +194,7 @@ export default function HolidaysScreen() {
               onChange={(e) => setDate(e.value as Date)}
               dateFormat="dd.mm.yy"
               inline
-              className="holiday-calendar w-full"
+              className="holiday-calendar"
             />
           </div>
 

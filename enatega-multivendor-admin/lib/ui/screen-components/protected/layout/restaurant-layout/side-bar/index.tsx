@@ -127,6 +127,23 @@ export default function MakeSidebar() {
     },
   ];
 
+  if (user?.userType === 'ADMIN' || user?.userType === 'STAFF' || lastRoute) {
+    navBarItems.push({
+      text: lastRoute ? t(`Back to ${lastRoute}`) : t('BackToAdmin'),
+      route: '/general/stores',
+      isParent: true,
+      icon: faArrowLeft,
+      isClickable: true,
+      isLastItem: true,
+      onClick: () => {
+        const updatedStack = [...routeStack];
+        updatedStack.pop();
+        onUseLocalStorage('save', 'routeStack', JSON.stringify(updatedStack));
+        setRouteStack(updatedStack);
+      },
+    });
+  }
+
   return (
     <AdminSidebar>
       <div className="h-[92vh] overflow-y-auto overflow-x-hidden pr-2">

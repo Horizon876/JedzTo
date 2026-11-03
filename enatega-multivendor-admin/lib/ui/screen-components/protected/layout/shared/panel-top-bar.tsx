@@ -12,6 +12,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useApolloClient, useQuery } from '@apollo/client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
+  faArrowLeft,
   faChevronDown,
   faGlobe,
 } from '@fortawesome/free-solid-svg-icons'
@@ -79,9 +80,38 @@ export default function PanelTopBar({
         brandFallback
       : brandFallback
 
+  // Super-admin (or staff) who opened a restaurant panel — show way back.
+  const canReturnToAdmin = useMemo(() => {
+    if (role !== 'restaurant') return false
+    if (user?.userType === 'ADMIN' || user?.userType === 'STAFF') return true
+    try {
+      const stack = JSON.parse(
+        onUseLocalStorage('get', 'routeStack') || '[]'
+      ) as string[]
+      return Array.isArray(stack) && stack.includes('Admin')
+    } catch {
+      return false
+    }
+  }, [role, user?.userType])
+
   useEffect(() => {
     document.title = brandName
   }, [brandName])
+
+  const returnToAdmin = () => {
+    try {
+      const stack = JSON.parse(
+        onUseLocalStorage('get', 'routeStack') || '[]'
+      ) as string[]
+      if (Array.isArray(stack) && stack.length) {
+        stack.pop()
+        onUseLocalStorage('save', 'routeStack', JSON.stringify(stack))
+      }
+    } catch {
+      onUseLocalStorage('save', 'routeStack', JSON.stringify([]))
+    }
+    router.push('/general/stores')
+  }
 
   const onConfirmLogout = async () => {
     setUser(null)
@@ -139,6 +169,18 @@ export default function PanelTopBar({
         </nav>
 
         <div className="panel-topbar-actions">
+          {canReturnToAdmin ? (
+            <button
+              type="button"
+              className="panel-topbar-back-admin"
+              onClick={returnToAdmin}
+              title={t('BackToAdmin')}
+            >
+              <FontAwesomeIcon icon={faArrowLeft} />
+              <span>{t('BackToAdmin')}</span>
+            </button>
+          ) : null}
+
           <button
             type="button"
             className="panel-topbar-icon-btn"
@@ -177,6 +219,14 @@ export default function PanelTopBar({
           </button>
           <Menu
             model={[
+              ...(canReturnToAdmin
+                ? [
+                    {
+                      label: t('BackToAdmin'),
+                      command: () => returnToAdmin(),
+                    },
+                  ]
+                : []),
               {
                 label: t('Logout'),
                 command: () => setLogoutOpen(true),
