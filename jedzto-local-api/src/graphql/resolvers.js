@@ -649,26 +649,32 @@ async function ownerResponse(user) {
   }
 }
 
-const adminUserShape = (user) => ({
-  _id: id(user),
-  name: user.name,
-  email: user.email,
-  phone: user.phone || '',
-  createdAt: user.createdAt?.toISOString?.() || user.createdAt || null,
-  userType: mapUserType(user.role),
-  status: user.isActive === false ? 'inactive' : 'active',
-  lastLogin: null,
-  notes: '',
-  addresses: (user.addresses || []).map((a) => ({
-    _id: id(a) || String(a._id),
-    id: id(a) || String(a._id),
-    label: a.label,
-    deliveryAddress: a.deliveryAddress,
-    details: a.details,
-    location: a.location,
-    selected: a.selected
-  }))
-})
+const adminUserShape = (user) => {
+  const adminStatus = String(user.adminStatus || '').toLowerCase()
+  let status = 'active'
+  if (user.isActive === false || adminStatus === 'blocked') status = 'blocked'
+  else if (adminStatus === 'deactivate' || adminStatus === 'inactive') status = 'deactivate'
+  return {
+    _id: id(user),
+    name: user.name,
+    email: user.email,
+    phone: user.phone || '',
+    createdAt: user.createdAt?.toISOString?.() || user.createdAt || null,
+    userType: mapUserType(user.role),
+    status,
+    lastLogin: null,
+    notes: user.notes || '',
+    addresses: (user.addresses || []).map((a) => ({
+      _id: id(a) || String(a._id),
+      id: id(a) || String(a._id),
+      label: a.label,
+      deliveryAddress: a.deliveryAddress,
+      details: a.details,
+      location: a.location,
+      selected: a.selected
+    }))
+  }
+}
 
 const vendorShape = async (owner) => {
   const rows = await Restaurant.find({ ownerId: owner._id }).lean()
@@ -2122,6 +2128,70 @@ export const resolvers = {
       user.isActive = true
       await user.save()
       return profileShape(user)
+    },
+    deleteUser: async (_p, { id: userId }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN'])
+      const user = await User.findById(userId)
+      if (!user || user.role !== 'CUSTOMER') {
+        throw new GraphQLError('User not found', { extensions: { code: 'BAD_USER_INPUT' } })
+      }
+      const shape = adminUserShape(user)
+      await User.deleteOne({ _id: user._id })
+      return shape
+    },
+    updateUserStatus: async (_p, { id: userId, status, reason }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN'])
+      const next = String(status || '').toLowerCase().trim()
+      const user = await User.findById(userId)
+      if (!user || user.role !== 'CUSTOMER') {
+        throw new GraphQLError('User not found', { extensions: { code: 'BAD_USER_INPUT' } })
+      }
+      if (next === 'deactivate' || next === 'deleted' || next === 'delete') {
+        const shape = adminUserShape(user)
+        shape.status = 'deactivate'
+        await User.deleteOne({ _id: user._id })
+        return shape
+      }
+      if (next === 'blocked' || next === 'block') {
+        user.isActive = false
+        user.adminStatus = 'blocked'
+        if (reason) {
+          user.notes = [user.notes, `Block: ${reason}`].filter(Boolean).join('\n').slice(0, 2000)
+        }
+        await user.save()
+        return adminUserShape(user)
+      }
+      if (next === 'active' || next === 'activate' || next === 'unblock') {
+        user.isActive = true
+        user.adminStatus = 'active'
+        await user.save()
+        return adminUserShape(user)
+      }
+      throw new GraphQLError(`Unknown status: ${status}`, { extensions: { code: 'BAD_USER_INPUT' } })
+    },
+    updateUserNotes: async (_p, { id: userId, notes }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN'])
+      const user = await User.findById(userId)
+      if (!user || user.role !== 'CUSTOMER') {
+        throw new GraphQLError('User not found', { extensions: { code: 'BAD_USER_INPUT' } })
+      }
+      user.notes = String(notes || '').slice(0, 2000)
+      await user.save()
+      return adminUserShape(user)
+    },
+    resetUserSession: async (_p, { userId }, ctx) => {
+      assertPublicAccess(ctx)
+      requireUser(ctx, ['SUPER_ADMIN'])
+      const user = await User.findById(userId)
+      if (!user || user.role !== 'CUSTOMER') {
+        throw new GraphQLError('User not found', { extensions: { code: 'BAD_USER_INPUT' } })
+      }
+      user.notificationToken = null
+      await user.save()
+      return adminUserShape(user)
     },
     reviewOrder: async (_p, { order, rating, description }, ctx) => {
       assertPublicAccess(ctx)

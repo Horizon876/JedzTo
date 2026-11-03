@@ -1251,6 +1251,12 @@ export const typeDefs = `#graphql
     reviewOrder(order: String, rating: Int, description: String): Order
     updateOrderStatus(orderId: ID!, status: String!): Order
 
+    # Super Admin — customer accounts (Users screen)
+    deleteUser(id: ID!): AdminUser
+    updateUserStatus(id: ID!, status: String!, reason: String): AdminUser
+    updateUserNotes(id: ID!, notes: String!): AdminUser
+    resetUserSession(userId: ID!): AdminUser
+
     # Super Admin — restaurant onboarding
     createRestaurant(restaurant: RestaurantInput!, ownerName: String!, ownerLogin: String!, ownerPassword: String!): CreateRestaurantPayload
     createRider(name: String!, login: String!, password: String!, restaurantId: ID!): CreateRiderPayload

@@ -289,28 +289,35 @@ export const mapUserType = (role) => {
   return 'CUSTOMER'
 }
 
-export const adminUserShape = (user) => ({
-  _id: id(user),
-  name: user.name,
-  email: user.email,
-  phone: user.phone || '',
-  phoneIsVerified: Boolean(user.phoneIsVerified),
-  createdAt: user.createdAt?.toISOString?.() || user.createdAt || null,
-  userType: mapUserType(user.role),
-  status: user.isActive === false ? 'inactive' : 'active',
-  lastLogin: null,
-  notes: '',
-  isGuest: Boolean(user.isGuest),
-  addresses: (user.addresses || []).map((a) => ({
-    _id: id(a) || String(a._id),
-    id: id(a) || String(a._id),
-    label: a.label,
-    deliveryAddress: a.deliveryAddress,
-    details: a.details,
-    location: a.location,
-    selected: a.selected
-  }))
-})
+export const adminUserShape = (user) => {
+  const adminStatus = String(user.adminStatus || '').toLowerCase()
+  let status = 'active'
+  if (user.isActive === false || adminStatus === 'blocked') status = 'blocked'
+  else if (adminStatus === 'deactivate' || adminStatus === 'inactive') status = 'deactivate'
+
+  return {
+    _id: id(user),
+    name: user.name,
+    email: user.email,
+    phone: user.phone || '',
+    phoneIsVerified: Boolean(user.phoneIsVerified),
+    createdAt: user.createdAt?.toISOString?.() || user.createdAt || null,
+    userType: mapUserType(user.role),
+    status,
+    lastLogin: null,
+    notes: user.notes || '',
+    isGuest: Boolean(user.isGuest),
+    addresses: (user.addresses || []).map((a) => ({
+      _id: id(a) || String(a._id),
+      id: id(a) || String(a._id),
+      label: a.label,
+      deliveryAddress: a.deliveryAddress,
+      details: a.details,
+      location: a.location,
+      selected: a.selected
+    }))
+  }
+}
 
 export const couponShape = (doc) => ({
   _id: String(doc._id),

@@ -2,8 +2,39 @@ import { Order } from '../models/Order.js'
 import { Restaurant } from '../models/Restaurant.js'
 import { Settlement } from '../models/Settlement.js'
 
+/**
+ * ISO week helpers (UTC, Monday–Sunday).
+ * periodKey format: YYYY-Www (e.g. 2026-W45)
+ * Legacy monthly keys YYYY-MM are still parsed for old settlement rows.
+ */
+function parseIsoWeek(periodKey) {
+  const m = String(periodKey || '').match(/^(\d{4})-W(\d{1,2})$/i)
+  if (!m) return null
+  return { year: Number(m[1]), week: Number(m[2]) }
+}
+
+function mondayOfIsoWeek(year, week) {
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const day = jan4.getUTCDay() || 7
+  const mondayWeek1 = new Date(jan4)
+  mondayWeek1.setUTCDate(jan4.getUTCDate() - day + 1)
+  const monday = new Date(mondayWeek1)
+  monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7)
+  monday.setUTCHours(0, 0, 0, 0)
+  return monday
+}
+
 function periodBounds(periodKey) {
-  // periodKey = YYYY-MM
+  const iso = parseIsoWeek(periodKey)
+  if (iso) {
+    const periodStart = mondayOfIsoWeek(iso.year, iso.week)
+    const periodEnd = new Date(periodStart)
+    periodEnd.setUTCDate(periodStart.getUTCDate() + 6)
+    periodEnd.setUTCHours(23, 59, 59, 999)
+    return { periodStart, periodEnd }
+  }
+
+  // Legacy monthly: YYYY-MM
   const [y, m] = String(periodKey).split('-').map(Number)
   const periodStart = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0))
   const periodEnd = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999))
@@ -11,9 +42,27 @@ function periodBounds(periodKey) {
 }
 
 export function currentPeriodKey(date = new Date()) {
-  const y = date.getUTCFullYear()
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
-  return `${y}-${m}`
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+  const dayNr = (d.getUTCDay() + 6) % 7
+  d.setUTCDate(d.getUTCDate() - dayNr + 3)
+  const isoYear = d.getUTCFullYear()
+  const week1 = mondayOfIsoWeek(isoYear, 1)
+  const week =
+    1 + Math.round((d.getTime() - week1.getTime() - 3 * 864e5) / (7 * 864e5))
+  return `${isoYear}-W${String(week).padStart(2, '0')}`
+}
+
+/** Recent week keys newest-first (current week first). */
+export function recentPeriodKeys(count = 16, fromDate = new Date()) {
+  const keys = []
+  const d = new Date(
+    Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), fromDate.getUTCDate())
+  )
+  for (let i = 0; i < count; i++) {
+    keys.push(currentPeriodKey(d))
+    d.setUTCDate(d.getUTCDate() - 7)
+  }
+  return [...new Set(keys)]
 }
 
 function round2(n) {
@@ -21,7 +70,7 @@ function round2(n) {
 }
 
 /**
- * Aggregate delivered (or paid) orders for a restaurant in a month.
+ * Aggregate delivered (or paid) orders for a restaurant in a settlement period.
  *
  * - Restaurant gross = order total minus COD cash fee (fee is platform-only).
  * - Commission = % of full order (products + delivery + tip/transport + cash fee).

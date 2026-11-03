@@ -47,6 +47,7 @@ import {
   normalizeAreaName,
   applyOrderEtaFields,
   couponShape,
+  adminUserShape,
   toLatitude,
   toLongitude
 } from './helpers.js'
@@ -1278,5 +1279,77 @@ export const adminMutations = {
     })
 
     return serialized
+  },
+
+  // ---- Super Admin: customer Users screen --------------------------------
+  deleteUser: async (_p, { id: userId }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const user = await User.findById(userId)
+    if (!user || user.role !== 'CUSTOMER') {
+      throw badInput('User not found')
+    }
+    const shape = adminUserShape(user)
+    await User.deleteOne({ _id: user._id })
+    return shape
+  },
+
+  updateUserStatus: async (_p, { id: userId, status, reason }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const next = String(status || '').toLowerCase().trim()
+    const user = await User.findById(userId)
+    if (!user || user.role !== 'CUSTOMER') {
+      throw badInput('User not found')
+    }
+
+    // Deactivate / delete from admin = hard remove (same as app Deactivate).
+    if (next === 'deactivate' || next === 'deleted' || next === 'delete') {
+      const shape = adminUserShape(user)
+      shape.status = 'deactivate'
+      await User.deleteOne({ _id: user._id })
+      return shape
+    }
+
+    if (next === 'blocked' || next === 'block') {
+      user.isActive = false
+      user.adminStatus = 'blocked'
+      if (reason) user.notes = [user.notes, `Block: ${reason}`].filter(Boolean).join('\n').slice(0, 2000)
+      await user.save()
+      return adminUserShape(user)
+    }
+
+    if (next === 'active' || next === 'activate' || next === 'unblock') {
+      user.isActive = true
+      user.adminStatus = 'active'
+      await user.save()
+      return adminUserShape(user)
+    }
+
+    throw badInput(`Unknown status: ${status}`)
+  },
+
+  updateUserNotes: async (_p, { id: userId, notes }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const user = await User.findById(userId)
+    if (!user || user.role !== 'CUSTOMER') {
+      throw badInput('User not found')
+    }
+    user.notes = String(notes || '').slice(0, 2000)
+    await user.save()
+    return adminUserShape(user)
+  },
+
+  resetUserSession: async (_p, { userId }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const user = await User.findById(userId)
+    if (!user || user.role !== 'CUSTOMER') {
+      throw badInput('User not found')
+    }
+    user.notificationToken = null
+    await user.save()
+    return adminUserShape(user)
   }
 }

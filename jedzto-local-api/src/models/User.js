@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema(
     phoneIsVerified: { type: Boolean, default: false },
     emailIsVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    /** Super-admin Users screen: active | blocked (delete hard-removes the doc). */
+    adminStatus: { type: String, default: 'active' },
+    /** Internal admin notes (Users screen). */
+    notes: { type: String, default: '' },
     /** Rider online for deliveries (delivery app toggle). */
     available: { type: Boolean, default: true },
     /**

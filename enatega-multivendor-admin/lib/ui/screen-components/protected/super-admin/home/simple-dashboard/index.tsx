@@ -10,15 +10,11 @@ import { GET_RESTAURANT_SETTLEMENTS } from '@/lib/api/graphql/queries/settlement
 import {
   PageHeader,
 } from '@/lib/ui/screen-components/protected/layout/shared'
-
-function getCurrentPeriodKey() {
-  const now = new Date()
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
-}
-
-function money(n: number) {
-  return `${Number(n || 0).toFixed(2)} zł`
-}
+import {
+  currentPeriodKey as getCurrentPeriodKey,
+  formatPeriodLabel,
+  moneyPln as money,
+} from '@/lib/utils/settlement-period'
 
 function netBalance(row: {
   onlineGross?: number
@@ -103,7 +99,7 @@ export default function SimpleAdminDashboard() {
     <div className="screen-container">
       <PageHeader title={t('Home')} />
       <p className="mb-5 mt-0 text-sm text-[var(--panel-muted)]">
-        {t('Period')}: <strong>{periodKey}</strong>
+        {t('Period')}: <strong>{formatPeriodLabel(periodKey)}</strong>
       </p>
 
       {loading ? (

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 
 /**
- * Monthly settlement snapshot per restaurant.
+ * Weekly settlement snapshot per restaurant (ISO week periodKey: YYYY-Www).
  * Online: platform holds money → payout = onlineGross - commissionOnOnline
  * Cash: restaurant holds money → they owe commissionOnCash + cashFeeDue
  * COD cash fee (taxationAmount) is 100% platform revenue, not restaurant gross.
@@ -16,7 +16,7 @@ const settlementSchema = new mongoose.Schema(
     },
     periodStart: { type: Date, required: true },
     periodEnd: { type: Date, required: true },
-    periodKey: { type: String, required: true, index: true }, // YYYY-MM
+    periodKey: { type: String, required: true, index: true }, // YYYY-Www (ISO week)
     onlineGross: { type: Number, default: 0 },
     cashGross: { type: Number, default: 0 },
     commissionRate: { type: Number, default: 10 },

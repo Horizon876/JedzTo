@@ -85,6 +85,18 @@ export const RESTAURANT_MODULES: PanelModule[] = [
       },
     ],
   },
+  {
+    id: 'finance',
+    labelKey: 'Finance',
+    route: '/admin/store/finance',
+    match: ['/admin/store/finance'],
+    groups: [
+      {
+        titleKey: 'NavGroupFinance',
+        items: [{ labelKey: 'Settlements', route: '/admin/store/finance' }],
+      },
+    ],
+  },
 ]
 
 /** Lean super-admin shell — ops only, no marketing/catalog clutter. */
