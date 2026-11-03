@@ -94,6 +94,16 @@ if (NODE_ENV === 'production' && STRIPE_SECRET_KEY && !STRIPE_WEBHOOK_SECRET) {
   )
   process.exit(1)
 }
+
+// Autopay (Blue Media) — sandbox default gateway. Set SERVICE_ID + SHARED_KEY
+// from the Autopay merchant panel to enable online card/BLIK checkout.
+export const AUTOPAY_SERVICE_ID = String(process.env.AUTOPAY_SERVICE_ID || '').trim()
+export const AUTOPAY_SHARED_KEY = String(process.env.AUTOPAY_SHARED_KEY || '').trim()
+export const AUTOPAY_GATEWAY_URL = (
+  process.env.AUTOPAY_GATEWAY_URL || 'https://testpay.autopay.eu'
+).replace(/\/$/, '')
+export const AUTOPAY_ENABLED = Boolean(AUTOPAY_SERVICE_ID && AUTOPAY_SHARED_KEY)
+
 export const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || '').replace(/\/$/, '')
 
 // Most free/cheap hosts (Render, Fly, Cloud Run, ...) wipe local disk on every

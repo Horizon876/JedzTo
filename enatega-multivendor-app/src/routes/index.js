@@ -22,6 +22,7 @@ import Help from '../screens/Help/Help'
 import CustomerSupport from '../screens/CustomerSupport/CustomerSupport'
 import Paypal from '../screens/Paypal/Paypal'
 import StripeCheckout from '../screens/Stripe/StripeCheckout'
+import AutopayCheckout from '../screens/Autopay/AutopayCheckout'
 import PaymentCancelled from '../screens/PaymentCancelled/PaymentCancelled'
 import Addresses from '../screens/Addresses/Addresses'
 import NewAddress from '../screens/NewAddress/NewAddress'
@@ -163,6 +164,10 @@ function MainNavigator() {
       <NavigationStack.Screen
         name='StripeCheckout'
         component={StripeCheckout}
+      />
+      <NavigationStack.Screen
+        name='AutopayCheckout'
+        component={AutopayCheckout}
         options={{
           headerShown: false,
           gestureEnabled: false,

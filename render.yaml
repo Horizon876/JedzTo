@@ -59,3 +59,9 @@ services:
         value: '0'
       - key: SMS_GATEWAY_ENABLED
         value: '1'
+      - key: AUTOPAY_SERVICE_ID
+        sync: false
+      - key: AUTOPAY_SHARED_KEY
+        sync: false
+      - key: AUTOPAY_GATEWAY_URL
+        value: https://testpay.autopay.eu

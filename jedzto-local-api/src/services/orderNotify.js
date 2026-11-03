@@ -3,17 +3,19 @@ import { pubsub } from '../graphql/orderPubsub.js'
 
 const ORDER_CHANGED = 'ORDER_CHANGED'
 
-const ONLINE_CARD = new Set(['STRIPE', 'PAYPAL'])
+const ONLINE_CARD = new Set(['STRIPE', 'PAYPAL', 'AUTOPAY'])
 
 export const isOnlineCardMethod = (method) =>
   ONLINE_CARD.has(String(method || '').toUpperCase())
 
-/** Kitchen must not see unpaid Stripe/PayPal checkouts. */
+/** Kitchen must not see unpaid online checkouts. */
 export const kitchenOrdersMongoFilter = (restaurantId) => ({
   restaurantId,
   $nor: [
     {
-      paymentMethod: { $in: ['STRIPE', 'PAYPAL', 'stripe', 'paypal'] },
+      paymentMethod: {
+        $in: ['STRIPE', 'PAYPAL', 'AUTOPAY', 'stripe', 'paypal', 'autopay']
+      },
       paymentStatus: { $nin: ['PAID', 'paid'] }
     }
   ]

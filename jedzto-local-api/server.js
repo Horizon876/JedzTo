@@ -26,6 +26,7 @@ import { connectMongo, disconnectMongo } from './src/db.js'
 import { UPLOADS_DIR } from './src/utils/imageUpload.js'
 import { mapsRouter } from './src/routes/maps.js'
 import { stripeRouter } from './src/routes/stripe.js'
+import { autopayRouter } from './src/routes/autopay.js'
 import { backfillUnpublishedMenus } from './src/services/menu.js'
 import { ensureItalianaDeliveryAreas } from './src/services/ensureDeliveryAreas.js'
 import { ensureItalianaListing } from './src/services/ensureItalianaListing.js'
@@ -156,6 +157,8 @@ async function start() {
   // Maps and Stripe redirects use the same strict CORS as the GraphQL endpoint.
   app.use('/maps', cors(corsOptions), mapsLimiter, mapsRouter)
   app.use('/stripe', paymentLimiter, stripeRouter)
+  // Autopay ITN posts application/x-www-form-urlencoded (Base64 XML).
+  app.use('/autopay', paymentLimiter, express.urlencoded({ extended: false }), autopayRouter)
 
   const httpServer = http.createServer(app)
 

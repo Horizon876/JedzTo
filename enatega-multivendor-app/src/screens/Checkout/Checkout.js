@@ -585,9 +585,9 @@ function Checkout(props) {
           currency: configuration.currency,
           order: placed
         })
-      } else if (paymentMode === 'STRIPE') {
+      } else if (paymentMode === 'AUTOPAY' || paymentMode === 'STRIPE') {
         setIsPickup(false)
-        props?.navigation.replace('StripeCheckout', {
+        props?.navigation.replace('AutopayCheckout', {
           _id: placed.orderId,
           orderMongoId: placed._id,
           amount: placed.orderAmount,
@@ -706,7 +706,7 @@ function Checkout(props) {
   }
 
   function checkPaymentMethod(currency) {
-    if (paymentMode === 'STRIPE') {
+    if (paymentMode === 'STRIPE' || paymentMode === 'AUTOPAY') {
       return stripeCurrencies.find((val) => val.currency === currency)
     }
     if (paymentMode === 'PAYPAL') {
@@ -1097,9 +1097,9 @@ function Checkout(props) {
                       title={t('payOnline')}
                       hint={`+${formatMoney(0, configuration.currencySymbol)}`}
                       icon={'credit-card'}
-                      selected={paymentMode === 'STRIPE'}
+                      selected={paymentMode === 'AUTOPAY'}
                       theme={currentTheme}
-                      onSelect={() => setPaymentMode('STRIPE')}
+                      onSelect={() => setPaymentMode('AUTOPAY')}
                       isLast
                     />
                   </View>
