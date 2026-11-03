@@ -1,19 +1,16 @@
 import { gql } from '@apollo/client';
 
 export const GET_RIDERS = gql`
-  query riders {
-    riders {
+  query riders($restaurantId: ID) {
+    riders(restaurantId: $restaurantId) {
       _id
       name
       username
       phone
       available
-      vehicleType
+      restaurantId
+      restaurantName
       assigned
-      zone {
-        _id
-        title
-      }
     }
   }
 `;
@@ -23,7 +20,7 @@ export const GET_RIDERS_PAGINATED = gql`
     $page: Int
     $limit: Int
     $search: String
-    $zone: String
+    $restaurantId: ID
     $available: Boolean
     $isActive: Boolean
   ) {
@@ -31,7 +28,7 @@ export const GET_RIDERS_PAGINATED = gql`
       page: $page
       limit: $limit
       search: $search
-      zone: $zone
+      restaurantId: $restaurantId
       available: $available
       isActive: $isActive
     ) {
@@ -41,12 +38,9 @@ export const GET_RIDERS_PAGINATED = gql`
         username
         phone
         available
-        vehicleType
+        restaurantId
+        restaurantName
         assigned
-        zone {
-          _id
-          title
-        }
       }
       totalCount
       currentPage
@@ -63,61 +57,37 @@ export const GET_RIDER = gql`
       username
       phone
       available
+      restaurantId
+      restaurantName
       assigned
-      zone {
-        _id
-        title
-      }
-      bussinessDetails {
-        bankName
-        accountName
-        accountCode
-        accountNumber
-        bussinessRegNo
-        companyRegNo
-        taxRate
-      }
-      licenseDetails {
-        number
-        expiryDate
-        image
-      }
-      vehicleDetails {
-        number
-        image
-      }
     }
   }
 `;
 
 export const GET_AVAILABLE_RIDERS = gql`
   query {
-    availableRiders {
+    riders {
       _id
       name
       username
       phone
       available
-      vehicleType
-      zone {
-        _id
-      }
+      restaurantId
+      restaurantName
     }
   }
 `;
+
 export const GET_RIDERS_BY_ZONE = gql`
   query RidersByZone($id: String!) {
-    ridersByZone(id: $id) {
+    riders(restaurantId: $id) {
       _id
       name
       username
       phone
       available
-      vehicleType
-      zone {
-        _id
-        title
-      }
+      restaurantId
+      restaurantName
     }
   }
 `;

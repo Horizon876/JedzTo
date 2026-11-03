@@ -259,55 +259,82 @@ body {
   background: var(--panel-bg);
 }
 
-.holiday-calendar.p-calendar {
-  display: block;
+.holiday-calendar-wrap {
   width: 100%;
-  min-width: 22rem;
-  max-width: 24rem;
+  max-width: 28rem;
+  overflow: visible;
+}
+
+.holiday-calendar.p-calendar {
+  display: block !important;
+  width: 100% !important;
+  min-width: 28rem;
   border: 1px solid var(--panel-border);
   border-radius: 12px;
-  overflow: visible;
+  overflow: visible !important;
   background: #fff;
 }
 
 .holiday-calendar .p-datepicker {
-  width: 100%;
-  border: 0;
-  padding: 0.85rem;
-  overflow: visible;
+  width: 100% !important;
+  min-width: 28rem;
+  border: 0 !important;
+  padding: 1rem !important;
+  overflow: visible !important;
+  box-sizing: border-box;
 }
 
 .holiday-calendar .p-datepicker-header {
   background: transparent;
   border: 0;
-  padding: 0 0 0.65rem;
+  padding: 0 0 0.75rem;
+  font-size: 1rem;
 }
 
 .holiday-calendar .p-datepicker table {
-  width: 100%;
+  width: 100% !important;
+  min-width: 26rem;
   table-layout: fixed;
   margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .holiday-calendar .p-datepicker table th,
 .holiday-calendar .p-datepicker table td {
-  padding: 0.2rem;
+  padding: 0.25rem !important;
   text-align: center;
+  width: 14.28%;
 }
 
 .holiday-calendar .p-datepicker table td > span {
-  width: 2.35rem;
-  height: 2.35rem;
-  line-height: 2.35rem;
-  margin: 0 auto;
-  display: inline-flex;
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  line-height: 2.75rem !important;
+  margin: 0 auto !important;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
+  font-size: 0.95rem;
 }
 
 .holiday-calendar .p-datepicker table td > span.p-highlight {
-  background: var(--primary-color);
-  color: #fff;
+  background: var(--primary-color) !important;
+  color: #fff !important;
+}
+
+@media (max-width: 480px) {
+  .holiday-calendar.p-calendar,
+  .holiday-calendar .p-datepicker,
+  .holiday-calendar .p-datepicker table {
+    min-width: 0;
+  }
+
+  .holiday-calendar .p-datepicker table td > span {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    line-height: 2.25rem !important;
+  }
 }
 
 .panel-page-header {

@@ -1,32 +1,24 @@
 import { gql } from '@apollo/client';
 
 export const CREATE_RIDER = gql`
-  mutation CreateRider($riderInput: RiderInput!) {
-    createRider(riderInput: $riderInput) {
-      _id
+  mutation CreateRider(
+    $name: String!
+    $login: String!
+    $password: String!
+    $restaurantId: ID!
+  ) {
+    createRider(
+      name: $name
+      login: $login
+      password: $password
+      restaurantId: $restaurantId
+    ) {
+      userId
+      login
+      email
       name
-      username
-      phone
-      available
-      vehicleType
-      zone {
-        _id
-      }
-    }
-  }
-`;
-
-export const EDIT_RIDER = gql`
-  mutation EditRider($riderInput: RiderInput!) {
-    editRider(riderInput: $riderInput) {
-      _id
-      name
-      username
-      phone
-      vehicleType
-      zone {
-        _id
-      }
+      restaurantId
+      restaurantName
     }
   }
 `;
@@ -47,10 +39,8 @@ export const TOGGLE_RIDER = gql`
       username
       phone
       available
-      vehicleType
-      zone {
-        title
-      }
+      restaurantId
+      restaurantName
     }
   }
 `;

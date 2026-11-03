@@ -25,7 +25,14 @@ import {
   releaseUnverifiedPhoneClaims
 } from '../../services/phoneOwnership.js'
 import { hasFullPersonName, normalizePersonName } from '../../utils/phone.js'
-import { id, mapUserType, profileShape, toLatitude, toLongitude } from './helpers.js'
+import {
+  id,
+  mapUserType,
+  profileShape,
+  toLatitude,
+  toLongitude,
+  assertFeatureNotBlocked
+} from './helpers.js'
 
 const OWNER_ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER']
 const PANEL_LOGIN_ROLES = ['SUPER_ADMIN', 'RESTAURANT_OWNER', 'RIDER']
@@ -222,6 +229,11 @@ export const authMutations = {
         // otherwise a social flow becomes an admin-takeover path.
         if (OWNER_ROLES.includes(user.role)) throw invalidCredentials()
         if (user.isActive === false) throw unauthenticated()
+        assertFeatureNotBlocked(
+          user,
+          'login',
+          'Logowanie jest tymczasowo zablokowane dla tego konta'
+        )
         return authResponse(user, false)
       }
 
@@ -243,6 +255,13 @@ export const authMutations = {
       throw invalidCredentials()
     }
     if (user.isActive === false) throw unauthenticated()
+    if (user.role === 'CUSTOMER') {
+      assertFeatureNotBlocked(
+        user,
+        'login',
+        'Logowanie jest tymczasowo zablokowane dla tego konta'
+      )
+    }
     return authResponse(user, false)
   },
 

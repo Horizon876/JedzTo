@@ -97,6 +97,18 @@ export const RESTAURANT_MODULES: PanelModule[] = [
       },
     ],
   },
+  {
+    id: 'riders',
+    labelKey: 'Riders',
+    route: '/admin/store/riders',
+    match: ['/admin/store/riders'],
+    groups: [
+      {
+        titleKey: 'NavGroupRiders',
+        items: [{ labelKey: 'Riders', route: '/admin/store/riders' }],
+      },
+    ],
+  },
 ]
 
 /** Lean super-admin shell — ops only, no marketing/catalog clutter. */

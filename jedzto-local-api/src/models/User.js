@@ -22,6 +22,19 @@ const userSchema = new mongoose.Schema(
     adminStatus: { type: String, default: 'active' },
     /** Internal admin notes (Users screen). */
     notes: { type: String, default: '' },
+    /**
+     * Temporary per-feature blocks set by super-admin.
+     * feature: ordering | login | coupons
+     * until: block expires after this date (UTC).
+     */
+    featureBlocks: [
+      {
+        feature: { type: String, required: true },
+        until: { type: Date, required: true },
+        reason: { type: String, default: '' },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
     /** Rider online for deliveries (delivery app toggle). */
     available: { type: Boolean, default: true },
     /**

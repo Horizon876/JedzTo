@@ -13,6 +13,22 @@ export interface IAddress {
   location?: IPoint;
 }
 
+export interface IUserFeatureBlock {
+  feature: string;
+  until: string;
+  reason?: string;
+  createdAt?: string;
+}
+
+export interface IUserStats {
+  totalOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  totalSpent: number;
+  averageOrderValue: number;
+  lastOrderAt?: string | null;
+}
+
 export interface IUserResponse {
   __typename?: 'User';
   _id: string;
@@ -34,6 +50,7 @@ export interface IUserResponse {
   favourite?: string[];
   addresses?: IAddress[];
   notes?: string;
+  featureBlocks?: IUserFeatureBlock[];
   actions: string;
 }
 

@@ -48,8 +48,11 @@ import {
   applyOrderEtaFields,
   couponShape,
   adminUserShape,
+  riderShape,
   toLatitude,
-  toLongitude
+  toLongitude,
+  USER_FEATURE_KEYS,
+  assertFeatureNotBlocked
 } from './helpers.js'
 import {
   buildRestaurantTree,
@@ -1021,6 +1024,21 @@ export const adminMutations = {
     }
   },
 
+  deleteRider: async (_p, { id: riderId }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const rider = await User.findById(riderId)
+    if (!rider || rider.role !== 'RIDER') throw badInput('Rider not found')
+    let restaurantName = null
+    if (rider.restaurantId) {
+      const r = await Restaurant.findById(rider.restaurantId).select('name').lean()
+      restaurantName = r?.name || null
+    }
+    const shape = riderShape(rider, restaurantName)
+    await User.deleteOne({ _id: rider._id })
+    return shape
+  },
+
   createShopType: async (_p, { dto }, ctx) => {
     assertPublicAccess(ctx)
     requireUser(ctx, ['SUPER_ADMIN'])
@@ -1185,7 +1203,24 @@ export const adminMutations = {
     }
 
     const customer = await User.findById(auth.userId).lean()
+    if (!customer || customer.isActive === false) {
+      throw new GraphQLError('Konto jest zablokowane', {
+        extensions: { code: 'FORBIDDEN' }
+      })
+    }
+    assertFeatureNotBlocked(
+      customer,
+      'ordering',
+      'Składanie zamówień jest tymczasowo zablokowane dla tego konta'
+    )
     const phoneKey = normalizePhone(customer?.phone)
+    if (args.couponCode) {
+      assertFeatureNotBlocked(
+        customer,
+        'coupons',
+        'Korzystanie z kuponów jest tymczasowo zablokowane dla tego konta'
+      )
+    }
     if (args.couponCode && (!phoneKey || !customer?.phoneIsVerified)) {
       throw new GraphQLError('Aby użyć kuponu, zweryfikuj numer telefonu', {
         extensions: { code: 'BAD_USER_INPUT' }
@@ -1349,6 +1384,59 @@ export const adminMutations = {
       throw badInput('User not found')
     }
     user.notificationToken = null
+    await user.save()
+    return adminUserShape(user)
+  },
+
+  setUserFeatureBlock: async (_p, { userId, feature, until, reason }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const key = String(feature || '').toLowerCase().trim()
+    if (!USER_FEATURE_KEYS.includes(key)) {
+      throw badInput(`Unknown feature: ${feature}. Allowed: ${USER_FEATURE_KEYS.join(', ')}`)
+    }
+    const untilDate = new Date(until)
+    if (!Number.isFinite(untilDate.getTime()) || untilDate <= new Date()) {
+      throw badInput('until must be a future date')
+    }
+    const user = await User.findById(userId)
+    if (!user || user.role !== 'CUSTOMER') {
+      throw badInput('User not found')
+    }
+    const next = (user.featureBlocks || []).filter(
+      (b) => String(b.feature).toLowerCase() !== key
+    )
+    next.push({
+      feature: key,
+      until: untilDate,
+      reason: String(reason || '').slice(0, 500),
+      createdAt: new Date()
+    })
+    user.featureBlocks = next
+    if (reason) {
+      user.notes = [user.notes, `Block ${key} until ${untilDate.toISOString()}: ${reason}`]
+        .filter(Boolean)
+        .join('\n')
+        .slice(0, 2000)
+    }
+    await user.save()
+    return adminUserShape(user)
+  },
+
+  clearUserFeatureBlock: async (_p, { userId, feature }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const key = String(feature || '').toLowerCase().trim()
+    if (!USER_FEATURE_KEYS.includes(key)) {
+      throw badInput(`Unknown feature: ${feature}`)
+    }
+    const user = await User.findById(userId)
+    if (!user || user.role !== 'CUSTOMER') {
+      throw badInput('User not found')
+    }
+    user.featureBlocks = (user.featureBlocks || []).filter(
+      (b) => String(b.feature).toLowerCase() !== key
+    )
     await user.save()
     return adminUserShape(user)
   }

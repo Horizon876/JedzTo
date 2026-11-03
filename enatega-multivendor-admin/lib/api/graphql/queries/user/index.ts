@@ -89,6 +89,12 @@ export const GET_USER_BY_ID = gql`
       userType
       favourite
       notes
+      featureBlocks {
+        feature
+        until
+        reason
+        createdAt
+      }
       addresses {
         _id
         deliveryAddress
@@ -99,6 +105,19 @@ export const GET_USER_BY_ID = gql`
           coordinates
         }
       }
+    }
+  }
+`;
+
+export const GET_USER_STATS = gql`
+  query UserStats($userId: ID!) {
+    userStats(userId: $userId) {
+      totalOrders
+      deliveredOrders
+      cancelledOrders
+      totalSpent
+      averageOrderValue
+      lastOrderAt
     }
   }
 `;

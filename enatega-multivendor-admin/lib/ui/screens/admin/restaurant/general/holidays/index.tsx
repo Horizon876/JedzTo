@@ -184,21 +184,23 @@ export default function HolidaysScreen() {
           </h2>
         </div>
 
-        <div className="grid gap-6 p-5 xl:grid-cols-[minmax(22rem,24rem)_minmax(0,1fr)]">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-6 p-5">
+          <div className="w-full">
             <label className="mb-2 block text-sm font-semibold text-[var(--panel-text)]">
               {t('HolidayDate')}
             </label>
-            <Calendar
-              value={date}
-              onChange={(e) => setDate(e.value as Date)}
-              dateFormat="dd.mm.yy"
-              inline
-              className="holiday-calendar"
-            />
+            <div className="holiday-calendar-wrap">
+              <Calendar
+                value={date}
+                onChange={(e) => setDate(e.value as Date)}
+                dateFormat="dd.mm.yy"
+                inline
+                className="holiday-calendar"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-5">
+          <div className="flex max-w-3xl flex-col gap-5">
             <div>
               <label className="mb-2 block text-sm font-semibold text-[var(--panel-text)]">
                 {t('HolidayLabel')}

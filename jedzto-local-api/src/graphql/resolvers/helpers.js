@@ -289,6 +289,47 @@ export const mapUserType = (role) => {
   return 'CUSTOMER'
 }
 
+/** Rider list/detail shape for admin + restaurant panels. */
+export const riderShape = (user, restaurantName = null) => ({
+  _id: id(user),
+  name: user.name,
+  username: String(user.email || '').split('@')[0],
+  available: user.available !== false,
+  acceptExtraOrders: Boolean(user.acceptExtraOrders),
+  phone: user.phone || '',
+  restaurantId: user.restaurantId ? id(user.restaurantId) : null,
+  restaurantName: restaurantName || null,
+  assigned: Boolean(user.restaurantId),
+  vehicleType: null,
+  zone: null,
+  location: null
+})
+
+export const USER_FEATURE_KEYS = ['ordering', 'login', 'coupons']
+
+export const featureBlockShape = (block) => ({
+  feature: String(block.feature || ''),
+  until: block.until?.toISOString?.() || block.until || null,
+  reason: block.reason || '',
+  createdAt: block.createdAt?.toISOString?.() || block.createdAt || null
+})
+
+/** Active (not expired) feature blocks for a user document. */
+export const activeFeatureBlocks = (user, now = new Date()) =>
+  (user?.featureBlocks || [])
+    .filter((b) => b?.feature && b?.until && new Date(b.until) > now)
+    .map(featureBlockShape)
+
+export const isFeatureBlocked = (user, feature, now = new Date()) =>
+  activeFeatureBlocks(user, now).some((b) => b.feature === feature)
+
+export const assertFeatureNotBlocked = (user, feature, message) => {
+  if (!isFeatureBlocked(user, feature)) return
+  throw new GraphQLError(message || 'Funkcja tymczasowo zablokowana', {
+    extensions: { code: 'FEATURE_BLOCKED', feature }
+  })
+}
+
 export const adminUserShape = (user) => {
   const adminStatus = String(user.adminStatus || '').toLowerCase()
   let status = 'active'
@@ -307,6 +348,7 @@ export const adminUserShape = (user) => {
     lastLogin: null,
     notes: user.notes || '',
     isGuest: Boolean(user.isGuest),
+    featureBlocks: activeFeatureBlocks(user),
     addresses: (user.addresses || []).map((a) => ({
       _id: id(a) || String(a._id),
       id: id(a) || String(a._id),

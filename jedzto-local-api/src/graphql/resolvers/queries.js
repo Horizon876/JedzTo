@@ -36,7 +36,8 @@ import {
   adminUserShape,
   resolveDelivery,
   audienceFor,
-  couponShape
+  couponShape,
+  riderShape
 } from './helpers.js'
 import {
   buildRestaurantTree,
@@ -739,15 +740,79 @@ export const queries = {
     if (!rider || rider.role !== 'RIDER') {
       throw new GraphQLError('Rider not found', { extensions: { code: 'BAD_USER_INPUT' } })
     }
+    if (auth.role === 'RESTAURANT_OWNER') {
+      requireRestaurantOwner(ctx, rider.restaurantId)
+    }
+    let restaurantName = null
+    if (rider.restaurantId) {
+      const r = await Restaurant.findById(rider.restaurantId).select('name').lean()
+      restaurantName = r?.name || null
+    }
+    return riderShape(rider, restaurantName)
+  },
+
+  riders: async (_p, { restaurantId }, ctx) => {
+    assertPublicAccess(ctx)
+    const auth = requireUser(ctx, ['SUPER_ADMIN', 'RESTAURANT_OWNER'])
+    let scopedRestaurantId = restaurantId
+    if (auth.role === 'RESTAURANT_OWNER') {
+      scopedRestaurantId = restaurantId || auth.restaurantId
+      requireRestaurantOwner(ctx, scopedRestaurantId)
+    }
+    const filter = { role: 'RIDER' }
+    if (scopedRestaurantId) filter.restaurantId = scopedRestaurantId
+    const rows = await User.find(filter).sort({ createdAt: -1 }).lean()
+    const restaurantIds = [
+      ...new Set(rows.map((r) => r.restaurantId).filter(Boolean).map(String))
+    ]
+    const restaurants = restaurantIds.length
+      ? await Restaurant.find({ _id: { $in: restaurantIds } }).select('name').lean()
+      : []
+    const nameById = new Map(restaurants.map((r) => [String(r._id), r.name]))
+    return rows.map((r) =>
+      riderShape(r, r.restaurantId ? nameById.get(String(r.restaurantId)) || null : null)
+    )
+  },
+
+  ridersPaginated: async (
+    _p,
+    { page = 1, limit = 10, search, restaurantId, available, isActive },
+    ctx
+  ) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    const safePage = Math.max(1, clampNonNegative(page, 1))
+    const safeLimit = clampPageSize(limit, 10)
+    const filter = { role: 'RIDER' }
+    if (restaurantId) filter.restaurantId = restaurantId
+    if (available === true) filter.available = true
+    if (available === false) filter.available = false
+    if (isActive === true) filter.isActive = true
+    if (isActive === false) filter.isActive = false
+    if (search) {
+      const rx = containsFilter(search)
+      filter.$or = [{ name: rx }, { email: rx }, { phone: rx }]
+    }
+    const totalCount = await User.countDocuments(filter)
+    const rows = await User.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
+      .lean()
+    const restaurantIds = [
+      ...new Set(rows.map((r) => r.restaurantId).filter(Boolean).map(String))
+    ]
+    const restaurants = restaurantIds.length
+      ? await Restaurant.find({ _id: { $in: restaurantIds } }).select('name').lean()
+      : []
+    const nameById = new Map(restaurants.map((r) => [String(r._id), r.name]))
     return {
-      _id: String(rider._id),
-      name: rider.name,
-      username: String(rider.email || '').split('@')[0],
-      available: rider.available !== false,
-      acceptExtraOrders: Boolean(rider.acceptExtraOrders),
-      phone: rider.phone || '',
-      restaurantId: rider.restaurantId ? String(rider.restaurantId) : null,
-      location: { coordinates: [19.9381, 49.8339] }
+      data: rows.map((r) =>
+        riderShape(r, r.restaurantId ? nameById.get(String(r.restaurantId)) || null : null)
+      ),
+      totalCount,
+      currentPage: safePage,
+      totalPages: Math.max(1, Math.ceil(totalCount / safeLimit))
     }
   },
 
@@ -966,6 +1031,58 @@ export const queries = {
       updatedAt: row.updatedAt?.toISOString?.() || row.updatedAt || null,
       favourite: (row.favourite || []).map(String),
       notificationToken: row.notificationToken || null
+    }
+  },
+
+  ordersByUser: async (_p, { userId, page = 1, limit = 10 }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    if (!mongoose.isValidObjectId(userId)) {
+      throw new GraphQLError('Invalid user id', { extensions: { code: 'BAD_USER_INPUT' } })
+    }
+    return paginateOrders({ customerId: userId }, { page, rows: limit })
+  },
+
+  userStats: async (_p, { userId }, ctx) => {
+    assertPublicAccess(ctx)
+    requireUser(ctx, ['SUPER_ADMIN'])
+    if (!mongoose.isValidObjectId(userId)) {
+      throw new GraphQLError('Invalid user id', { extensions: { code: 'BAD_USER_INPUT' } })
+    }
+    const customerId = new mongoose.Types.ObjectId(userId)
+    const [row] = await Order.aggregate([
+      { $match: { customerId } },
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          deliveredOrders: {
+            $sum: { $cond: [{ $eq: ['$orderStatus', 'DELIVERED'] }, 1, 0] }
+          },
+          cancelledOrders: {
+            $sum: {
+              $cond: [{ $in: ['$orderStatus', ['CANCELLED', 'REJECTED']] }, 1, 0]
+            }
+          },
+          totalSpent: {
+            $sum: {
+              $cond: [{ $eq: ['$orderStatus', 'DELIVERED'] }, '$orderAmount', 0]
+            }
+          },
+          lastOrderAt: { $max: '$createdAt' }
+        }
+      }
+    ])
+    const totalOrders = row?.totalOrders || 0
+    const deliveredOrders = row?.deliveredOrders || 0
+    const totalSpent = Number(row?.totalSpent || 0)
+    return {
+      totalOrders,
+      deliveredOrders,
+      cancelledOrders: row?.cancelledOrders || 0,
+      totalSpent,
+      averageOrderValue: deliveredOrders > 0 ? totalSpent / deliveredOrders : 0,
+      lastOrderAt: row?.lastOrderAt?.toISOString?.() || row?.lastOrderAt || null
     }
   },
 

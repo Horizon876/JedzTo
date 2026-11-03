@@ -1,23 +1,13 @@
 'use client'
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useApolloClient, useQuery } from '@apollo/client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faArrowLeft,
-  faChevronDown,
-  faGlobe,
-} from '@fortawesome/free-solid-svg-icons'
+import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import { Menu } from 'primereact/menu'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import CustomDialog from '@/lib/ui/useable-components/delete-dialog'
 import Image from '@/lib/ui/useable-components/safe-image'
@@ -26,9 +16,6 @@ import { GET_RESTAURANT_PROFILE } from '@/lib/api/graphql'
 import { onUseLocalStorage } from '@/lib/utils/methods'
 import { clearStoredSessionState } from '@/lib/utils/methods/auth'
 import { clearMetricsData } from '@/lib/utils/methods/security'
-import { languageTypes } from '@/lib/utils/constants'
-import { setUserLocale } from '@/lib/utils/methods/locale'
-import { TLocale } from '@/lib/utils/types/locale'
 import {
   PanelModule,
   PanelRole,
@@ -50,8 +37,6 @@ export default function PanelTopBar({
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname() || ''
-  const [, startTransition] = useTransition()
-  const currentLocale = useLocale()
   const apolloClient = useApolloClient()
   const { user, setUser } = useUserContext()
 
@@ -65,7 +50,6 @@ export default function PanelTopBar({
   })
 
   const menuRef = useRef<Menu>(null)
-  const languageMenuRef = useRef<Menu>(null)
   const [logoutOpen, setLogoutOpen] = useState(false)
 
   const activeModule = useMemo(
@@ -121,31 +105,6 @@ export default function PanelTopBar({
     router.replace('/authentication/login')
   }
 
-  function onLocaleChange(value: string) {
-    const locale = value as TLocale
-    startTransition(() => {
-      setUserLocale(locale)
-    })
-  }
-
-  const languageModel = languageTypes.map((lang) => ({
-    label: lang.value.toUpperCase(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    template(item: any) {
-      return (
-        <div
-          className={`cursor-pointer p-2 hover:bg-[#2F6FED22] ${
-            currentLocale === lang.code ? 'bg-[#2F6FED22]' : ''
-          }`}
-          onClick={() => onLocaleChange(lang.code)}
-        >
-          {item.label}
-        </div>
-      )
-    },
-    command: () => onLocaleChange(lang.code),
-  }))
-
   return (
     <>
       <header className="panel-topbar">
@@ -180,21 +139,6 @@ export default function PanelTopBar({
               <span>{t('BackToAdmin')}</span>
             </button>
           ) : null}
-
-          <button
-            type="button"
-            className="panel-topbar-icon-btn"
-            onClick={(e) => languageMenuRef.current?.toggle(e)}
-            title={t('Language')}
-          >
-            <FontAwesomeIcon icon={faGlobe} />
-          </button>
-          <Menu
-            model={languageModel}
-            popup
-            ref={languageMenuRef}
-            popupAlignment="right"
-          />
 
           <button
             type="button"

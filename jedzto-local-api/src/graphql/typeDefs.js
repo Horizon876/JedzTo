@@ -612,7 +612,18 @@ export const typeDefs = `#graphql
     acceptExtraOrders: Boolean
     phone: String
     restaurantId: ID
+    restaurantName: String
+    assigned: Boolean
+    vehicleType: String
+    zone: Zone
     location: Point
+  }
+
+  type RidersPaginatedResponse {
+    data: [Rider!]
+    totalCount: Int
+    currentPage: Int
+    totalPages: Int
   }
 
   type OrderUser {
@@ -936,6 +947,22 @@ export const typeDefs = `#graphql
     accountName: String
   }
 
+  type UserFeatureBlock {
+    feature: String
+    until: String
+    reason: String
+    createdAt: String
+  }
+
+  type UserStats {
+    totalOrders: Int
+    deliveredOrders: Int
+    cancelledOrders: Int
+    totalSpent: Float
+    averageOrderValue: Float
+    lastOrderAt: String
+  }
+
   # Customer accounts as listed on the super admin's Users screen.
   type AdminUser {
     _id: ID
@@ -957,6 +984,7 @@ export const typeDefs = `#graphql
     notificationToken: String
     favourite: [String]
     addresses: [Address!]
+    featureBlocks: [UserFeatureBlock!]
   }
 
   type UsersPaginatedResponse {
@@ -1156,6 +1184,15 @@ export const typeDefs = `#graphql
     subCategoriesByParentId(parentCategoryId: String!): [SubCategory!]
     getCountryByIso(iso: String!): CountryCities
     rider(id: String): Rider
+    riders(restaurantId: ID): [Rider!]
+    ridersPaginated(
+      page: Int
+      limit: Int
+      search: String
+      restaurantId: ID
+      available: Boolean
+      isActive: Boolean
+    ): RidersPaginatedResponse
     chat(order: ID!): [ChatMessage!]
     GetReviewsByRestaurant(restaurant: String!): ReviewData
     # Alias used by the customer app Reviews screen.
@@ -1185,6 +1222,8 @@ export const typeDefs = `#graphql
     users: [AdminUser!]
     user(id: ID!): AdminUser
     usersPaginated(page: Int, limit: Int, search: String, registrationMethod: String, status: String): UsersPaginatedResponse
+    ordersByUser(userId: ID!, page: Int, limit: Int): OrdersPaginatedResponse
+    userStats(userId: ID!): UserStats
     vendors: [Vendor!]
     getVendor(id: String!): Vendor
     subCategory(_id: String!): SubCategory
@@ -1256,10 +1295,13 @@ export const typeDefs = `#graphql
     updateUserStatus(id: ID!, status: String!, reason: String): AdminUser
     updateUserNotes(id: ID!, notes: String!): AdminUser
     resetUserSession(userId: ID!): AdminUser
+    setUserFeatureBlock(userId: ID!, feature: String!, until: String!, reason: String): AdminUser
+    clearUserFeatureBlock(userId: ID!, feature: String!): AdminUser
 
     # Super Admin — restaurant onboarding
     createRestaurant(restaurant: RestaurantInput!, ownerName: String!, ownerLogin: String!, ownerPassword: String!): CreateRestaurantPayload
     createRider(name: String!, login: String!, password: String!, restaurantId: ID!): CreateRiderPayload
+    deleteRider(id: String!): Rider
     deleteRestaurant(id: String!): Boolean
     hardDeleteRestaurant(id: String!): Boolean
     createCoupon(couponInput: CouponInput!): Coupon

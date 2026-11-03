@@ -31,16 +31,14 @@ import { IQueryResult } from '@/lib/utils/interfaces';
 
 // Data
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 
 export default function RidersMain({
-  setIsAddRiderVisible,
-  setRider,
+  setIsAddRiderVisible: _setIsAddRiderVisible,
+  setRider: _setRider,
 }: IRidersMainComponentsProps) {
   // Hooks
   const t = useTranslations();
   const { showToast } = useToast();
-  const router = useRouter();
 
   // State - Table
   const [deleteId, setDeleteId] = useState('');
@@ -83,23 +81,6 @@ export default function RidersMain({
   }, [debouncedSearch]);
 
   const menuItems: IActionMenuItem<IRiderResponse>[] = [
-    {
-      label: t('View'),
-      command: (data?: IRiderResponse) => {
-        if (data) {
-          router.push(`/general/riders/${data._id}`);
-        }
-      },
-    },
-    {
-      label: t('Edit'),
-      command: (data?: IRiderResponse) => {
-        if (data) {
-          setIsAddRiderVisible(true);
-          setRider(data);
-        }
-      },
-    },
     {
       label: t('Delete'),
       command: (data?: IRiderResponse) => {

@@ -6,6 +6,8 @@ import {
   TabPanelHeaderTemplateOptions,
 } from 'primereact/tabview';
 import UserCard from '@/lib/ui/screen-components/protected/super-admin/user-detail/user-card';
+import UserStats from '@/lib/ui/screen-components/protected/super-admin/user-detail/user-stats';
+import UserActions from '@/lib/ui/screen-components/protected/super-admin/user-detail/user-actions';
 import PersonalInfo from '@/lib/ui/screen-components/protected/super-admin/user-detail/personal-info';
 import Addresses from '@/lib/ui/screen-components/protected/super-admin/user-detail/addresses';
 import OrderHistory from '@/lib/ui/screen-components/protected/super-admin/user-detail/order-history';
@@ -13,7 +15,10 @@ import HeaderText from '@/lib/ui/useable-components/header-text';
 import { useRouter } from 'next/navigation';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
-import { IUserResponse } from '@/lib/utils/interfaces/users.interface';
+import {
+  IUserResponse,
+  IUserStats,
+} from '@/lib/utils/interfaces/users.interface';
 import { IOrdersByUserResponse } from '@/lib/utils/interfaces/orders.interface';
 import { Card } from 'primereact/card';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -22,6 +27,7 @@ import { useQuery } from '@apollo/client';
 
 import { GET_ORDERS_BY_USER } from '@/lib/api/graphql/queries/order';
 import { GET_USER_BY_ID } from '@/lib/api/graphql';
+import { GET_USER_STATS } from '@/lib/api/graphql/queries/user';
 import { IExtendedOrder } from '@/lib/utils/interfaces';
 import { useTranslations } from 'next-intl';
 
@@ -56,6 +62,14 @@ const UserDetailScreen: React.FC<UserDetailScreenProps> = ({ userId }) => {
     fetchPolicy: 'cache-and-network',
   });
 
+  const { data: statsData, loading: statsLoading } = useQuery<{
+    userStats: IUserStats;
+  }>(GET_USER_STATS, {
+    variables: { userId },
+    skip: !userId,
+    fetchPolicy: 'cache-and-network',
+  });
+
   if (!userId) {
     return (
       <div className="flex justify-center items-center h-screen p-4">
@@ -80,16 +94,13 @@ const UserDetailScreen: React.FC<UserDetailScreenProps> = ({ userId }) => {
     );
   }
 
-  if (userLoading || ordersLoading) {
+  if (userLoading) {
     return (
       <div className="p-4 md:p-6">
-        {/* Header Skeleton */}
         <div className="flex items-center gap-4 mb-6">
           <Skeleton shape="circle" size="2.5rem" className="mr-2"></Skeleton>
           <Skeleton width="10rem" height="2.5rem"></Skeleton>
         </div>
-
-        {/* User Card Skeleton */}
         <div className="card mt-6">
           <div className="flex items-center p-4">
             <Skeleton shape="circle" size="6rem" className="mr-4"></Skeleton>
@@ -100,27 +111,12 @@ const UserDetailScreen: React.FC<UserDetailScreenProps> = ({ userId }) => {
             </div>
           </div>
         </div>
-
-        {/* Tabs Skeleton */}
-        <div className="card mt-6">
-          <div className="flex border-b border-gray-300">
-            <Skeleton width="8rem" height="2.5rem" className="mr-2"></Skeleton>
-            <Skeleton width="8rem" height="2.5rem" className="mr-2"></Skeleton>
-            <Skeleton width="8rem" height="2.5rem"></Skeleton>
-          </div>
-          <div className="p-4">
-            <Skeleton width="100%" height="10rem"></Skeleton>
-          </div>
-        </div>
       </div>
     );
   }
 
-  if (userError || ordersError) {
-    const errorMessage =
-      userError?.message ||
-      ordersError?.message ||
-      'An unknown error occurred.';
+  if (userError) {
+    const errorMessage = userError?.message || 'An unknown error occurred.';
     return (
       <div className="flex justify-center items-center h-screen p-4">
         <Card
@@ -131,10 +127,6 @@ const UserDetailScreen: React.FC<UserDetailScreenProps> = ({ userId }) => {
             We encountered an issue while trying to fetch the user&apos;s data.
           </p>
           <p className="font-semibold">Details: {errorMessage}</p>
-          <p className="mt-3 text-sm">
-            Please check your network connection or contact support if the issue
-            persists.
-          </p>
           <div className="mt-4 flex justify-end">
             <Button
               label="Go Back"
@@ -151,6 +143,7 @@ const UserDetailScreen: React.FC<UserDetailScreenProps> = ({ userId }) => {
   const user: IUserResponse | undefined = userData?.user;
   const orders: IExtendedOrder[] = ordersData?.ordersByUser?.orders || [];
   const totalOrders: number = ordersData?.ordersByUser?.totalCount || 0;
+  const stats = statsData?.userStats;
 
   if (!user) {
     return (
@@ -250,6 +243,11 @@ const UserDetailScreen: React.FC<UserDetailScreenProps> = ({ userId }) => {
       </div>
       <div className="mt-6 h-[calc(100vh-150px)] overflow-y-auto">
         <UserCard user={user} />
+        <UserStats stats={stats} loading={statsLoading} />
+        <UserActions user={user} />
+        {ordersError ? (
+          <p className="mt-4 text-sm text-red-600">{ordersError.message}</p>
+        ) : null}
         <div className="card mt-6 mb-20 border shadow-sm !rounded-xl">
           <TabView
             activeIndex={activeIndex}
@@ -265,7 +263,11 @@ const UserDetailScreen: React.FC<UserDetailScreenProps> = ({ userId }) => {
                   tabHeaderTemplate(options, tab, index)
                 }
               >
-                {tab.content}
+                {ordersLoading && index === 2 ? (
+                  <Skeleton width="100%" height="10rem" />
+                ) : (
+                  tab.content
+                )}
               </TabPanel>
             ))}
           </TabView>

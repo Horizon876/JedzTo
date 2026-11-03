@@ -15,9 +15,11 @@ export interface IRiderResponse {
   username: string;
   phone: string;
   available: boolean;
-  vehicleType: string;
-  assigned: string[];
-  zone: IRiderResponseZone | null;
+  vehicleType?: string | null;
+  assigned?: boolean | string[];
+  restaurantId?: string | null;
+  restaurantName?: string | null;
+  zone?: IRiderResponseZone | null;
 }
 
 export interface ISingleRiderResponse {

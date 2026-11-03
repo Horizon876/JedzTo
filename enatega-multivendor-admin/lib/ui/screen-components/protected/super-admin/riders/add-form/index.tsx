@@ -1,322 +1,252 @@
-// Core
-import { Form, Formik, FormikHelpers } from 'formik';
+'use client'
 
-// Prime React
-import { Sidebar } from 'primereact/sidebar';
+import { Form, Formik, FormikHelpers } from 'formik'
+import { Sidebar } from 'primereact/sidebar'
+import { Dialog } from 'primereact/dialog'
+import { useMutation, useQuery } from '@apollo/client'
+import { useTranslations } from 'next-intl'
+import { useState } from 'react'
+import * as Yup from 'yup'
 
-// Interface and Types
-import { IQueryResult } from '@/lib/utils/interfaces';
-import { IRiderForm } from '@/lib/utils/interfaces/forms';
-import {
-  IRidersAddFormComponentProps,
-  IRiderZonesResponse,
-} from '@/lib/utils/interfaces';
+import CustomButton from '@/lib/ui/useable-components/button'
+import CustomDropdownComponent from '@/lib/ui/useable-components/custom-dropdown'
+import CustomTextField from '@/lib/ui/useable-components/input-field'
+import CustomPasswordTextField from '@/lib/ui/useable-components/password-input-field'
+import useToast from '@/lib/hooks/useToast'
+import { CREATE_RIDER, GET_RESTAURANTS_DROPDOWN } from '@/lib/api/graphql'
+import { IRidersAddFormComponentProps } from '@/lib/utils/interfaces'
 
-// Components
-import CustomButton from '@/lib/ui/useable-components/button';
-import CustomDropdownComponent from '@/lib/ui/useable-components/custom-dropdown';
-import CustomTextField from '@/lib/ui/useable-components/input-field';
-import CustomPasswordTextField from '@/lib/ui/useable-components/password-input-field';
+type FormValues = {
+  firstName: string
+  lastName: string
+  login: string
+  password: string
+  restaurant: { label: string; code: string } | null
+}
 
-// Utilities and Constants
-import {
-  RiderErrors /* , VEHICLE_TYPE  */,
-  VEHICLE_TYPE,
-} from '@/lib/utils/constants';
-import { onErrorMessageMatcher } from '@/lib/utils/methods/error';
-import { RiderSchema } from '@/lib/utils/schema/rider';
+type CreatedCreds = {
+  login: string
+  password: string
+  name: string
+  restaurantName: string
+}
 
-//Toast
-import useToast from '@/lib/hooks/useToast';
-
-//GraphQL
-import {
-  CREATE_RIDER,
-  EDIT_RIDER,
-  GET_ZONES,
-} from '@/lib/api/graphql';
-import { useQueryGQL } from '@/lib/hooks/useQueryQL';
-import { useMutation } from '@apollo/client';
-import CustomPhoneTextField from '@/lib/ui/useable-components/phone-input-field';
-import { useTranslations } from 'next-intl';
+const schema = Yup.object({
+  firstName: Yup.string().trim().required('Required').min(2),
+  lastName: Yup.string().trim().required('Required').min(2),
+  login: Yup.string()
+    .trim()
+    .required('Required')
+    .matches(/^[a-zA-Z0-9._-]{3,32}$/, 'Login: 3–32 znaki (litery, cyfry, . _ -)'),
+  password: Yup.string().required('Required').min(6),
+  restaurant: Yup.object().nullable().required('Required'),
+})
 
 export default function RiderAddForm({
   onHide,
-  rider,
   position = 'right',
   isAddRiderVisible,
 }: IRidersAddFormComponentProps) {
-  const initialValues: IRiderForm = {
-    name: '',
-    username: '',
-    password: '',
-    ...rider,
-    vehicleType: rider
-      ? VEHICLE_TYPE.find((vt) => vt?.code === rider?.vehicleType) || null
-      : null,
-    confirmPassword: '',
-    phone: rider ? +rider.phone : null,
-    zone: rider?.zone
-      ? { label: rider.zone.title, code: rider.zone._id }
-      : null,
-  };
+  const t = useTranslations()
+  const { showToast } = useToast()
+  const [created, setCreated] = useState<CreatedCreds | null>(null)
 
-
-  // Hooks
-  const t = useTranslations();
-  const { showToast } = useToast();
-
-  // Query
-  const { data } = useQueryGQL(GET_ZONES, {
+  const { data: restaurantsData } = useQuery(GET_RESTAURANTS_DROPDOWN, {
     fetchPolicy: 'cache-and-network',
-  }) as IQueryResult<IRiderZonesResponse | undefined, undefined>;
+  })
 
-  // Mutation
-  const mutation = rider ? EDIT_RIDER : CREATE_RIDER;
-  const [mutate, { loading: mutationLoading }] = useMutation(mutation, {
+  const restaurantOptions = (restaurantsData?.restaurants || []).map(
+    (r: { _id: string; name: string }) => ({
+      label: r.name,
+      code: r._id,
+    })
+  )
+
+  const [createRider, { loading }] = useMutation(CREATE_RIDER, {
     refetchQueries: 'active',
     awaitRefetchQueries: true,
-  });
+  })
 
-  // Form Submission
-  const handleSubmit = (
-    values: IRiderForm,
-    { resetForm }: FormikHelpers<IRiderForm>
+  const initialValues: FormValues = {
+    firstName: '',
+    lastName: '',
+    login: '',
+    password: '',
+    restaurant: null,
+  }
+
+  const handleSubmit = async (
+    values: FormValues,
+    { resetForm }: FormikHelpers<FormValues>
   ) => {
-    if (data) {
-      mutate({
+    try {
+      const name = `${values.firstName.trim()} ${values.lastName.trim()}`.trim()
+      const password = values.password
+      const result = await createRider({
         variables: {
-          riderInput: {
-            _id: rider ? rider._id : '',
-            name: values.name,
-            username: values.username,
-            phone: values.phone?.toString(),
-            zone: values.zone?.code,
-            vehicleType: values.vehicleType?.code,
-            available: rider ? rider.available : true,
-            ...(values.password ? { password: values.password } : {}),
-          },
+          name,
+          login: values.login.trim().toLowerCase(),
+          password,
+          restaurantId: values.restaurant?.code,
         },
-        onCompleted: () => {
-          showToast({
-            type: 'success',
-            title: t('Success'),
-            message: rider ? t('Rider updated') : t('Rider added'),
-            duration: 3000,
-          });
-          resetForm();
-          onHide();
-        },
-        onError: (error) => {
-          let message = '';
-          try {
-            message = error.graphQLErrors[0]?.message;
-          } catch (err) {
-            message = t('ActionFailedTryAgain');
-          }
-          showToast({
-            type: 'error',
-            title: t('Error'),
-            message,
-            duration: 3000,
-          });
-        },
-      });
+      })
+      const payload = result.data?.createRider
+      showToast({
+        type: 'success',
+        title: t('Success'),
+        message: t('Rider added'),
+        duration: 3000,
+      })
+      resetForm()
+      onHide()
+      if (payload?.login) {
+        setCreated({
+          login: payload.login,
+          password,
+          name: payload.name || name,
+          restaurantName: payload.restaurantName || values.restaurant?.label || '',
+        })
+      }
+    } catch (error: unknown) {
+      const message =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (error as any)?.graphQLErrors?.[0]?.message || t('ActionFailedTryAgain')
+      showToast({
+        type: 'error',
+        title: t('Error'),
+        message,
+        duration: 3000,
+      })
     }
-  };
+  }
 
   return (
-    <Sidebar
-      visible={isAddRiderVisible}
-      position={position}
-      onHide={onHide}
-      className="w-full sm:w-[450px] dark:text-white dark:bg-dark-950 border dark:border-dark-600"
-    >
-      <div className="flex h-full w-full items-center justify-start">
-        <div className="h-full w-full">
-          <div className="flex flex-col gap-2">
-            <div className="mb-2 flex flex-col">
-              <span className="text-lg">
-                {rider ? t('Edit') : t('Add')} {t('Rider')}
-              </span>
-            </div>
-
-            <div>
-              <Formik
-                initialValues={initialValues}
-                validationSchema={RiderSchema}
-                onSubmit={handleSubmit}
-                enableReinitialize
-                validateOnChange={false} // Disable validation on change
-                validateOnBlur={false} // Disable validation on blur
-              >
-                {({
-                  values,
-                  errors,
-                  handleChange,
-                  handleSubmit,
-                  setFieldValue,
-                  setFieldTouched ,
-                  touched
-                }) => {
-                  return (
-                    <Form onSubmit={handleSubmit}>
-                      <div className="space-y-4">
-                        <CustomTextField
-                          type="text"
-                          name="name"
-                          placeholder={t('Name')}
-                          maxLength={35}
-                          value={values.name}
-                          onChange={handleChange}
-                          showLabel={true}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'name',
-                              errors?.name,
-                              RiderErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-
-                        <CustomTextField
-                          type="text"
-                          name="username"
-                          placeholder={t('Username')}
-                          maxLength={35}
-                          value={values.username}
-                          onChange={handleChange}
-                          showLabel={true}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'username',
-                              errors?.username,
-                              RiderErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-
-                        <CustomPasswordTextField
-                          placeholder={t('Password')}
-                          name="password"
-                          maxLength={20}
-                          value={values.password}
-                          showLabel={true}
-                          onChange={handleChange}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'password',
-                              errors?.password,
-                              RiderErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-
-                        <CustomPasswordTextField
-                          placeholder={t('Confirm Password')}
-                          name="confirmPassword"
-                          maxLength={20}
-                          showLabel={true}
-                          value={values.confirmPassword ?? ''}
-                          onChange={handleChange}
-                          feedback={false}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'confirmPassword',
-                              errors?.confirmPassword,
-                              RiderErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-
-                        <CustomDropdownComponent
-                          placeholder={t('Vehicle Type')}
-                          options={VEHICLE_TYPE}
-                          showLabel={true}
-                          name="vehicleType"
-                          selectedItem={values.vehicleType}
-                          setSelectedItem={setFieldValue}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'vehicleType',
-                              errors?.vehicleType,
-                              RiderErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-
-                        <CustomDropdownComponent
-                          placeholder={t('Zone')}
-                          options={
-                            data?.zones.map((val) => {
-                              return { label: val.title, code: val._id };
-                            }) || []
-                          }
-                          showLabel={true}
-                          name="zone"
-                          selectedItem={values.zone}
-                          setSelectedItem={setFieldValue}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'zone',
-                              errors?.zone,
-                              RiderErrors
-                            )
-                              ? 'red'
-                              : '',
-                          }}
-                        />
-
-                        <CustomPhoneTextField
-                          type="text"
-                          mask="999-999-9999"
-                          placeholder={t('Phone Number')}
-                          name="phone"
-                          showLabel={true}
-                          value={values?.phone?.toString()}
-                          // onChange={(code: string) => {
-                          //   setFieldValue('phone', code);
-                          // }}
-                          onChange={(code: string) => {
-                            setFieldValue('phone', code);
-                            setFieldTouched('phone', true, false); // Mark as touched immediately
-                          }}
-                          style={{
-                            borderColor: onErrorMessageMatcher(
-                              'phone',
-                              errors?.phone,
-                              RiderErrors
-                            ) && touched?.phone ? 'red' : '',
-                          }}
-                        />
-
-                        <div className="mt-4 flex justify-end">
-                          <CustomButton
-                            className="h-10 w-fit border-gray-300 border dark:border-dark-600 bg-black  px-8 text-white"
-                            label={rider ? t('Update') : t('Add')}
-                            type="submit"
-                            loading={mutationLoading}
-                          />
-                        </div>
-                      </div>
-                    </Form>
-                  );
-                }}
-              </Formik>
-            </div>
+    <>
+      <Sidebar
+        visible={isAddRiderVisible}
+        position={position}
+        onHide={onHide}
+        className="w-full border sm:w-[450px]"
+      >
+        <div className="flex h-full w-full flex-col gap-2">
+          <div className="mb-2 flex flex-col">
+            <span className="text-lg font-semibold">
+              {t('Add')} {t('Rider')}
+            </span>
+            <p className="m-0 mt-1 text-sm text-[var(--panel-muted)]">
+              Login i hasło służą do aplikacji kierowcy.
+            </p>
           </div>
+
+          <Formik
+            initialValues={initialValues}
+            validationSchema={schema}
+            onSubmit={handleSubmit}
+            validateOnChange={false}
+            validateOnBlur={false}
+          >
+            {({ values, errors, handleChange, handleSubmit, setFieldValue }) => (
+              <Form onSubmit={handleSubmit} className="space-y-4">
+                <CustomTextField
+                  type="text"
+                  name="firstName"
+                  placeholder={t('FirstName')}
+                  maxLength={40}
+                  value={values.firstName}
+                  onChange={handleChange}
+                  showLabel
+                  style={{ borderColor: errors.firstName ? 'red' : '' }}
+                />
+                <CustomTextField
+                  type="text"
+                  name="lastName"
+                  placeholder={t('LastName')}
+                  maxLength={40}
+                  value={values.lastName}
+                  onChange={handleChange}
+                  showLabel
+                  style={{ borderColor: errors.lastName ? 'red' : '' }}
+                />
+                <CustomTextField
+                  type="text"
+                  name="login"
+                  placeholder={t('Login')}
+                  maxLength={32}
+                  value={values.login}
+                  onChange={handleChange}
+                  showLabel
+                  style={{ borderColor: errors.login ? 'red' : '' }}
+                />
+                <CustomPasswordTextField
+                  name="password"
+                  placeholder={t('Password')}
+                  value={values.password}
+                  onChange={handleChange}
+                  showLabel
+                  style={{ borderColor: errors.password ? 'red' : '' }}
+                />
+                <CustomDropdownComponent
+                  name="restaurant"
+                  placeholder={t('Restaurant')}
+                  options={restaurantOptions}
+                  selectedItem={values.restaurant}
+                  setSelectedItem={(_key, item) =>
+                    setFieldValue('restaurant', item)
+                  }
+                  showLabel
+                  filter
+                  style={{ borderColor: errors.restaurant ? 'red' : '' }}
+                />
+
+                <CustomButton
+                  className="mt-4 h-11 w-full bg-[var(--primary-color)] text-white"
+                  label={loading ? t('Loading') : `${t('Add')} ${t('Rider')}`}
+                  type="submit"
+                  loading={loading}
+                />
+              </Form>
+            )}
+          </Formik>
         </div>
-      </div>
-    </Sidebar>
-  );
+      </Sidebar>
+
+      <Dialog
+        header={t('RiderLoginCredentials')}
+        visible={!!created}
+        onHide={() => setCreated(null)}
+        style={{ width: '90vw', maxWidth: '440px' }}
+        modal
+        draggable={false}
+      >
+        {created ? (
+          <div className="space-y-3 text-sm">
+            <p className="m-0 text-[var(--panel-muted)]">
+              Przekaż te dane kierowcy — logują do aplikacji kierowcy.
+            </p>
+            <div>
+              <div className="font-semibold">{t('Name')}</div>
+              <div className="font-mono">{created.name}</div>
+            </div>
+            <div>
+              <div className="font-semibold">{t('Restaurant')}</div>
+              <div>{created.restaurantName}</div>
+            </div>
+            <div>
+              <div className="font-semibold">{t('Login')}</div>
+              <div className="font-mono">{created.login}</div>
+            </div>
+            <div>
+              <div className="font-semibold">{t('Password')}</div>
+              <div className="font-mono">{created.password}</div>
+            </div>
+            <CustomButton
+              className="mt-2 h-10 w-full bg-[var(--primary-color)] text-white"
+              label={t('OK')}
+              onClick={() => setCreated(null)}
+            />
+          </div>
+        ) : null}
+      </Dialog>
+    </>
+  )
 }
