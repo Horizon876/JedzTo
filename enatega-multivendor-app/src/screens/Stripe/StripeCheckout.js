@@ -144,7 +144,7 @@ function StripeCheckout(props) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} edges={['top', 'bottom']}>
-      <StatusBar barStyle='dark-content' backgroundColor='#FFFFFF' />
+      <StatusBar barStyle='dark-content' backgroundColor='#FFFFFF' translucent={false} />
       <WebView
         style={{ flex: 1, display: isConfirmingOrder ? 'none' : 'flex' }}
         javaScriptEnabled

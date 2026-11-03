@@ -277,11 +277,7 @@ function Main(props) {
       // Fetch the address using the geocoding hook
       const { formattedAddress, city } = await getAddress(coords.latitude, coords.longitude)
 
-      let address = formattedAddress || 'Unknown Address'
-
-      if (address.length > 21) {
-        address = address.substring(0, 21) + '...'
-      }
+      const address = formattedAddress || 'Unknown Address'
 
       if (error) {
         navigation.navigate('SelectLocation')
@@ -291,7 +287,8 @@ function Main(props) {
           label: 'currentLocation',
           latitude: coords.latitude,
           longitude: coords.longitude,
-          deliveryAddress: address
+          deliveryAddress: address,
+          city: city || undefined
         })
         setBusy(false)
       }
@@ -397,15 +394,28 @@ function Main(props) {
   //   return []
   // }
 
-  // Prefer a short street-style label for the header (matches the reference
-  // "Piastowska 20" look). Fall back to the full delivery address / current
-  // location string, truncated so it never pushes the Delivery/Pickup pill.
+  // Header label: for "current location" prefer street + house number
+  // (addresses often come as "Rudnik, 32-440, Słoneczna 123").
   const heroAddressLabel = useMemo(() => {
-    const address = locationData?.deliveryAddress || t('currentLocation')
-    // Take the part before the first comma when present (street + number).
-    const short = address.split(',')[0].trim()
+    const address = String(locationData?.deliveryAddress || '').trim()
+    if (!address) return t('currentLocation')
+
+    const parts = address
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+    const isCurrent = locationData?.label === 'currentLocation'
+    const withNumber = [...parts].reverse().find((part) => /\d/.test(part))
+
+    let short = parts[0]
+    if (isCurrent && withNumber) {
+      short = withNumber
+    } else if (parts.length >= 2 && !/\d/.test(parts[0]) && withNumber) {
+      short = withNumber
+    }
+
     return short.length > 22 ? `${short.substring(0, 22)}...` : short
-  }, [locationData?.deliveryAddress, t])
+  }, [locationData?.deliveryAddress, locationData?.label, t])
 
   const handleToggleOrderType = useCallback((nextIsPickup) => {
     if (pickupOnlyBrowsing && !nextIsPickup) {

@@ -24,11 +24,13 @@ const PhoneNumberInput = ({
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   const handleChange = (text) => {
+    // Country calling code lives in the picker on the left — this field is
+    // national digits only. Do not strip a leading "48"/"52"/… while typing.
+    // If the user pastes a full international number (+48…), drop the prefix once.
     let digits = getNationalDigits(text);
-
-    // Drop the country calling code if the user typed/pasted it in.
-    const cc = (countryCode || '').replace('+', '');
-    if (cc && digits.startsWith(cc) && digits.length > cc.length) {
+    const cc = String(countryCode || '').replace(/\D/g, '');
+    const raw = String(text || '').trim();
+    if (cc && (raw.startsWith('+') || raw.startsWith('00')) && digits.startsWith(cc)) {
       digits = digits.slice(cc.length);
     }
 

@@ -65,3 +65,7 @@ services:
         sync: false
       - key: AUTOPAY_GATEWAY_URL
         value: https://testpay.autopay.eu
+      - key: AUTOPAY_CARDS_URL
+        value: https://testcards.autopay.eu
+      - key: AUTOPAY_IPKSEF_URL
+        value: https://testipksef.autopay.eu

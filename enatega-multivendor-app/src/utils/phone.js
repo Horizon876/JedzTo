@@ -10,11 +10,22 @@ const phoneUtil = PhoneNumberUtil.getInstance()
 // Keep only the digits a user actually typed for the national number.
 export const getNationalDigits = (input = '') => (input || '').replace(/\D/g, '')
 
-// Format national digits as-you-type for a region, e.g. 'PK' -> "0301 2345678".
-// Returns the raw digits unchanged if the region is unknown/formatting fails.
+/** Polish mobiles/landlines in the app: always "XXX XXX XXX" (9 digits). */
+const formatPolishNational = (digits) => {
+  const d = String(digits || '').slice(0, 9)
+  const parts = []
+  if (d.length > 0) parts.push(d.slice(0, 3))
+  if (d.length > 3) parts.push(d.slice(3, 6))
+  if (d.length > 6) parts.push(d.slice(6, 9))
+  return parts.join(' ')
+}
+
+// Format national digits as-you-type for a region.
+// PL is fixed to "XXX XXX XXX" — libphonenumber's AsYouType uses "XX XXX XX XX".
 export function formatPhoneNumber(input, region) {
   const digits = getNationalDigits(input)
-  if (!digits || !region) return digits
+  if (!digits) return digits
+  if (!region || region === 'PL') return formatPolishNational(digits)
   try {
     const formatter = new AsYouTypeFormatter(region)
     let formatted = ''

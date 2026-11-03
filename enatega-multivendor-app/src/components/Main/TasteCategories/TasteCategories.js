@@ -20,18 +20,27 @@ const TILE_COLORS = ['#2C2C2E', '#323236', '#2A2A2E', '#34343A', '#2E2E32']
 const ACCENT = '#00A8FF'
 const ALL_CHIP = { _id: '__all__', name: '__all__', isAll: true }
 
-/** Offline / first-paint fallback until API responds. Images are remote so new chips need no rebuild. */
+/** Bundled chip art — preferred over remote URLs so Expo Go shows latest assets. */
+const LOCAL_BY_NAME = {
+  zakupy: require('../../../assets/images/taste/zakupy.png'),
+  pizza: require('../../../assets/images/taste/pizza.jpg'),
+  kebab: require('../../../assets/images/taste/kebab.png'),
+  kurczak: require('../../../assets/images/taste/kurczak.jpg')
+}
+
+/** Offline / first-paint fallback until API responds. */
 export const TASTE_CATEGORIES = [
   {
     _id: 'c-zakupy',
     name: 'Zakupy',
-    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80',
+    localImage: LOCAL_BY_NAME.zakupy,
+    imageContain: true,
     shopType: 'restaurant'
   },
   {
     _id: 'c-pizza',
     name: 'Pizza',
-    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&q=80',
+    localImage: LOCAL_BY_NAME.pizza,
     shopType: 'restaurant'
   },
   {
@@ -43,13 +52,13 @@ export const TASTE_CATEGORIES = [
   {
     _id: 'c-kebab',
     name: 'Kebab',
-    image: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=800&q=80',
+    localImage: LOCAL_BY_NAME.kebab,
     shopType: 'restaurant'
   },
   {
     _id: 'c-kurczak',
     name: 'Kurczak',
-    image: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=800&q=80',
+    localImage: LOCAL_BY_NAME.kurczak,
     shopType: 'restaurant'
   },
   {
@@ -60,14 +69,6 @@ export const TASTE_CATEGORIES = [
   }
 ]
 
-/** Optional bundled art for known names when API omits image. */
-const LOCAL_BY_NAME = {
-  zakupy: require('../../../assets/images/taste/zakupy.png'),
-  pizza: require('../../../assets/images/taste/pizza.jpg'),
-  kebab: require('../../../assets/images/taste/kebab.png'),
-  kurczak: require('../../../assets/images/taste/kurczak.jpg')
-}
-
 const matchesSelected = (cuisine, selectedCuisine) =>
   !!selectedCuisine &&
   (cuisine?.name === selectedCuisine ||
@@ -76,16 +77,26 @@ const matchesSelected = (cuisine, selectedCuisine) =>
       selectedCuisine
     ))
 
-const withLocalImage = (cuisine) => {
-  if (!cuisine || cuisine.localImage || !cuisine.name) return cuisine
-  const key = String(cuisine.name)
+const tasteKey = (name) =>
+  String(name || '')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+
+/** Prefer bundled images for known chips (API may return unsplash placeholders). */
+const withLocalImage = (cuisine) => {
+  if (!cuisine || cuisine.localImage || !cuisine.name) return cuisine
+  const key = tasteKey(cuisine.name)
   const localImage = LOCAL_BY_NAME[key]
-  if (!localImage || cuisine.image) return cuisine
-  return { ...cuisine, localImage, imageContain: cuisine.imageContain ?? key === 'zakupy' }
+  if (!localImage) return cuisine
+  return {
+    ...cuisine,
+    localImage,
+    imageContain: cuisine.imageContain ?? key === 'zakupy',
+    // Drop remote so the tile renders the bundled asset.
+    image: undefined
+  }
 }
 
 export const useTasteCategories = () => {

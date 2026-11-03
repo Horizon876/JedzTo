@@ -164,6 +164,11 @@ function MainNavigator() {
       <NavigationStack.Screen
         name='StripeCheckout'
         component={StripeCheckout}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+          ...SLIDE_RIGHT_WITH_CURVE_ANIM
+        }}
       />
       <NavigationStack.Screen
         name='AutopayCheckout'

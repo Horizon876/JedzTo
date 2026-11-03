@@ -35,7 +35,11 @@ function AutopayCheckout(props) {
   const backendHost = useRef(null)
   const autopayAllowedHosts = useRef([
     'testpay.autopay.eu',
+    'testcards.autopay.eu',
+    'testipksef.autopay.eu',
     'pay.autopay.eu',
+    'cards.autopay.eu',
+    'ipksef.autopay.eu',
     'autopay.eu',
     'autopay.pl',
     'bm.pl',
