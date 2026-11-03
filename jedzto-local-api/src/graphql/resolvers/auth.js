@@ -79,7 +79,8 @@ const authResponse = (user, isNewUser = false) => {
 }
 
 export async function ownerResponse(user) {
-  const tokens = signUserToken(user)
+  // Panel sessions are short-lived; customer app keeps the long-lived token.
+  const tokens = signUserToken(user, { panel: true })
   const isAdmin = user.role === 'SUPER_ADMIN'
   const isRider = user.role === 'RIDER'
 

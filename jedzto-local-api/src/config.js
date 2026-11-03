@@ -81,6 +81,8 @@ export const MAX_ITEM_QUANTITY = 50
 export const PUBLIC_TOKEN_TTL_HOURS = 12
 export const USER_TOKEN_TTL_DAYS = 30
 export const REFRESH_TOKEN_TTL_DAYS = 60
+/** Shorter JWT for admin/owner panel logins (hours). Customer app keeps USER_TOKEN_TTL_DAYS. */
+export const PANEL_TOKEN_TTL_HOURS = Number(process.env.PANEL_TOKEN_TTL_HOURS || 8)
 export const MIN_PASSWORD_LENGTH = 8
 export const MAPBOX_ACCESS_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || ''
 export const STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY || ''

@@ -1,16 +1,15 @@
 'use client';
-// Core
+
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import CustomLoader from '@/lib/ui/useable-components/custom-progress-indicator';
-
-// Hooks
 import { useUserContext } from '@/lib/hooks/useUser';
-
-// Constants and Utils
 import { ROUTES } from '@/lib/utils/constants';
 import { DEFAULT_ROUTES } from '@/lib/utils/constants/routes';
-import { getAccessToken } from '@/lib/utils/methods/auth';
+import {
+  getAccessToken,
+  isSuperAdminPanelRole,
+} from '@/lib/utils/methods/auth';
 
 const SUPER_ADMIN_GUARD = <T extends object>(
   Component: React.ComponentType<T>
@@ -18,7 +17,8 @@ const SUPER_ADMIN_GUARD = <T extends object>(
   const WrappedComponent = (props: T) => {
     const pathname = usePathname();
     const router = useRouter();
-    const { user, loading, isSessionVerified } = useUserContext();
+    const { user, loading, isSessionVerified, clearUserSession } =
+      useUserContext();
 
     const hasSessionToken = !!getAccessToken();
     const findRouteName = ROUTES.find((v) => v.route === pathname);
@@ -26,32 +26,41 @@ const SUPER_ADMIN_GUARD = <T extends object>(
       user?.userType !== 'STAFF' ||
       !findRouteName ||
       !Array.isArray(user.permissions) ||
-      user.permissions.includes(findRouteName.text);
+      user.permissions.includes(findRouteName.text) ||
+      user.permissions.includes('*');
+
+    // Only ADMIN / STAFF — never restaurant owners, riders, or customers.
     const isAllowed =
       isSessionVerified &&
       !!user &&
-      user.userType !== 'RESTAURANT' &&
-      user.userType !== 'VENDOR' &&
+      isSuperAdminPanelRole(user.userType) &&
       staffAllowed;
 
     useEffect(() => {
-      if (!loading && !hasSessionToken) {
+      if (loading) return;
+
+      if (!hasSessionToken || !isSessionVerified) {
+        clearUserSession();
         router.replace('/authentication/login');
         return;
       }
-      if (!loading && hasSessionToken && !isSessionVerified) {
-        router.replace('/authentication/login');
-        return;
-      }
-      if (!loading && isSessionVerified && !isAllowed) {
-        // Wrong panel for this account — send them to their own dashboard
-        // instead of trapping them on a dead 403 page.
+
+      if (!isAllowed) {
+        // Owner / rider trying to open /home or /general/* → own panel or login.
         const fallback =
           DEFAULT_ROUTES[user?.userType as keyof typeof DEFAULT_ROUTES] ??
           '/authentication/login';
         router.replace(fallback);
       }
-    }, [hasSessionToken, isAllowed, isSessionVerified, loading, router, user?.userType]);
+    }, [
+      clearUserSession,
+      hasSessionToken,
+      isAllowed,
+      isSessionVerified,
+      loading,
+      router,
+      user?.userType,
+    ]);
 
     if (loading) {
       return <CustomLoader />;

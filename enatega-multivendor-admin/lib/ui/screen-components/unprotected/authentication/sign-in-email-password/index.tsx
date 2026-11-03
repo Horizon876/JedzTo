@@ -1,12 +1,13 @@
 'use client';
 
 import { useContext, useState, type CSSProperties } from 'react';
-import { APP_NAME } from '@/lib/utils/constants';
 import { OWNER_LOGIN } from '@/lib/api/graphql';
 import { ToastContext } from '@/lib/context/global/toast.context';
 import { ApolloError, useMutation } from '@apollo/client';
-import { onUseLocalStorage } from '@/lib/utils/methods';
-import { persistUserSession } from '@/lib/utils/methods/auth';
+import {
+  isAllowedWebPanelRole,
+  persistUserSession,
+} from '@/lib/utils/methods/auth';
 import { useUserContext } from '@/lib/hooks/useUser';
 import { DEFAULT_ROUTES } from '@/lib/utils/constants/routes';
 import { useTranslations } from 'next-intl';
@@ -69,13 +70,19 @@ export default function LoginEmailPasswordMain() {
         throw new Error('Unable to load session');
       }
 
-      onUseLocalStorage('save', `user-${APP_NAME}`, JSON.stringify(ownerLogin));
+      // Rider / customer apps use the same API login — block them from this UI.
+      if (!isAllowedWebPanelRole(ownerLogin.userType)) {
+        throw new Error(
+          'To konto nie ma dostępu do panelu administracyjnego'
+        );
+      }
+
       persistUserSession(ownerLogin);
       setUser(ownerLogin);
 
       const destination =
         DEFAULT_ROUTES[ownerLogin.userType as keyof typeof DEFAULT_ROUTES] ??
-        '/home';
+        '/authentication/login';
 
       showToast({
         type: 'success',

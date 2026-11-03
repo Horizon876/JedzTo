@@ -1,13 +1,9 @@
 'use client';
-// Core
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import CustomLoader from '@/lib/ui/useable-components/custom-progress-indicator';
-
-// Hooks
 import { useUserContext } from '@/lib/hooks/useUser';
-
-// Constants and Utils
 import { DEFAULT_ROUTES } from '@/lib/utils/constants/routes';
 import { getAccessToken } from '@/lib/utils/methods/auth';
 
@@ -16,38 +12,53 @@ const RESTAURANT_GUARD = <T extends object>(
 ) => {
   const WrappedComponent = (props: T) => {
     const router = useRouter();
-    const { user, loading, isSessionVerified } = useUserContext();
+    const { user, loading, isSessionVerified, clearUserSession } =
+      useUserContext();
 
     const hasSessionToken = !!getAccessToken();
+
+    const staffRestaurantOk =
+      user?.userType === 'STAFF' &&
+      Array.isArray(user.permissions) &&
+      (user.permissions.includes('Restaurants') ||
+        user.permissions.includes('Stores') ||
+        user.permissions.includes('Vendors') ||
+        user.permissions.includes('*'));
+
+    // Super-admin may open a restaurant (BackToAdmin). Owners stay here.
+    // Riders / customers are never allowed.
     const isAllowed =
       isSessionVerified &&
       !!user &&
       (user.userType === 'ADMIN' ||
         user.userType === 'RESTAURANT' ||
         user.userType === 'VENDOR' ||
-        (user.userType === 'STAFF' &&
-          !!(
-            user.permissions?.includes('Restaurants') ||
-            user.permissions?.includes('Stores') ||
-            user.permissions?.includes('Vendors')
-          )));
+        staffRestaurantOk);
 
     useEffect(() => {
-      if (!loading && !hasSessionToken) {
+      if (loading) return;
+
+      if (!hasSessionToken || !isSessionVerified) {
+        clearUserSession();
         router.replace('/authentication/login');
         return;
       }
-      if (!loading && hasSessionToken && !isSessionVerified) {
-        router.replace('/authentication/login');
-        return;
-      }
-      if (!loading && isSessionVerified && !isAllowed) {
+
+      if (!isAllowed) {
         const fallback =
           DEFAULT_ROUTES[user?.userType as keyof typeof DEFAULT_ROUTES] ??
           '/authentication/login';
         router.replace(fallback);
       }
-    }, [hasSessionToken, isAllowed, isSessionVerified, loading, router, user?.userType]);
+    }, [
+      clearUserSession,
+      hasSessionToken,
+      isAllowed,
+      isSessionVerified,
+      loading,
+      router,
+      user?.userType,
+    ]);
 
     if (loading) {
       return <CustomLoader />;
@@ -57,7 +68,6 @@ const RESTAURANT_GUARD = <T extends object>(
       return null;
     }
 
-    // ADMIN/RESTAURANT is always allowed
     return <Component {...props} />;
   };
 

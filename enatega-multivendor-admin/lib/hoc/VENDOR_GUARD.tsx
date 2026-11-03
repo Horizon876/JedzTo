@@ -1,44 +1,53 @@
 'use client';
-// Core
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import CustomLoader from '@/lib/ui/useable-components/custom-progress-indicator';
-
-// Hooks
 import { useUserContext } from '@/lib/hooks/useUser';
-
-// Constants and Utils
 import { DEFAULT_ROUTES } from '@/lib/utils/constants/routes';
-import { getAccessToken } from '@/lib/utils/methods/auth';
+import {
+  getAccessToken,
+  isSuperAdminPanelRole,
+} from '@/lib/utils/methods/auth';
 
 const VENDOR_GUARD = <T extends object>(Component: React.ComponentType<T>) => {
   const WrappedComponent = (props: T) => {
     const router = useRouter();
-    const { user, loading, isSessionVerified } = useUserContext();
+    const { user, loading, isSessionVerified, clearUserSession } =
+      useUserContext();
 
     const hasSessionToken = !!getAccessToken();
     const isAllowed =
       isSessionVerified &&
       !!user &&
+      (isSuperAdminPanelRole(user.userType) || user.userType === 'VENDOR') &&
       user.userType !== 'RESTAURANT' &&
-      (user.userType !== 'STAFF' || !!user.permissions?.includes('Vendors'));
+      user.userType !== 'RIDER';
 
     useEffect(() => {
-      if (!loading && !hasSessionToken) {
+      if (loading) return;
+
+      if (!hasSessionToken || !isSessionVerified) {
+        clearUserSession();
         router.replace('/authentication/login');
         return;
       }
-      if (!loading && hasSessionToken && !isSessionVerified) {
-        router.replace('/authentication/login');
-        return;
-      }
-      if (!loading && isSessionVerified && !isAllowed) {
+
+      if (!isAllowed) {
         const fallback =
           DEFAULT_ROUTES[user?.userType as keyof typeof DEFAULT_ROUTES] ??
           '/authentication/login';
         router.replace(fallback);
       }
-    }, [hasSessionToken, isAllowed, isSessionVerified, loading, router, user?.userType]);
+    }, [
+      clearUserSession,
+      hasSessionToken,
+      isAllowed,
+      isSessionVerified,
+      loading,
+      router,
+      user?.userType,
+    ]);
 
     if (loading) {
       return <CustomLoader />;
@@ -48,7 +57,6 @@ const VENDOR_GUARD = <T extends object>(Component: React.ComponentType<T>) => {
       return null;
     }
 
-    // ADMIN/VENDOR is always allowed
     return <Component {...props} />;
   };
 

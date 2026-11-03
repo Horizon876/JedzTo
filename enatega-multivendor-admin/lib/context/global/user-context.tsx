@@ -1,13 +1,17 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { useApolloClient } from '@apollo/client';
+import { useRouter } from 'next/navigation';
 import { OWNER_SESSION } from '@/lib/api/graphql';
 import { ILoginResponse, IOwnerSessionDataResponse } from '@/lib/utils/interfaces';
 import {
+  clearLegacyLocalAuth,
   clearStoredSessionState,
   getAccessToken,
   getStoredUser,
+  isAllowedWebPanelRole,
   persistUserSession,
 } from '@/lib/utils/methods/auth';
+import { useIdleLogout } from '@/lib/hooks/useIdleLogout';
 
 interface IUserContext {
   user: ILoginResponse | null;
@@ -69,6 +73,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const apolloClient = useApolloClient();
+  const router = useRouter();
   const [user, setUser] = useState<ILoginResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSessionVerified, setIsSessionVerified] = useState(false);
@@ -78,6 +83,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
     setIsSessionVerified(false);
   }, []);
+
+  const logoutAndRedirect = useCallback(async () => {
+    clearUserSession();
+    try {
+      await apolloClient.clearStore();
+    } catch {
+      /* ignore */
+    }
+    router.replace('/authentication/login');
+  }, [apolloClient, clearUserSession, router]);
+
+  useIdleLogout(Boolean(user && isSessionVerified), () => {
+    void logoutAndRedirect();
+  });
 
   const refreshUserSession = useCallback(
     async (
@@ -101,7 +120,17 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
           return null;
         }
 
-        const verifiedUser = normalizeOwnerSession(data.ownerSession, cachedUser);
+        // Server payload wins over any client-forged cached userType.
+        const verifiedUser = normalizeOwnerSession(
+          data.ownerSession,
+          cachedUser
+        );
+
+        if (!isAllowedWebPanelRole(verifiedUser.userType)) {
+          clearUserSession();
+          return null;
+        }
+
         persistUserSession(verifiedUser);
         setUser(verifiedUser);
         setIsSessionVerified(true);
@@ -121,6 +150,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   useEffect(() => {
+    clearLegacyLocalAuth();
     const cachedUser = getStoredUser();
     setUser(cachedUser);
 

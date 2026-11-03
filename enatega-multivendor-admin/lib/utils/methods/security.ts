@@ -15,7 +15,8 @@ function generateRandomKey(): string {
 }
 
 function getStorage(): Storage | null {
-  return typeof window === 'undefined' ? null : window.localStorage;
+  // Metrics/public bootstrap token must not outlive the browser tab.
+  return typeof window === 'undefined' ? null : window.sessionStorage;
 }
 
 export function initializeNonce(): void {

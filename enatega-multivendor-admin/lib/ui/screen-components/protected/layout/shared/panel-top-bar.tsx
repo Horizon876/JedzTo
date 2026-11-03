@@ -64,18 +64,11 @@ export default function PanelTopBar({
         brandFallback
       : brandFallback
 
-  // Super-admin (or staff) who opened a restaurant panel — show way back.
+  // Only real super-admin/staff may return — never trust routeStack alone
+  // (owners must not forge a path into /general/*).
   const canReturnToAdmin = useMemo(() => {
     if (role !== 'restaurant') return false
-    if (user?.userType === 'ADMIN' || user?.userType === 'STAFF') return true
-    try {
-      const stack = JSON.parse(
-        onUseLocalStorage('get', 'routeStack') || '[]'
-      ) as string[]
-      return Array.isArray(stack) && stack.includes('Admin')
-    } catch {
-      return false
-    }
+    return user?.userType === 'ADMIN' || user?.userType === 'STAFF'
   }, [role, user?.userType])
 
   useEffect(() => {

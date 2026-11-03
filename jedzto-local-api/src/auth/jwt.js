@@ -5,7 +5,8 @@ import {
   LOCAL_API_OPEN,
   PUBLIC_TOKEN_TTL_HOURS,
   USER_TOKEN_TTL_DAYS,
-  REFRESH_TOKEN_TTL_DAYS
+  REFRESH_TOKEN_TTL_DAYS,
+  PANEL_TOKEN_TTL_HOURS
 } from '../config.js'
 
 export const signPublicToken = () => {
@@ -15,9 +16,18 @@ export const signPublicToken = () => {
   return { token, expiry }
 }
 
-export const signUserToken = (user) => {
-  const expiresIn = USER_TOKEN_TTL_DAYS * 24 * 60 * 60
-  const refreshExpiresIn = REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60
+/**
+ * @param {object} user
+ * @param {{ panel?: boolean }} [opts] panel=true → short-lived token for admin/owner web UI
+ */
+export const signUserToken = (user, opts = {}) => {
+  const panel = Boolean(opts.panel)
+  const expiresIn = panel
+    ? Math.max(1, PANEL_TOKEN_TTL_HOURS) * 60 * 60
+    : USER_TOKEN_TTL_DAYS * 24 * 60 * 60
+  const refreshExpiresIn = panel
+    ? Math.max(1, PANEL_TOKEN_TTL_HOURS) * 60 * 60
+    : REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60
   const token = jwt.sign(
     {
       typ: 'user',
@@ -25,7 +35,8 @@ export const signUserToken = (user) => {
       email: user.email,
       name: user.name,
       role: user.role,
-      restaurantId: user.restaurantId ? String(user.restaurantId) : null
+      restaurantId: user.restaurantId ? String(user.restaurantId) : null,
+      panel: panel || undefined
     },
     JWT_SECRET,
     { expiresIn }
@@ -34,7 +45,7 @@ export const signUserToken = (user) => {
   // leaked access token cannot be replayed to mint fresh sessions and the
   // refresh token itself grants no API access.
   const refreshToken = jwt.sign(
-    { typ: 'refresh', userId: String(user._id) },
+    { typ: 'refresh', userId: String(user._id), panel: panel || undefined },
     JWT_SECRET,
     { expiresIn: refreshExpiresIn }
   )
