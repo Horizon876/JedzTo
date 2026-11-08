@@ -1,5 +1,5 @@
 import React from 'react'
-import { TouchableOpacity, View } from 'react-native'
+import { Platform, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
@@ -65,31 +65,53 @@ const DiscoveryHero = ({
   const insets = useSafeAreaInsets()
   const themedStyles = styles(currentTheme)
 
+  const topPad = Platform.OS === 'web' ? 12 : insets.top + 2
+
   return (
-    <View style={[themedStyles.hero, { paddingTop: insets.top + 2 }]}>
-      <View style={themedStyles.topRow}>
-        <TouchableOpacity activeOpacity={0.8} style={themedStyles.addressRow} onPress={onAddressPress}>
-          <TextDefault numberOfLines={1} textColor={themedStyles.addressColor} bolder H5 style={themedStyles.addressText}>
-            {addressLabel}
-          </TextDefault>
-          <Ionicons name='chevron-down' size={16} color={themedStyles.addressColor} />
-        </TouchableOpacity>
+    <View style={[themedStyles.hero, { paddingTop: topPad }]}>
+      {Platform.OS === 'web' ? (
+        <View style={themedStyles.topRow}>
+          <TouchableOpacity activeOpacity={0.85} style={[themedStyles.searchBar, { flex: 1 }]} onPress={onSearchPress}>
+            <Ionicons name='search' size={20} color={ACCENT} />
+            <TextDefault numberOfLines={1} textColor={themedStyles.placeholderColor} style={themedStyles.searchPlaceholder}>
+              {t('lookingForCategory')}
+            </TextDefault>
+          </TouchableOpacity>
+          <OrderTypeToggle
+            isPickup={isPickup}
+            onToggleOrderType={onToggleOrderType}
+            themedStyles={themedStyles}
+            t={t}
+            pickupOnly={pickupOnly}
+          />
+        </View>
+      ) : (
+        <>
+          <View style={themedStyles.topRow}>
+            <TouchableOpacity activeOpacity={0.8} style={themedStyles.addressRow} onPress={onAddressPress}>
+              <TextDefault numberOfLines={1} textColor={themedStyles.addressColor} bolder H5 style={themedStyles.addressText}>
+                {addressLabel}
+              </TextDefault>
+              <Ionicons name='chevron-down' size={16} color={themedStyles.addressColor} />
+            </TouchableOpacity>
 
-        <OrderTypeToggle
-          isPickup={isPickup}
-          onToggleOrderType={onToggleOrderType}
-          themedStyles={themedStyles}
-          t={t}
-          pickupOnly={pickupOnly}
-        />
-      </View>
+            <OrderTypeToggle
+              isPickup={isPickup}
+              onToggleOrderType={onToggleOrderType}
+              themedStyles={themedStyles}
+              t={t}
+              pickupOnly={pickupOnly}
+            />
+          </View>
 
-      <TouchableOpacity activeOpacity={0.85} style={themedStyles.searchBar} onPress={onSearchPress}>
-        <Ionicons name='search' size={20} color={ACCENT} />
-        <TextDefault numberOfLines={1} textColor={themedStyles.placeholderColor} style={themedStyles.searchPlaceholder}>
-          {t('lookingForCategory')}
-        </TextDefault>
-      </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.85} style={themedStyles.searchBar} onPress={onSearchPress}>
+            <Ionicons name='search' size={20} color={ACCENT} />
+            <TextDefault numberOfLines={1} textColor={themedStyles.placeholderColor} style={themedStyles.searchPlaceholder}>
+              {t('lookingForCategory')}
+            </TextDefault>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   )
 }

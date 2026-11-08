@@ -6,6 +6,7 @@ import { CardStyleInterpolators, createStackNavigator } from '@react-navigation/
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import navigationService from './navigationService'
 import * as Notifications from 'expo-notifications'
+import { useLastNotificationResponseSafe } from '../utils/useLastNotificationResponseSafe'
 import Login from '../screens/Login/Login'
 import Register from '../screens/Register/Register'
 import ForgotPassword from '../screens/ForgotPassword/ForgotPassword'
@@ -22,7 +23,6 @@ import Help from '../screens/Help/Help'
 import CustomerSupport from '../screens/CustomerSupport/CustomerSupport'
 import Paypal from '../screens/Paypal/Paypal'
 import StripeCheckout from '../screens/Stripe/StripeCheckout'
-import AutopayCheckout from '../screens/Autopay/AutopayCheckout'
 import PaymentCancelled from '../screens/PaymentCancelled/PaymentCancelled'
 import Addresses from '../screens/Addresses/Addresses'
 import NewAddress from '../screens/NewAddress/NewAddress'
@@ -56,6 +56,7 @@ import Menu from '../screens/Menu/Menu'
 import Reviews from '../screens/Reviews'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import BottomTabIcon from '../components/BottomTabIcon/BottomTabIcon'
+import WebTopNav from '../components/Web/WebTopNav'
 import { useTranslation } from 'react-i18next'
 import Collection from '../screens/Collection/Collection'
 import Account from '../screens/Account/Account'
@@ -171,15 +172,6 @@ function MainNavigator() {
         }}
       />
       <NavigationStack.Screen
-        name='AutopayCheckout'
-        component={AutopayCheckout}
-        options={{
-          headerShown: false,
-          gestureEnabled: false,
-          ...SLIDE_RIGHT_WITH_CURVE_ANIM
-        }}
-      />
-      <NavigationStack.Screen
         name='PaymentCancelled'
         component={PaymentCancelled}
         options={{ headerShown: false, ...SLIDE_RIGHT_WITH_CURVE_ANIM }}
@@ -280,6 +272,7 @@ function BottomTabNavigator() {
   const { t } = useTranslation()
   return (
     <Tab.Navigator
+      tabBar={Platform.OS === 'web' ? (props) => <WebTopNav {...props} /> : undefined}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           // synced with BottomTabIcon, make sure to have the same name as icon in BottomTabIcon
@@ -287,20 +280,32 @@ function BottomTabNavigator() {
             route.name === 'Favourites' ? 'profile' : route.name.toLowerCase()
           return <BottomTabIcon name={iconName} size={focused ? '28' : size} color={color} />
         },
-        tabBarStyle: {
-          paddingHorizontal: 15,
-          paddingVertical: 10,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 15,
-          height: Platform.OS === 'ios' ? 90 : 70,
-          backgroundColor: themeContext.ThemeValue === 'Dark' ? '#1A1A1A' : '#FFFFFF',
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: themeContext.ThemeValue === 'Dark' ? '#2C2C2E' : '#E5E7EB',
-          elevation: 0,
-          shadowOpacity: 0
-        },
+        tabBarStyle:
+          Platform.OS === 'web'
+            ? {
+                // Slot collapsed — WebTopNav is position:fixed at the top.
+                height: 0,
+                overflow: 'hidden',
+                borderTopWidth: 0,
+                elevation: 0,
+                shadowOpacity: 0
+              }
+            : {
+                paddingHorizontal: 15,
+                paddingVertical: 10,
+                paddingBottom: Platform.OS === 'ios' ? 25 : 15,
+                height: Platform.OS === 'ios' ? 90 : 70,
+                backgroundColor: themeContext.ThemeValue === 'Dark' ? '#1A1A1A' : '#FFFFFF',
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: themeContext.ThemeValue === 'Dark' ? '#2C2C2E' : '#E5E7EB',
+                elevation: 0,
+                shadowOpacity: 0
+              },
+        sceneContainerStyle:
+          Platform.OS === 'web' ? { paddingTop: 64 } : undefined,
         tabBarActiveTintColor: '#00A8FF',
         tabBarInactiveTintColor: themeContext.ThemeValue === 'Dark' ? '#5B8FB8' : '#6B7280',
-        tabBarLabelStyle: { fontSize: 12 },
+        tabBarLabelStyle: { fontSize: Platform.OS === 'web' ? 13 : 12 },
         headerRight: () => <RightButton icon='cart' iconColor={currentTheme.iconColor} menuHeader={false} t={t} />
       })}
     >
@@ -352,7 +357,7 @@ function AppContainer() {
   const currentTheme = theme[themeContext.ThemeValue]
   const { permissionState, setPermissionState, location, setLocation, isLocationLoaded } = useContext(LocationContext)
   const { isAuthReady } = useContext(AuthContext)
-  const lastNotificationResponse = Notifications.useLastNotificationResponse()
+  const lastNotificationResponse = useLastNotificationResponseSafe()
   // Every cold start must pick a delivery address first (even if an old
   // address is still sitting in AsyncStorage / the user is logged in) — the
   // app should always open on the location picker, not jump straight to the
@@ -374,7 +379,11 @@ function AppContainer() {
 
   useEffect(() => {
     if (!isAuthReady || !isLocationLoaded || isLaunchGateReady) return
-    setLocation(null)
+    // Web = website: keep default / saved location and skip the address gate.
+    // Native apps still force picking an address on every cold start.
+    if (Platform.OS !== 'web') {
+      setLocation(null)
+    }
     setIsLaunchGateReady(true)
   }, [isAuthReady, isLocationLoaded, isLaunchGateReady, setLocation])
 

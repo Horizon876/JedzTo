@@ -15,7 +15,11 @@ const useEnvVars = (env = Updates.channel || process.env.APP_ENV || process.env.
   const googleMapsKey =
     Platform.OS === 'ios'
       ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_IOS
-      : process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_ANDROID
+      : Platform.OS === 'web'
+        ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_WEB ||
+          process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_ANDROID ||
+          process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_IOS
+        : process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_ANDROID
 
   return {
     ...sharedConfig,

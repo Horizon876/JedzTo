@@ -25,8 +25,11 @@ const SafeMapView = forwardRef(function SafeMapView(
 ) {
   const { GOOGLE_MAPS_KEY } = useEnvVars()
   const hasMapsKey = Boolean(GOOGLE_MAPS_KEY && String(GOOGLE_MAPS_KEY).trim())
+  // Web uses the metro stub for react-native-maps (placeholder map).
   const canUseNativeMaps =
-    Platform.OS !== 'android' || (ANDROID_NATIVE_MAPS_READY && hasMapsKey)
+    Platform.OS === 'web' ||
+    Platform.OS !== 'android' ||
+    (ANDROID_NATIVE_MAPS_READY && hasMapsKey)
 
   if (!canUseNativeMaps) {
     return fallback || <View style={style} />

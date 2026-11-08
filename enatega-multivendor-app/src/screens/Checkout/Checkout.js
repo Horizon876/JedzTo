@@ -586,20 +586,8 @@ function Checkout(props) {
           order: placed
         })
       } else if (paymentMode === 'STRIPE') {
-        // Autopay is wired (AutopayCheckout + /autopay/*) but Stripe stays
-        // the live online path until Autopay ServiceID/key are ready.
         setIsPickup(false)
         props?.navigation.replace('StripeCheckout', {
-          _id: placed.orderId,
-          orderMongoId: placed._id,
-          amount: placed.orderAmount,
-          email: placed?.user?.email,
-          currency: configuration.currency,
-          order: placed
-        })
-      } else if (paymentMode === 'AUTOPAY') {
-        setIsPickup(false)
-        props?.navigation.replace('AutopayCheckout', {
           _id: placed.orderId,
           orderMongoId: placed._id,
           amount: placed.orderAmount,
@@ -718,7 +706,7 @@ function Checkout(props) {
   }
 
   function checkPaymentMethod(currency) {
-    if (paymentMode === 'STRIPE' || paymentMode === 'AUTOPAY') {
+    if (paymentMode === 'STRIPE') {
       return stripeCurrencies.find((val) => val.currency === currency)
     }
     if (paymentMode === 'PAYPAL') {

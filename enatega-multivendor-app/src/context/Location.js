@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useMemo, useContext, useRef } from 'react'
+import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import gql from 'graphql-tag'
 import { useQuery } from '@apollo/client'
@@ -41,7 +42,8 @@ export const LocationProvider = ({ children }) => {
   useEffect(() => {
     if (!isLocationLoaded) return
 
-    if (!token) {
+    // Native guests wipe location on logout; web keeps it like a site preference.
+    if (!token && Platform.OS !== 'web') {
       AsyncStorage.removeItem('location').catch(() => {})
       return
     }
@@ -60,7 +62,13 @@ export const LocationProvider = ({ children }) => {
     ;(async () => {
       try {
         if (ENABLE_DEMO_DEFAULT_LOCATION) {
-          if (!cancelled) setLocation(DEMO_DEFAULT_LOCATION)
+          if (!hasHydratedLocationRef.current) {
+            const saved = await AsyncStorage.getItem('location')
+            if (!cancelled) {
+              setLocation(saved ? JSON.parse(saved) : DEMO_DEFAULT_LOCATION)
+            }
+            hasHydratedLocationRef.current = true
+          }
           return
         }
 

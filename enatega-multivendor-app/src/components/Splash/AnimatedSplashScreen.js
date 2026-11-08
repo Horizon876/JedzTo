@@ -1,7 +1,7 @@
 // import 'expo-dev-client'
 import * as SplashScreen from 'expo-splash-screen'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 import Animated, {
   Easing,
   runOnJS,
@@ -15,7 +15,10 @@ export default function AnimatedSplashScreen({ children }) {
   const opacityAnimation = useSharedValue(1)
   const [isAppReady, setAppReady] = useState(false)
   const [isSplashLogoComplete, setSplashLogoComplete] = useState(false)
-  const [isSplashAnimationComplete, setAnimationComplete] = useState(false)
+  // Reanimated opacity fade can leave a black overlay stuck on web; skip it.
+  const [isSplashAnimationComplete, setAnimationComplete] = useState(
+    Platform.OS === 'web'
+  )
 
   useEffect(() => {
     if (isAppReady && isSplashLogoComplete) {
@@ -54,6 +57,10 @@ export default function AnimatedSplashScreen({ children }) {
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacityAnimation.value
   }))
+
+  if (Platform.OS === 'web') {
+    return <View style={{ flex: 1 }}>{children}</View>
+  }
 
   return (
     <View style={{ flex: 1 }}>

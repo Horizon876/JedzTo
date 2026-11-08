@@ -10,9 +10,11 @@
 // Coords below are Myślenice centre — used only if ENABLE_DEMO_DEFAULT_LOCATION
 // is turned back on. Local restaurants are always shown regardless of address
 // when USE_JEDZTO_LOCAL_RESTAURANTS is true.
-// Enabled for local JedzTo stack so Discovery opens on Myślenice without
-// forcing address onboarding on every cold start.
-export const ENABLE_DEMO_DEFAULT_LOCATION = false
+import { Platform } from 'react-native'
+
+// Mobile keeps the real address onboarding. Web opens as a site with a
+// default delivery area (Myślenice); user can still change address later.
+export const ENABLE_DEMO_DEFAULT_LOCATION = Platform.OS === 'web'
 
 export const DEMO_DEFAULT_LOCATION = {
   label: 'Other',

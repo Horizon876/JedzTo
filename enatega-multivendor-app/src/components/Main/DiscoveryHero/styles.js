@@ -11,7 +11,13 @@ const styles = (props = null) => {
   const placeholderColor = isDark ? '#D1D5DB' : '#6B7280'
   const inactiveIcon = isDark ? '#9CA3AF' : '#9CA3AF'
 
-  return StyleSheet.create({
+  // Color tokens must stay outside StyleSheet.create — RN-web uses a WeakMap
+  // keyed by style objects; bare string values throw "Invalid value used as weak map key".
+  return {
+    addressColor,
+    placeholderColor,
+    inactiveIcon,
+    ...StyleSheet.create({
     hero: {
       backgroundColor: heroBg,
       paddingBottom: scale(10),
@@ -33,9 +39,6 @@ const styles = (props = null) => {
     addressText: {
       flexShrink: 1
     },
-    addressColor,
-    placeholderColor,
-    inactiveIcon,
     toggleContainer: {
       flexDirection: props?.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
@@ -75,6 +78,7 @@ const styles = (props = null) => {
       flex: 1
     }
   })
+  }
 }
 
 export default styles

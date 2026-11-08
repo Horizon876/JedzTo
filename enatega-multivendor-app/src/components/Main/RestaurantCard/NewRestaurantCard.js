@@ -239,7 +239,7 @@ function NewRestaurantCard(props) {
                 </View>
               ) : null}
 
-              {props?.address ? (
+              {props?.address && Platform.OS !== 'web' ? (
                 <View style={styles(currentTheme).metaRow}>
                   <Ionicons name='location-outline' size={14} color={MUTED} />
                   <TextDefault numberOfLines={2} small textColor={MUTED} style={styles().metaText}>

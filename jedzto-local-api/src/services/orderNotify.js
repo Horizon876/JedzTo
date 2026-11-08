@@ -3,7 +3,7 @@ import { pubsub } from '../graphql/orderPubsub.js'
 
 const ORDER_CHANGED = 'ORDER_CHANGED'
 
-const ONLINE_CARD = new Set(['STRIPE', 'PAYPAL', 'AUTOPAY'])
+const ONLINE_CARD = new Set(['STRIPE', 'PAYPAL'])
 
 export const isOnlineCardMethod = (method) =>
   ONLINE_CARD.has(String(method || '').toUpperCase())
@@ -14,7 +14,7 @@ export const kitchenOrdersMongoFilter = (restaurantId) => ({
   $nor: [
     {
       paymentMethod: {
-        $in: ['STRIPE', 'PAYPAL', 'AUTOPAY', 'stripe', 'paypal', 'autopay']
+        $in: ['STRIPE', 'PAYPAL', 'stripe', 'paypal']
       },
       paymentStatus: { $nin: ['PAID', 'paid'] }
     }

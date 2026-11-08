@@ -9,7 +9,7 @@ import * as Notifications from 'expo-notifications'
 import * as Updates from 'expo-updates'
 import Constants from 'expo-constants'
 import React, { useEffect, useMemo, useReducer, useState } from 'react'
-import { ActivityIndicator, AppState, BackHandler, StatusBar, StyleSheet, View, useColorScheme } from 'react-native'
+import { ActivityIndicator, AppState, BackHandler, Platform, StatusBar, StyleSheet, View, useColorScheme } from 'react-native'
 import { resolveThemeValue } from './src/ui/hooks/useTheme'
 import { THEME_PREFERENCE_KEY } from './src/ui/ThemeReducer/ThemeReducer'
 import { statusBarStyleForTheme } from './src/utils/statusBar'
@@ -92,6 +92,7 @@ export default function App() {
     }
   }, [GRAPHQL_URL])
 
+  // expo-keep-awake is a no-op on web; safe to call unconditionally.
   useKeepAwake()
 
   // Default: follow system appearance (light/dark). Settings can force Pink/Dark.
@@ -128,8 +129,21 @@ export default function App() {
     }
 
     loadAppData()
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', exitAlert);
-
+    if (Platform.OS === 'web') {
+      if (typeof document !== 'undefined') {
+        document.title = 'JedzTo'
+        const style = document.createElement('style')
+        style.setAttribute('data-jedzto-web', '1')
+        style.textContent = `
+          html, body, #root { height: 100%; margin: 0; background: #121212; }
+          body { overflow-x: hidden; }
+          #root { display: flex; flex-direction: column; }
+        `
+        document.head.appendChild(style)
+      }
+      return undefined
+    }
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', exitAlert)
 
     return () => {
       backHandler.remove()
@@ -170,7 +184,14 @@ export default function App() {
     // it there throws a hard "Invariant Violation" from NativeEventEmitter
     // during module evaluation, so we must skip it entirely when running
     // inside Expo Go rather than relying on try/catch around the import.
-    if (!CLARITY_ENABLED || clarityInitialized || Constants.appOwnership === 'expo') return
+    if (
+      !CLARITY_ENABLED ||
+      clarityInitialized ||
+      Platform.OS === 'web' ||
+      Constants.appOwnership === 'expo'
+    ) {
+      return
+    }
 
     let isMounted = true
 
@@ -244,10 +265,26 @@ export default function App() {
     )
   }
 
+  const shellStyle =
+    Platform.OS === 'web'
+      ? { flex: 1, width: '100%', backgroundColor: Theme[theme].themeBackground }
+      : {
+          flex: 1,
+          maxWidth: 430,
+          width: '100%',
+          alignSelf: 'center',
+          backgroundColor: Theme[theme].themeBackground,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.1,
+          shadowRadius: 10,
+          elevation: 5
+        }
+
   return (
     <ErrorBoundary>
       <View style={{ flex: 1, backgroundColor: Theme[theme].themeBackground }}>
-        <View style={{ flex: 1, maxWidth: 600, width: '100%', alignSelf: 'center', backgroundColor: Theme[theme].themeBackground, shadowColor: '#000', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
+        <View style={shellStyle}>
           <GestureHandlerRootView style={styles.flex}>
             <AnimatedSplashScreen>
           <ApolloProvider client={client}>

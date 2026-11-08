@@ -46,8 +46,18 @@ module.exports = () => {
       resizeMode: "cover",
         "backgroundColor": "#000000"
     },
-    platforms: ['ios', 'android'],
+    platforms: ['ios', 'android', 'web'],
     orientation: 'portrait',
+    web: {
+      bundler: 'metro',
+      favicon: './assets/appIcon.png',
+      name: 'JedzTo',
+      shortName: 'JedzTo',
+      lang: 'pl',
+      themeColor: '#00A8FF',
+      backgroundColor: '#121212',
+      description: 'JedzTo — zamawiaj jedzenie online'
+    },
     icon: './assets/appIcon.png',
     assetBundlePatterns: ['**/*'],
     userInterfaceStyle: 'automatic',

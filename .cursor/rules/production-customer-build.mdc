@@ -1,0 +1,31 @@
+---
+description: Next production customer-app store build (MacBook). Follow when user asks to build/release the customer app.
+alwaysApply: true
+---
+
+# Production customer app build
+
+**Tag:** `production-customer-build-2026-11-08`  
+**App:** `enatega-multivendor-app` (JedzTo customer / Expo)  
+**API:** production `https://jedzto-api.onrender.com` (`APP_ENV=production`)
+
+## What to build on MacBook
+
+When the user asks to build for production / App Store / Play Store / EAS:
+
+1. Work from the tagged commit (or `main` after pull if tag is on tip).
+2. Build **customer app only** (`enatega-multivendor-app`), not rider/kitchen/admin unless asked.
+3. Use **production** profile / `APP_ENV=production` — do **not** point at localhost API.
+4. Online payments: **Stripe only** (Autopay removed).
+5. Prefer EAS production profiles already in the project (`eas build --profile production`).
+
+## Notable changes in this candidate
+
+- Expo web customer site (full-bleed, top nav, no Autopay).
+- Autopay gateway removed from API + app; Stripe kept.
+- Admin session hardening already on `main` (earlier commits).
+
+## Do not
+
+- Do not rebuild using local `jedzto-local-api` for store binaries.
+- Do not reintroduce Autopay unless explicitly requested.

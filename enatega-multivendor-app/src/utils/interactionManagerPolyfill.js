@@ -35,9 +35,22 @@ const InteractionManager = {
   }
 }
 
-Object.defineProperty(ReactNative, 'InteractionManager', {
-  configurable: true,
-  enumerable: true,
-  writable: true,
-  value: InteractionManager
-})
+const existing = Object.getOwnPropertyDescriptor(ReactNative, 'InteractionManager')
+if (!existing || existing.configurable) {
+  try {
+    Object.defineProperty(ReactNative, 'InteractionManager', {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: InteractionManager
+    })
+  } catch {
+    // Web / RN-web may expose a non-configurable InteractionManager — leave it.
+  }
+} else if (!ReactNative.InteractionManager?.runAfterInteractions) {
+  try {
+    ReactNative.InteractionManager = InteractionManager
+  } catch {
+    /* ignore */
+  }
+}

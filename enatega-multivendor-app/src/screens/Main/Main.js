@@ -43,6 +43,11 @@ import {
   jedzToLocalRestaurantsEnabled
 } from '../../utils/jedztoLocalRestaurants'
 import { restaurantMatchesCuisine } from '../../utils/cuisineMatch'
+import {
+  webContentContainer,
+  webRestaurantCardWrap,
+  webRestaurantGrid
+} from '../../utils/webLayout'
 
 const RESTAURANTS = gql`
   ${restaurantListPreview}
@@ -489,7 +494,7 @@ function Main(props) {
       ) : (
         <SafeAreaView
           edges={['left', 'right']}
-          style={[styles().flex, { backgroundColor: '#121212' }]}
+          style={[styles().flex, { backgroundColor: '#121212' }, Platform.OS === 'web' && { paddingTop: 64 }]}
         >
           <View style={[styles().flex, { backgroundColor: '#121212' }]}>
             <View style={styles().flex}>
@@ -503,29 +508,43 @@ function Main(props) {
                       refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor='#FFFFFF' />}
                     >
                       <View style={{ backgroundColor: '#222222', borderBottomWidth: 1, borderBottomColor: '#3A3A3A' }}>
-                        <DiscoveryHero
-                          currentTheme={currentTheme}
-                          addressLabel={heroAddressLabel}
-                          onAddressPress={handleChangeAddressFromEmpty}
-                          isPickup={isPickup}
-                          pickupOnly={pickupOnlyBrowsing}
-                          onToggleOrderType={handleToggleOrderType}
-                          onSearchPress={handleHeroSearchPress}
-                        />
-                        <TasteCategories
-                          selectedCuisine={selectedCuisine}
-                          onCuisinePress={handleTasteCuisinePress}
-                        />
+                        <View style={webContentContainer}>
+                          <DiscoveryHero
+                            currentTheme={currentTheme}
+                            addressLabel={heroAddressLabel}
+                            onAddressPress={handleChangeAddressFromEmpty}
+                            isPickup={isPickup}
+                            pickupOnly={pickupOnlyBrowsing}
+                            onToggleOrderType={handleToggleOrderType}
+                            onSearchPress={handleHeroSearchPress}
+                          />
+                          <TasteCategories
+                            selectedCuisine={selectedCuisine}
+                            onCuisinePress={handleTasteCuisinePress}
+                          />
+                        </View>
                       </View>
-                      <View style={{ gap: scale(16), backgroundColor: '#121212', paddingTop: scale(12), paddingHorizontal: scale(16) }}>
+                      <View
+                        style={[
+                          {
+                            backgroundColor: '#121212',
+                            paddingTop: scale(12),
+                            paddingHorizontal: scale(16)
+                          },
+                          webContentContainer,
+                          webRestaurantGrid
+                        ]}
+                      >
                         {restaurantordersLoading || isRefreshing ? (
                           <MainLoadingUI />
                         ) : sortedRestaurantOrders.length > 0 ? (
                           sortedRestaurantOrders.map((item) => (
-                            <NewRestaurantCard key={item._id} {...item} fullWidth isOpen={isOpen(item)} />
+                            <View key={item._id} style={webRestaurantCardWrap}>
+                              <NewRestaurantCard {...item} fullWidth isOpen={isOpen(item)} />
+                            </View>
                           ))
                         ) : (
-                          <TextDefault center textColor='#9CA3AF' style={{ paddingVertical: scale(24) }}>
+                          <TextDefault center textColor='#9CA3AF' style={{ paddingVertical: scale(24), width: '100%' }}>
                             {t('noRestaurants')}
                           </TextDefault>
                         )}
