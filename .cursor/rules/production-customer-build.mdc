@@ -7,7 +7,7 @@ alwaysApply: true
 
 **Tag:** `production-customer-build-2026-11-08`  
 **App:** `enatega-multivendor-app` (JedzTo customer / Expo)  
-**API:** production `https://jedzto-api.onrender.com` (`APP_ENV=production`)
+**API:** production `https://jedzto-production.up.railway.app` (`APP_ENV=production`)
 
 ## What to build on MacBook
 

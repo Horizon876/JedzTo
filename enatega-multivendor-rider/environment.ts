@@ -5,7 +5,8 @@ import { Platform } from "react-native";
 // Kitchen + rider apps share this package. Role is locked by EXPO_PUBLIC_APP_ROLE
 // (kitchen | delivery). Use npm run start:kitchen / start:rider.
 const PROD_API_HTTP = (
-  process.env.EXPO_PUBLIC_JEDZTO_API_URL || "https://jedzto-api.onrender.com"
+  process.env.EXPO_PUBLIC_JEDZTO_API_URL ||
+  "https://jedzto-production.up.railway.app"
 ).replace(/\/$/, "");
 const PROD_API_WS = PROD_API_HTTP.replace(/^https:/, "wss:").replace(
   /^http:/,

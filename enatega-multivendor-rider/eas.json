@@ -45,7 +45,7 @@
         "APP_ENV": "production",
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_APP_ROLE": "kitchen",
-        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-api.onrender.com"
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-production.up.railway.app"
       }
     },
     "kitchen": {
@@ -58,7 +58,7 @@
         "APP_ENV": "production",
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_APP_ROLE": "kitchen",
-        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-api.onrender.com"
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-production.up.railway.app"
       }
     },
     "rider": {
@@ -71,7 +71,7 @@
         "APP_ENV": "production",
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_APP_ROLE": "delivery",
-        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-api.onrender.com"
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-production.up.railway.app"
       }
     }
   },

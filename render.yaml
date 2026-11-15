@@ -28,7 +28,7 @@ services:
       - key: ALLOW_TEST_OTP
         value: '0'
       - key: PUBLIC_API_URL
-        value: https://api.jedzto.com
+        value: https://jedzto-production.up.railway.app
       - key: ALLOWED_ORIGINS
         value: https://admin.jedzto.com,https://jedzto.com
       - key: JWT_SECRET

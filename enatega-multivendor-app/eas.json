@@ -19,7 +19,9 @@
       "channel": "staging",
       "distribution": "internal",
       "env": {
-        "APP_ENV": "staging"
+        "APP_ENV": "staging",
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-production.up.railway.app"
       },
       "android": {
         "buildType": "apk"
@@ -28,7 +30,9 @@
     "production": {
       "channel": "production",
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_JEDZTO_API_URL": "https://jedzto-production.up.railway.app"
       },
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"

@@ -5,8 +5,8 @@
 const API_CANDIDATES = [
   process.env.E2E_API_BASE,
   'http://127.0.0.1:8201',
-  'https://api.jedzto.com',
-  'https://jedzto-api.onrender.com'
+  'https://jedzto-production.up.railway.app',
+  'https://api.jedzto.com'
 ].filter(Boolean)
 
 const ok = (label, condition, detail = '') => {

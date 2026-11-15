@@ -10,10 +10,10 @@ const LOCAL_API_WS = LOCAL_API_TUNNEL_URL
   ? LOCAL_API_TUNNEL_URL.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:')
   : `ws://${LOCAL_API_HOST}:8001`
 
-// Prefer explicit override (useful until custom-domain DNS points at Render).
+// Prefer explicit override (useful until custom-domain DNS points at Railway).
 const PROD_API_HTTP = (
   process.env.EXPO_PUBLIC_JEDZTO_API_URL ||
-  'https://jedzto-api.onrender.com'
+  'https://jedzto-production.up.railway.app'
 ).replace(/\/$/, '')
 const PROD_API_WS = PROD_API_HTTP.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:')
 

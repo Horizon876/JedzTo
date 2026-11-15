@@ -19,7 +19,7 @@ const contentSecurityPolicy = [
   // Do NOT add unsafe-eval here — admin panel does not require eval().
   "style-src 'self' 'unsafe-inline' https:",
   "script-src 'self' 'unsafe-inline' https:",
-  // https:/wss: already cover api.jedzto.com — kept explicit localhost too so
+  // https:/wss: cover Railway + any custom API host; localhost kept so
   // `next build` with NODE_ENV=production still works against a local API.
   "connect-src 'self' https: wss: ws: http://localhost:8001 http://127.0.0.1:8001",
   "frame-src 'self' https:",
@@ -83,6 +83,7 @@ const nextConfig = {
       { protocol: 'http', hostname: 'localhost', port: '8001', pathname: '/uploads/**' },
       { protocol: 'http', hostname: '127.0.0.1', port: '8001', pathname: '/uploads/**' },
       // Production API uploads (local-disk fallback when Cloudinary isn't set)
+      { protocol: 'https', hostname: 'jedzto-production.up.railway.app', pathname: '/uploads/**' },
       { protocol: 'https', hostname: 'api.jedzto.com', pathname: '/uploads/**' },
     ],
   },
