@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Production customer app build
 
-**Tag:** `production-customer-build-2026-11-08`  
+**Tag:** `production-customer-build-2026-11-15`  
 **App:** `enatega-multivendor-app` (JedzTo customer / Expo)  
 **API:** production `https://jedzto-production.up.railway.app` (`APP_ENV=production`)
 
@@ -21,9 +21,10 @@ When the user asks to build for production / App Store / Play Store / EAS:
 
 ## Notable changes in this candidate
 
-- Expo web customer site (full-bleed, top nav, no Autopay).
-- Autopay gateway removed from API + app; Stripe kept.
-- Admin session hardening already on `main` (earlier commits).
+- Railway production API for all clients.
+- iOS `aps-environment` = `production` for store / EAS production builds.
+- Privacy + terms HTTPS on `jedzto.com` (ASCII paths `/polityka-prywatnosci`, `/regulamin`).
+- Stripe only (Autopay removed).
 
 ## Do not
 

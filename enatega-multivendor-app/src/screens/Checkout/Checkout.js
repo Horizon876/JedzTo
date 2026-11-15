@@ -45,7 +45,7 @@ import ErrorView from '../../components/ErrorView/ErrorView'
 import { endEphemeralGuestAfterOrder } from '../../utils/customerDetailsStorage'
 
 const FALLBACK_TERMS_URL = 'https://jedzto.com/regulamin'
-const FALLBACK_PRIVACY_URL = 'https://jedzto.com/polityka-prywatności'
+const FALLBACK_PRIVACY_URL = 'https://jedzto.com/polityka-prywatnosci'
 
 const PLACEORDER = gql`
   ${placeOrder}

@@ -95,7 +95,7 @@ function Account(props) {
   const { isConnected: connect, setIsConnected: setConnect } = useNetworkStatus()
   const { profile, loadingProfile, errorProfile } = useContext(UserContext)
   const termsUrl = 'https://jedzto.com/regulamin'
-  const privacyUrl = 'https://jedzto.com/polityka-prywatności'
+  const privacyUrl = 'https://jedzto.com/polityka-prywatnosci'
   const [mutate, { loading }] = useMutation(UPDATE_NOTIFICATION_TOKEN, {
     onCompleted,
     onError

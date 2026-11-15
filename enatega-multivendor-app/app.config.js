@@ -69,7 +69,12 @@ module.exports = () => {
       },
       entitlements: {
         'com.apple.developer.networking.wifi-info': true,
-        'aps-environment': 'development'
+        // Store / EAS production builds must use production push environment.
+        'aps-environment':
+          process.env.APP_ENV === 'production' ||
+          process.env.EAS_BUILD_PROFILE === 'production'
+            ? 'production'
+            : 'development'
       },
       supportsTablet: true,
       userInterfaceStyle: 'automatic',

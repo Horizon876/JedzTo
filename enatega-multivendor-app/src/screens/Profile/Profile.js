@@ -23,7 +23,7 @@ import useEnvVars from '../../../environment'
 import styles, { ACCENT } from './styles'
 
 const FALLBACK_TERMS_URL = 'https://jedzto.com/regulamin'
-const FALLBACK_PRIVACY_URL = 'https://jedzto.com/polityka-prywatności'
+const FALLBACK_PRIVACY_URL = 'https://jedzto.com/polityka-prywatnosci'
 
 const SectionHeader = ({ title, themedStyles }) => (
   <View style={themedStyles.sectionHeader}>
