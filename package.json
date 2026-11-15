@@ -5,6 +5,8 @@
   "scripts": {
     "api": "npm --prefix jedzto-local-api start",
     "api:dev": "npm --prefix jedzto-local-api run dev",
+    "build": "npm --prefix jedzto-local-api ci --omit=dev",
+    "start": "npm --prefix jedzto-local-api start",
     "app": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-expo-lan.ps1 -Target app",
     "kitchen": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-expo-lan.ps1 -Target kitchen",
     "fix:metro": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/fix-metro-cache.ps1",
@@ -12,5 +14,8 @@
     "install:api": "npm --prefix jedzto-local-api install",
     "install:app": "npm --prefix enatega-multivendor-app install",
     "install:kitchen": "npm --prefix enatega-multivendor-rider install"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
